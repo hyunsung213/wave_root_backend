@@ -20,6 +20,16 @@ const plantSchema = new mongoose.Schema(
       trim: true,
       maxlength: 100
     },
+    growthTargetDays: {
+      type: Number,
+      default: 60,
+      min: 1,
+      max: 3650,
+      validate: {
+        validator: (value) => Number.isInteger(value),
+        message: 'growthTargetDays must be an integer between 1 and 3650.'
+      }
+    },
     streamingPort: {
       type: Number,
       default: 5000,

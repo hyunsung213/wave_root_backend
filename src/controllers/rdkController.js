@@ -6,14 +6,22 @@ const asyncHandler = require('../utils/asyncHandler');
 const { findPlant } = require('../utils/plant');
 const { requireObjectId, requireNumber } = require('../utils/validation');
 
+function requireSensorNumber(value, fieldName, min, max) {
+  const number = requireNumber(value, fieldName);
+  if (number < min || number > max) {
+    throw new AppError(`${fieldName} must be between ${min} and ${max}.`, 400);
+  }
+  return number;
+}
+
 const createLog = asyncHandler(async (req, res) => {
   const plantId = requireObjectId(req.body.plantId, 'plantId');
-  const degree = requireNumber(req.body.degree, 'degree');
-  const moisture_soil = requireNumber(req.body.moisture_soil, 'moisture_soil');
-  const moisture_air = requireNumber(req.body.moisture_air, 'moisture_air');
+  const degree = requireSensorNumber(req.body.degree, 'degree', -50, 100);
+  const moisture_soil = requireSensorNumber(req.body.moisture_soil, 'moisture_soil', 0, 4095);
+  const moisture_air = requireSensorNumber(req.body.moisture_air, 'moisture_air', 0, 100);
   const rux = req.body.rux === undefined || req.body.rux === null
     ? null
-    : requireNumber(req.body.rux, 'rux');
+    : requireSensorNumber(req.body.rux, 'rux', 0, 200000);
   await findPlant(plantId);
 
   const log = await Log.create({ plantId, degree, moisture_soil, moisture_air, rux });

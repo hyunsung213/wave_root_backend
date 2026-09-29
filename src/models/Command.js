@@ -13,6 +13,12 @@ const commandSchema = new mongoose.Schema(
       ref: 'User',
       required: true
     },
+    idempotencyKey: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: null
+    },
     type: {
       type: String,
       enum: ['WATER'],
@@ -36,5 +42,9 @@ const commandSchema = new mongoose.Schema(
 );
 
 commandSchema.index({ plantId: 1, status: 1, createdAt: 1 });
+commandSchema.index(
+  { requestedBy: 1, idempotencyKey: 1 },
+  { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
+);
 
 module.exports = mongoose.model('Command', commandSchema);

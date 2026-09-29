@@ -41,8 +41,20 @@ function requireDate(value, fieldName) {
 }
 
 function getPagination(query) {
-  const page = Number.parseInt(query.page, 10) || 1;
-  const limit = Number.parseInt(query.limit, 10) || 30;
+  const parsePositiveInteger = (value, fieldName, defaultValue) => {
+    if (value === undefined) return defaultValue;
+    if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value)) {
+      throw new AppError(`${fieldName} must be a positive integer.`, 400);
+    }
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed)) {
+      throw new AppError(`${fieldName} must be a positive integer.`, 400);
+    }
+    return parsed;
+  };
+
+  const page = parsePositiveInteger(query.page, 'page', 1);
+  const limit = parsePositiveInteger(query.limit, 'limit', 30);
 
   if (page < 1 || limit < 1 || limit > 100) {
     throw new AppError('page must be >= 1 and limit must be between 1 and 100.', 400);
@@ -51,10 +63,30 @@ function getPagination(query) {
   return { page, limit, skip: (page - 1) * limit };
 }
 
+function getPositiveIntegerQuery(value, fieldName, defaultValue, max) {
+  if (value === undefined) return defaultValue;
+  if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value)) {
+    throw new AppError(`${fieldName} must be a positive integer.`, 400);
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || (max !== undefined && parsed > max)) {
+    throw new AppError(`${fieldName} must be an integer between 1 and ${max}.`, 400);
+  }
+  return parsed;
+}
+
 module.exports = {
   requireObjectId,
   requireNonEmptyString,
   requireNumber,
   requireDate,
-  getPagination
+  getPagination,
+  getPositiveIntegerQuery,
+  requirePositiveInteger(value, fieldName, { max } = {}) {
+    if (!Number.isInteger(value) || value < 1 || (max !== undefined && value > max)) {
+      const suffix = max === undefined ? 'a positive integer' : `an integer between 1 and ${max}`;
+      throw new AppError(`${fieldName} must be ${suffix}.`, 400);
+    }
+    return value;
+  }
 };

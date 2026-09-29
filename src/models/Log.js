@@ -7,10 +7,10 @@ const logSchema = new mongoose.Schema(
       ref: 'Plant',
       required: true
     },
-    degree: { type: Number, required: true },
-    moisture_soil: { type: Number, required: true },
-    moisture_air: { type: Number, required: true },
-    rux: { type: Number, default: null }
+    degree: { type: Number, required: true, min: -50, max: 100 },
+    moisture_soil: { type: Number, required: true, min: 0, max: 4095 },
+    moisture_air: { type: Number, required: true, min: 0, max: 100 },
+    rux: { type: Number, default: null, min: 0, max: 200000 }
   },
   { timestamps: true }
 );

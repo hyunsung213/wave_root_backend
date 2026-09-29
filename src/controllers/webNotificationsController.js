@@ -1,4 +1,5 @@
 const Notification = require('../models/Notification');
+const { NOTIFICATION_TYPES } = Notification;
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const {
@@ -11,6 +12,9 @@ const {
 const createNotification = asyncHandler(async (req, res) => {
   const title = requireNonEmptyString(req.body.title, 'title', 120);
   const type = requireNonEmptyString(req.body.type, 'type', 40).toUpperCase();
+  if (!NOTIFICATION_TYPES.includes(type)) {
+    throw new AppError(`type must be one of: ${NOTIFICATION_TYPES.join(', ')}.`, 400);
+  }
   const content = requireNonEmptyString(req.body.content, 'content', 2000);
   const notifyAt = req.body.notifyAt === undefined
     ? new Date()
@@ -28,6 +32,9 @@ const createNotification = asyncHandler(async (req, res) => {
 });
 
 const getNotifications = asyncHandler(async (req, res) => {
+  if (req.query.unreadOnly !== undefined && !['true', 'false'].includes(req.query.unreadOnly)) {
+    throw new AppError('unreadOnly must be true or false.', 400);
+  }
   const { page, limit, skip } = getPagination(req.query);
   const filter = { userId: req.user._id };
 
@@ -51,14 +58,16 @@ const getNotifications = asyncHandler(async (req, res) => {
 
 const markNotificationRead = asyncHandler(async (req, res) => {
   const notificationId = requireObjectId(req.params.notificationId, 'notificationId');
-  const notification = await Notification.findOneAndUpdate(
-    { _id: notificationId, userId: req.user._id },
-    { $set: { isRead: true, readAt: new Date() } },
-    { new: true }
-  );
+  const notification = await Notification.findOne({ _id: notificationId, userId: req.user._id });
 
   if (!notification) {
     throw new AppError('Notification not found.', 404);
+  }
+
+  if (!notification.isRead) {
+    notification.isRead = true;
+    notification.readAt = new Date();
+    await notification.save();
   }
 
   res.json({ success: true, notification });

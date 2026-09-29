@@ -4,3 +4,4 @@ coverage/
 npm-debug.log*
 
 uploads/
+__pycache__/

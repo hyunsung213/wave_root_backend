@@ -34,6 +34,14 @@ test('event imageUrl is optional and defaults to null', () => {
 
 test('plant streamingPort defaults to port 5000', () => {
   assert.equal(Plant.schema.path('streamingPort').defaultValue, 5000);
+  assert.equal(Plant.schema.path('growthTargetDays').defaultValue, 60);
+});
+
+test('notification type is restricted to the documented enum', () => {
+  assert.deepEqual(Notification.schema.path('type').enumValues, [
+    'GROWTH', 'WATER', 'HARVEST', 'SENSOR', 'INFO'
+  ]);
+  assert.equal(Notification.schema.path('isRead').defaultValue, false);
 });
 
 test('user activity counters default to zero', () => {

@@ -1,9 +1,11 @@
 const fs = require('fs/promises');
+const path = require('path');
 const Event = require('../models/Event');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { findOwnedPlant } = require('../utils/plant');
 const { recordUserActivity } = require('../services/userActivity');
+const { eventUploadDirectory } = require('../middlewares/eventUpload');
 const {
   getPagination,
   requireDate,
@@ -26,6 +28,20 @@ async function removeUploadedImage(file) {
     if (error.code !== 'ENOENT') {
       console.error('Failed to remove orphaned event image:', error);
     }
+  }
+}
+
+async function removeImageUrl(imageUrl) {
+  if (!imageUrl) return;
+  const parsed = new URL(imageUrl, 'http://localhost');
+  const filename = path.basename(parsed.pathname);
+  const uploadRoot = path.resolve(eventUploadDirectory);
+  const target = path.resolve(uploadRoot, filename);
+  if (!target.startsWith(`${uploadRoot}${path.sep}`)) return;
+  try {
+    await fs.unlink(target);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
   }
 }
 
@@ -80,4 +96,13 @@ const getEvents = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { createEvent, getEvents };
+const deleteEvent = asyncHandler(async (req, res) => {
+  const eventId = requireObjectId(req.params.eventId, 'eventId');
+  const event = await Event.findOne({ _id: eventId, userId: req.user._id });
+  if (!event) throw new AppError('Event not found.', 404);
+  await removeImageUrl(event.imageUrl);
+  await event.deleteOne();
+  res.json({ success: true, message: 'Event deleted.' });
+});
+
+module.exports = { createEvent, getEvents, deleteEvent };

@@ -7,7 +7,7 @@
 | 항목 | 값 |
 | --- | --- |
 | 개발 서버 기본 주소 | `http://localhost:5000` |
-| 실제 서버 주소 예시 | `http://192.168.200.182:5000` |
+| 실제 서버 주소 예시 | `http://172.16.240.102:5000` |
 | 응답 형식 | JSON |
 | 웹 API 접두사 | `/api/web` |
 | RDK 기기 API 접두사 | `/api/rdk` |
@@ -41,26 +41,30 @@ const response = await api.get("/api/web/plants", { headers });
 
 ### RDK API
 
-현재 `/api/rdk/*` API는 앱 수준 API 키를 사용하지 않습니다. RDK 전용 API는 프론트에서 직접 호출하지 말고, 사설망 또는 방화벽으로 접근을 제한해야 합니다.
+운영 환경의 `/api/rdk/*`에는 `X-RDK-API-Key: <RDK_API_KEY>` 또는 `Authorization: Bearer <RDK_API_KEY>`가 필요합니다. 개발 환경에서 키가 미설정이면 기존 하드웨어 테스트 호환을 위해 인증을 생략할 수 있습니다. RDK 전용 API는 프론트에서 직접 호출하지 않습니다.
 
 ### 2.1 API 빠른 목록
 
 | 구분 | 메서드 | 경로 | 인증 | 용도 |
 | --- | --- | --- | --- | --- |
 | 공통 | GET | `/health` | 없음 | 서버 상태 확인 |
+| 공통 | GET | `/health/ready` | 없음 | MongoDB readiness 확인 |
 | 인증 | POST | `/api/web/users/signup` | 없음 | 회원가입 및 JWT 발급 |
 | 인증 | POST | `/api/web/users/login` | 없음 | 로그인 및 JWT 발급 |
 | 사용자 | GET | `/api/web/users/me` | Bearer JWT | 내 사용자 정보 조회 |
+| 사용자 | PATCH | `/api/web/users/me` | Bearer JWT | 이름·전화번호 수정 |
 | 사용자 | PATCH | `/api/web/users/password` | Bearer JWT | 현재 비밀번호 확인 후 변경 |
 | 식물 | POST | `/api/web/plants` | Bearer JWT | 식물 생성·스트리밍 포트 저장 |
 | 식물 | GET | `/api/web/plants` | Bearer JWT | 내 식물 목록 |
 | 식물 | GET | `/api/web/plants/with-records` | Bearer JWT | 식물·급수·성장 기록 통합 조회 |
 | 식물 | GET | `/api/web/plants/:plantId` | Bearer JWT | 단일 식물·스트리밍 URL 조회 |
 | 식물 | PATCH | `/api/web/plants/:plantId` | Bearer JWT | 식물 정보·스트리밍 포트 수정 |
+| 식물 | DELETE | `/api/web/plants/:plantId` | Bearer JWT | 식물 및 연결 기록 cascade 삭제 |
 | 센서 | GET | `/api/web/plants/:plantId/current` | Bearer JWT | RDK 최신 센서값 조회 |
 | 센서 | GET | `/api/web/logs/:plantId` | Bearer JWT | 10분 평균 센서 로그 조회 |
 | 성장 | POST | `/api/web/events` | Bearer JWT | 성장 이벤트·이미지 등록 |
 | 성장 | GET | `/api/web/events/:plantId` | Bearer JWT | 성장 타임라인 조회 |
+| 성장 | DELETE | `/api/web/events/:eventId` | Bearer JWT | 이벤트 및 이미지 파일 삭제 |
 | 급수 | POST | `/api/web/control/water` | Bearer JWT | 급수 명령 생성 |
 | 급수 | GET | `/api/web/water/:plantId` | Bearer JWT | 완료된 급수 이력 조회 |
 | 활동 | GET | `/api/web/activity` | Bearer JWT | 사용자 활동 카운터 조회 |
@@ -99,6 +103,7 @@ const response = await api.get("/api/web/plants", { headers });
 | `401` | JWT가 없거나 만료됨 |
 | `404` | 대상 식물·명령을 찾을 수 없음 |
 | `409` | 이메일 중복 또는 처리할 수 없는 명령 상태 |
+| `429` | API rate limit 초과 |
 | `503` | RDK 실시간 게이트웨이를 사용할 수 없음 |
 
 ## 4. 프론트엔드용 API
@@ -127,6 +132,7 @@ Content-Type: application/json
 
 ```json
 {
+  "name": "홍길동",
   "email": "user@example.com",
   "phone": "010-1234-5678",
   "pwd": "password1234"
@@ -145,6 +151,7 @@ Content-Type: application/json
   "user": {
     "_id": "사용자 ObjectId",
     "email": "user@example.com",
+    "name": "홍길동",
     "phone": "010-1234-5678",
     "isSocial": false,
     "createdAt": "2026-07-25T00:00:00.000Z",
@@ -198,6 +205,7 @@ Authorization: Bearer <accessToken>
   "user": {
     "_id": "사용자 ObjectId",
     "email": "user@example.com",
+    "name": "홍길동",
     "phone": "010-1234-5678",
     "isSocial": false,
     "createdAt": "...",
@@ -233,6 +241,21 @@ Content-Type: application/json
   "accessToken": "새 JWT"
 }
 ```
+### 4.3.3 프로필 수정
+
+```http
+PATCH /api/web/users/me
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{
+  "name": "새 이름",
+  "phone": "010-1234-5678"
+}
+```
+
+`name`, `phone` 중 하나 이상을 보내야 합니다. `null`을 보내면 해당 값을 비울 수 있으며 성공 응답에는 수정된 `user`가 포함됩니다.
+
 ### 4.4 식물 생성
 
 ```http
@@ -334,11 +357,11 @@ Authorization: Bearer <accessToken>
 ### 4.5.1 식물별 급수·성장 기록 통합 조회
 
 ```http
-GET /api/web/plants/with-records
+GET /api/web/plants/with-records?recordLimit=30
 Authorization: Bearer <accessToken>
 ```
 
-로그인 사용자의 모든 식물을 기준으로 식물 정보, 전체 급수 이력(`waterRecords`), 성장 이벤트(`eventRecords`)를 한 번에 반환합니다. 각 기록 배열은 최신순이며, 다른 사용자의 식물·기록은 포함되지 않습니다. 이 통합 API에는 페이지네이션이 없으므로 대시보드 초기 화면처럼 기록량이 적은 경우에 사용하고, 장기 이력·차트는 각각의 페이지네이션 API를 사용하세요.
+로그인 사용자의 모든 식물을 기준으로 식물 정보, 최근 급수 이력(`waterRecords`), 성장 이벤트(`eventRecords`)를 한 번에 반환합니다. 각 기록 배열은 최신순이며 기본 30개로 제한됩니다. `recordLimit=1~100`으로 제한을 조정할 수 있습니다.
 
 ```json
 {
@@ -349,6 +372,9 @@ Authorization: Bearer <accessToken>
       "name": "상추",
       "type": "청상추",
       "streamingPort": 5000,
+      "growthTargetDays": 60,
+      "growthDays": 12,
+      "growthPercent": 20,
       "createdAt": "...",
       "updatedAt": "...",
       "waterRecords": [
@@ -465,7 +491,7 @@ const { data } = await api.get(
 }
 ```
 
-`rux`는 조도 센서가 없는 RDK에서 `null`일 수 있습니다.
+`rux`는 조도 센서가 없는 RDK에서 `null`일 수 있습니다. `page`, `limit`, `recordLimit`은 양의 정수 문자열만 허용하며 0·음수·소수·문자열·최대치 초과는 `400`입니다.
 
 ### 4.8 물 주기 요청
 
@@ -483,6 +509,8 @@ Content-Type: application/json
 ```
 
 `volume`은 물의 양 또는 펌프 작동 기준값으로 사용합니다. 0 이상 숫자여야 합니다.
+
+동일 요청 재시도에 대한 중복 명령을 막으려면 `Idempotency-Key` 헤더를 추가합니다. 같은 사용자와 키로 다시 요청하면 기존 command를 `200`으로 반환합니다.
 
 성공 응답: `201 Created`
 
@@ -520,7 +548,7 @@ Content-Type: multipart/form-data
 | `title` | String | 예 | 최대 120자 |
 | `content` | String | 예 | 최대 2,000자 |
 | `eventDate` | ISO 8601 String | 아니오 | 생략 시 현재 시각 |
-| `image` | JPEG/PNG/WebP 파일 | 아니오 | 최대 5 MB, 백엔드 디스크에 저장 |
+| `image` | JPEG/PNG/WebP 파일 | 아니오 | 최대 5 MB, `EVENT_UPLOAD_DIR` 영속 디렉터리에 저장 |
 
 프론트 요청 예시:
 
@@ -567,6 +595,15 @@ Authorization: Bearer <accessToken>
 
 - `order=desc`(기본값)는 최신 이벤트부터, `order=asc`는 오래된 이벤트부터 반환합니다.
 - 응답 형식은 `{ "success": true, "events": [...], "pagination": {...} }`입니다.
+
+이벤트 삭제:
+
+```http
+DELETE /api/web/events/:eventId
+Authorization: Bearer <accessToken>
+```
+
+이벤트 소유권을 확인한 뒤 DB 레코드와 이미지 파일을 함께 삭제합니다.
 
 ### 4.10 급수 이력 조회
 
@@ -728,6 +765,7 @@ Content-Type: application/json
 
 - `rux`는 생략하거나 `null`로 보낼 수 있습니다.
 - 수치 필드는 유한한 숫자여야 합니다.
+- 운영 환경에서는 `X-RDK-API-Key: <RDK_API_KEY>` 헤더가 필요합니다. `degree`는 -50~100, `moisture_air`는 0~100, `moisture_soil`은 0~4095, `rux`는 0~200000 범위입니다.
 - 성공 시 저장된 `log`와 함께 `201`이 반환됩니다.
 
 ### 5.2 물 주기 명령 폴링
@@ -799,9 +837,11 @@ RDK 내부 동작:
 백엔드는 아래 환경변수로 RDK 주소를 알아야 합니다.
 
 ```env
-RDK_CURRENT_API_URL=http://<RDK_X5_IP>:5000/api/rdk/current
-RDK_STREAMING_BASE_URL=http://<RDK_X5_IP>/video_feed
-PUBLIC_BASE_URL=http://<BACKEND_IP>:5000
+RDK_CURRENT_API_URL=http://172.16.240.191:5000/api/rdk/current
+RDK_STREAMING_BASE_URL=http://172.16.240.191:5000/video_feed
+PUBLIC_BASE_URL=http://172.16.240.102:5000
+RDK_API_KEY=<RDK와 백엔드가 공유하는 긴 비밀키>
+EVENT_UPLOAD_DIR=./uploads/events
 ```
 
 중요: `/api/rdk/current`, `/video_feed`, `/api/rdk/pump`은 **RDK 머신의 Flask API**입니다. 프론트는 항상 백엔드의 JWT 보호 API를 사용해야 합니다.

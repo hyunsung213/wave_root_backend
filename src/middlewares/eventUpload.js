@@ -4,7 +4,9 @@ const path = require('path');
 const multer = require('multer');
 const AppError = require('../utils/AppError');
 
-const eventUploadDirectory = path.resolve(__dirname, '../../uploads/events');
+const eventUploadDirectory = path.resolve(
+  process.env.EVENT_UPLOAD_DIR || path.join(__dirname, '../../uploads/events')
+);
 fs.mkdirSync(eventUploadDirectory, { recursive: true });
 
 const extensionsByMimeType = new Map([
@@ -32,4 +34,4 @@ const uploadEventImage = multer({
   }
 });
 
-module.exports = { uploadEventImage };
+module.exports = { uploadEventImage, eventUploadDirectory };

@@ -4,7 +4,7 @@ function notFound(req, _res, next) {
   next(error);
 }
 
-function errorHandler(error, _req, res, _next) {
+function errorHandler(error, req, res, _next) {
   let statusCode = error.statusCode || 500;
   let message = error.message || 'Internal server error.';
 
@@ -33,7 +33,8 @@ function errorHandler(error, _req, res, _next) {
 
   res.status(statusCode).json({
     success: false,
-    message
+    message,
+    ...(req.requestId ? { requestId: req.requestId } : {})
   });
 }
 

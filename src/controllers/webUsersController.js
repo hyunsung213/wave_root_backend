@@ -6,6 +6,9 @@ const { createAccessToken } = require('../utils/jwt');
 const { requireNonEmptyString } = require('../utils/validation');
 
 const signup = asyncHandler(async (req, res) => {
+  const name = req.body.name === undefined || req.body.name === null
+    ? null
+    : requireNonEmptyString(req.body.name, 'name', 80);
   const email = requireNonEmptyString(req.body.email, 'email', 254).toLowerCase();
   const phone = req.body.phone === undefined || req.body.phone === null
     ? null
@@ -25,7 +28,7 @@ const signup = asyncHandler(async (req, res) => {
   }
 
   const pwd = await bcrypt.hash(password, 12);
-  const user = await User.create({ email, phone, pwd, isSocial: false });
+  const user = await User.create({ name, email, phone, pwd, isSocial: false });
   const accessToken = createAccessToken(user);
 
   res.status(201).json({ success: true, user, accessToken });
@@ -46,6 +49,27 @@ const login = asyncHandler(async (req, res) => {
 
 const getMe = asyncHandler(async (req, res) => {
   res.json({ success: true, user: req.user });
+});
+
+const updateProfile = asyncHandler(async (req, res) => {
+  const updates = {};
+  if (Object.hasOwn(req.body, 'name')) {
+    updates.name = req.body.name === null ? null : requireNonEmptyString(req.body.name, 'name', 80);
+  }
+  if (Object.hasOwn(req.body, 'phone')) {
+    updates.phone = req.body.phone === null ? null : requireNonEmptyString(req.body.phone, 'phone', 30);
+  }
+  if (Object.keys(updates).length === 0) {
+    throw new AppError('At least one of name or phone is required.', 400);
+  }
+
+  const user = await User.findByIdAndUpdate(req.user._id, { $set: updates }, {
+    new: true,
+    runValidators: true
+  });
+  if (!user) throw new AppError('User not found.', 404);
+
+  res.json({ success: true, user });
 });
 
 const changePassword = asyncHandler(async (req, res) => {
@@ -76,4 +100,4 @@ const changePassword = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Password updated.', accessToken });
 });
 
-module.exports = { signup, login, getMe, changePassword };
+module.exports = { signup, login, getMe, updateProfile, changePassword };

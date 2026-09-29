@@ -3,6 +3,7 @@
 Required environment variables:
   BACKEND_API_URL=http://<BACKEND_IP>:5000/api/rdk/logs
   PLANT_ID=<MongoDB Plant ObjectId>
+  RDK_API_KEY=<same value as backend RDK_API_KEY in production>
 """
 
 import json
@@ -22,6 +23,7 @@ PLANT_ID = os.environ.get("PLANT_ID", "")
 SERIAL_PORT = os.environ.get("SERIAL_PORT", "/dev/ttyUSB0")
 SERIAL_BAUD_RATE = int(os.environ.get("SERIAL_BAUD_RATE", "115200"))
 GATEWAY_PORT = int(os.environ.get("GATEWAY_PORT", "5001"))
+RDK_API_KEY = os.environ.get("RDK_API_KEY", "")
 
 # 2-second samples x 150 = the most recent five minutes.
 data_buffer = deque(maxlen=150)
@@ -50,7 +52,7 @@ def normalise_sensor_data(raw_data):
         "degree": read_number(raw_data, "degree"),
         "moisture_air": read_number(raw_data, "moisture_air"),
         "moisture_soil": read_number(raw_data, "moisture_soil"),
-        "rux": read_number(raw_data, "rux", required=False),
+        "rux": read_number({"rux": raw_data.get("rux", raw_data.get("lux"))}, "rux", required=False),
     }
 
 
@@ -109,7 +111,8 @@ def send_average_to_backend():
             del payload["rux"]
 
         try:
-            response = requests.post(BACKEND_API_URL, json=payload, timeout=5)
+            headers = {"X-RDK-API-Key": RDK_API_KEY} if RDK_API_KEY else {}
+            response = requests.post(BACKEND_API_URL, json=payload, headers=headers, timeout=5)
             response.raise_for_status()
             print(f"Average sensor data sent to backend (HTTP {response.status_code}).")
         except requests.RequestException as error:

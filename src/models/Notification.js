@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const NOTIFICATION_TYPES = ['GROWTH', 'WATER', 'HARVEST', 'SENSOR', 'INFO'];
+
 const notificationSchema = new mongoose.Schema(
   {
     userId: {
@@ -23,7 +25,8 @@ const notificationSchema = new mongoose.Schema(
       required: true,
       trim: true,
       uppercase: true,
-      maxlength: 40
+      maxlength: 40,
+      enum: NOTIFICATION_TYPES
     },
     content: {
       type: String,
@@ -46,3 +49,4 @@ const notificationSchema = new mongoose.Schema(
 notificationSchema.index({ userId: 1, notifyAt: -1, createdAt: -1 });
 
 module.exports = mongoose.model('Notification', notificationSchema);
+module.exports.NOTIFICATION_TYPES = NOTIFICATION_TYPES;
