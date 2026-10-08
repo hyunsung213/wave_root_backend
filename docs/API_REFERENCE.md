@@ -7,7 +7,7 @@
 | 항목 | 값 |
 | --- | --- |
 | 개발 서버 기본 주소 | `http://localhost:5000` |
-| 실제 서버 주소 예시 | `http://172.16.240.102:5000` |
+| 실제 서버 주소 | `https://<render-backend-host>` |
 | 응답 형식 | JSON |
 | 웹 API 접두사 | `/api/web` |
 | RDK 기기 API 접두사 | `/api/rdk` |
@@ -73,7 +73,8 @@ const response = await api.get("/api/web/plants", { headers });
 | 알림 | GET | `/api/web/notifications` | Bearer JWT | 알림 목록·미읽음 수 조회 |
 | 알림 | PATCH | `/api/web/notifications/:notificationId/read` | Bearer JWT | 알림 읽음 처리 |
 | 이미지 | GET | `/uploads/events/:filename` | 없음 | 업로드된 이벤트 이미지 표시 |
-| RDK | POST | `/api/rdk/logs` | 사설망 | 센서 평균 로그 저장 |
+| RDK | POST | `/api/rdk/current` | RDK API Key | 식물별 최신 센서 스냅샷 업서트 |
+| RDK | POST | `/api/rdk/logs` | RDK API Key | 센서 평균 로그 저장 |
 | RDK | GET | `/api/rdk/command/:plantId` | 사설망 | 대기 급수 명령 폴링 |
 | RDK | POST | `/api/rdk/water` | 사설망 | 급수 완료 보고 |
 ## 3. 공통 응답과 오류
@@ -268,7 +269,9 @@ Content-Type: application/json
 {
   "name": "상추",
   "type": "청상추",
-  "streamingPort": 5000
+  "rdkCameraId": "c110-1",
+  "rdkZone": 1,
+  "growthTargetDays": 60
 }
 ```
 
@@ -282,7 +285,8 @@ Content-Type: application/json
     "userId": "사용자 ObjectId",
     "name": "상추",
     "type": "청상추",
-    "streamingPort": 5000,
+    "rdkCameraId": "c110-1",
+    "rdkZone": 1,
     "createdAt": "2026-07-25T00:00:00.000Z",
     "updatedAt": "2026-07-25T00:00:00.000Z"
   }
@@ -298,7 +302,7 @@ GET /api/web/plants/:plantId
 Authorization: Bearer <accessToken>
 ```
 
-프론트는 RDK에 직접 접근하지 않고 이 API로 식물 정보와 `streamingUrl`을 받습니다. 현재 RDK Flask 서버의 MJPEG 스트림 경로는 `http://<RDK_IP>:5000/video_feed`입니다.
+프론트는 RDK에 직접 접근하지 않고 이 API로 식물 정보와 사용자별 `streamingUrl`을 받습니다. 백엔드는 RDK X5 스트림 서비스(기본 5001)의 카메라·Zone 할당 API를 호출합니다.
 
 ```json
 {
@@ -307,15 +311,16 @@ Authorization: Bearer <accessToken>
     "_id": "plantId",
     "name": "상추",
     "type": "청상추",
-    "streamingPort": 5000,
-    "streamingUrl": "http://192.168.200.100:5000/video_feed"
+    "rdkCameraId": "c110-1",
+    "rdkZone": 1,
+    "streamingUrl": "https://<backend-host>/api/web/plants/stream/<short-lived-ticket>"
   }
 }
 ```
 
-`streamingUrl`은 `<img src={streamingUrl}>`로 표시하는 MJPEG 주소입니다. 이 RDK 코드에서는 카메라 한 대(`Camera(0)`)와 `/video_feed` 한 개를 제공하므로, 해당 RDK를 사용하는 식물은 모두 `streamingPort: 5000`을 사용합니다.
+`streamingUrl`은 `<img src={streamingUrl}>`로 표시하는 식물별 MJPEG 주소입니다. URL은 백엔드 프록시를 가리키며 1시간짜리 서명 티켓을 사용합니다. 브라우저는 RDK의 Tailnet 주소를 직접 호출하지 않습니다. `rdkCameraId`와 `rdkZone`(1~144)은 카메라/영역을 지정합니다.
 
-식물 생성 시 `streamingPort`를 생략하면 기본값 `5000`이 자동 저장됩니다. 다른 포트를 사용하려면 생성 요청에 직접 전달하세요. 식물 생성·수정 시 포트 설정:
+식물 생성·수정 시 카메라·Zone 설정:
 
 ```http
 PATCH /api/web/plants/:plantId
@@ -323,11 +328,12 @@ Authorization: Bearer <accessToken>
 Content-Type: application/json
 
 {
-  "streamingPort": 5000
+  "rdkCameraId": "c110-1",
+  "rdkZone": 1
 }
 ```
 
-`name`, `type`, `streamingPort` 중 최소 하나를 전달해야 합니다. `streamingPort: null`로 기존 포트를 제거할 수 있으며, 포트 또는 `RDK_STREAMING_BASE_URL`이 없으면 `streamingUrl`은 `null`입니다.
+`name`, `type`, `rdkCameraId`, `rdkZone`, `growthTargetDays` 중 최소 하나를 전달해야 합니다. 카메라·Zone을 `null`로 보내면 스트림을 해제하며 `streamingUrl`은 `null`이 됩니다.
 
 ### 4.5 내 식물 목록
 
@@ -346,7 +352,8 @@ Authorization: Bearer <accessToken>
       "_id": "plantId",
       "name": "상추",
       "type": "청상추",
-      "streamingPort": 5000,
+      "rdkCameraId": "c110-1",
+      "rdkZone": 1,
       "createdAt": "...",
       "updatedAt": "..."
     }
@@ -371,7 +378,8 @@ Authorization: Bearer <accessToken>
       "_id": "plantId",
       "name": "상추",
       "type": "청상추",
-      "streamingPort": 5000,
+      "rdkCameraId": "c110-1",
+      "rdkZone": 1,
       "growthTargetDays": 60,
       "growthDays": 12,
       "growthPercent": 20,
@@ -401,7 +409,7 @@ GET /api/web/plants/:plantId/current
 Authorization: Bearer <accessToken>
 ```
 
-프론트는 RDK가 아니라 백엔드에 요청합니다. 백엔드는 RDK Flask 서버의 `GET http://<RDK_IP>:5000/api/rdk/current`을 호출해 최신 ESP32 값을 그대로 전달합니다. 이 값은 MongoDB에 10분마다 저장되는 평균 로그와 다릅니다.
+프론트는 RDK가 아니라 백엔드에 Bearer JWT로 요청합니다. RDK가 60초마다 `POST /api/rdk/current`로 보낸 plant별 센서 스냅샷을 MongoDB에서 읽어 반환합니다. 최신 스냅샷은 MongoDB에 별도 저장되는 10분 평균 로그와 다릅니다.
 
 ```ts
 const { data } = await api.get(
@@ -431,10 +439,13 @@ if (data.success) {
     "moisture_air": 45.2,
     "moisture_soil": 2900,
     "rux": 1200,
-    "timestamp": 1722253800
+    "timestamp": 1791504000,
+    "sampledAt": "2026-10-09T00:00:00.000Z"
   }
 }
 ```
+
+스냅샷이 아직 도착하지 않았거나 마지막 측정 시각이 180초보다 오래되면 `503`입니다. `rux`는 조도 센서가 없을 때 `null`일 수 있습니다.
 
 | 백엔드 센서 필드 | 프론트 표시 필드 예시 |
 | --- | --- |
@@ -746,10 +757,34 @@ Authorization: Bearer <accessToken>
 
 아래 API는 RDK가 호출하는 경로입니다. 프론트에서 직접 호출하지 않습니다.
 
-### 5.1 센서 평균 로그 저장
+### 5.1 최신 센서 스냅샷 업로드
+
+RDK는 활성 식물 할당별 최신 센서값을 60초마다 전송합니다. 같은 `plantId`는 unique 인덱스로 upsert되어 최신값 한 건만 유지합니다.
+
+```http
+POST /api/rdk/current
+X-RDK-API-Key: <RDK_API_KEY>
+Content-Type: application/json
+```
+
+```json
+{
+  "plantId": "<Plant ObjectId>",
+  "degree": 24.5,
+  "moisture_air": 45.2,
+  "moisture_soil": 2900,
+  "rux": 1200,
+  "sampledAt": "2026-10-09T00:00:00.000Z"
+}
+```
+
+`rux`는 조도 센서가 없으면 `null`일 수 있습니다. 과거 `sampledAt` 재전송은 최신 스냅샷을 덮어쓰지 않습니다.
+
+### 5.2 센서 평균 로그 저장
 
 ```http
 POST /api/rdk/logs
+X-RDK-API-Key: <RDK_API_KEY>
 Content-Type: application/json
 ```
 
@@ -818,48 +853,200 @@ Content-Type: application/json
 
 ## 6. RDK 게이트웨이와 실시간 센서·스트리밍 흐름
 
-현재 RDK X5 Flask 서버는 `0.0.0.0:5000`에서 다음 기능을 제공합니다.
+RDK X5에서는 카메라 할당/스트림 서버(`:5001`)와 ESP32 수집 프로세스가 동작합니다. RDK가 공개 백엔드로 데이터를 먼저 보내며, 프론트가 RDK로 직접 연결하지 않습니다.
 
 | RDK 로컬 경로 | 용도 | 프론트 직접 호출 |
 | --- | --- | --- |
-| `GET /api/rdk/current` | 최신 ESP32 센서값 JSON | 아니오. 백엔드 프록시 사용 |
-| `GET /video_feed` | MJPEG 카메라 스트림 | 아니오. 식물 상세의 `streamingUrl` 사용 |
+| `POST /api/rdk/current` (백엔드) | 최신 센서값 업로드 | RDK가 인증키와 함께 호출 |
+| `GET /api/availability` (`:5001`) | 카메라·Zone 가용 목록 | 아니오. 백엔드가 할당 처리 |
+| `GET /api/stream/<user-token>` (`:5001`) | 사용자별 MJPEG 스트림 | 아니오. 백엔드 스트림 프록시가 호출 |
+| `GET /api/cameras/<camera_id>/raw` (`:5001`) | 보정·크롭 전 원본 JPEG 1프레임 | 아니오. 관리자 백엔드가 프록시 |
 | `POST /api/rdk/pump` | 수동 펌프 ON/OFF | 아니오. RDK 명령 폴링이 처리 |
 
 RDK 내부 동작:
 
-1. ESP32 시리얼 값을 약 2초마다 수집하고 최신값을 메모리에 보관합니다.
-2. 최근 10분(최대 300개) 센서값 평균을 10분마다 백엔드 `POST /api/rdk/logs`로 보냅니다.
-3. 5초마다 백엔드 `GET /api/rdk/command/:plantId`를 폴링합니다.
-4. 급수 명령이 있으면 펌프를 작동한 후 `POST /api/rdk/water`로 완료 보고합니다.
-5. `GET /video_feed`는 MJPEG 형식의 카메라 영상을 제공합니다.
+1. ESP32 시리얼 값을 약 2초마다 읽고 최신값을 메모리에 보관합니다.
+2. 활성 식물 카메라 할당을 따라 최신 스냅샷을 60초마다 백엔드 `POST /api/rdk/current`로 보냅니다.
+3. 최근 센서 이력의 평균 로그는 10분마다 백엔드 `POST /api/rdk/logs`로 보냅니다.
+4. `GET /api/stream/<user-token>`는 배정된 카메라 Zone의 MJPEG 영상을 제공합니다. Render 백엔드는 Tailscale HTTP 프록시로 이 스트림을 중계합니다.
 
 백엔드는 아래 환경변수로 RDK 주소를 알아야 합니다.
 
 ```env
-RDK_CURRENT_API_URL=http://172.16.240.191:5000/api/rdk/current
-RDK_STREAMING_BASE_URL=http://172.16.240.191:5000/video_feed
-PUBLIC_BASE_URL=http://172.16.240.102:5000
+RDK_STREAM_BASE_URL=http://100.90.42.36:5001
+RDK_STREAM_ADMIN_KEY=<스트림 할당 관리자 키>
+RDK_HTTP_PROXY_HOSTPORT=<render-private-tailscale-proxy-host>:1055
+PUBLIC_BASE_URL=https://<render-backend-host>
 RDK_API_KEY=<RDK와 백엔드가 공유하는 긴 비밀키>
 EVENT_UPLOAD_DIR=./uploads/events
 ```
 
-중요: `/api/rdk/current`, `/video_feed`, `/api/rdk/pump`은 **RDK 머신의 Flask API**입니다. 프론트는 항상 백엔드의 JWT 보호 API를 사용해야 합니다.
+RDK 최신 센서값은 RDK → Render의 `POST /api/rdk/current`로 전송됩니다. 카메라 프레임은 브라우저 → Render의 단기 티켓 URL → Render 내부 Tailscale HTTP 프록시 → RDK `:5001` 순서로 흐릅니다. RDK의 `:5000` 또는 `:5001`을 인터넷에 공개하지 않습니다.
 
 - 최신 센서: `GET /api/web/plants/:plantId/current`
 - 영상 주소: `GET /api/web/plants/:plantId`의 `plant.streamingUrl`
 - 물 주기: `POST /api/web/control/water`
+
+### 6.1 관리자 카메라 작업 화면
+
+관리자 JWT를 사용하면 RDK에 등록된 카메라 목록과 원본·보정·6×3 영역 화면을 확인할 수 있습니다. 원본은 렌즈·원근 보정 및 셀 크롭 전의 전체 디코딩 화면입니다.
+
+```http
+GET /api/web/admin/cameras
+Authorization: Bearer <관리자 JWT>
+```
+
+응답:
+
+```json
+{
+  "success": true,
+  "cameras": [
+    { "cameraId": "c110-1", "zones": [1, 2, 3] }
+  ]
+}
+```
+
+```http
+GET /api/web/admin/cameras/c110-1/frame/raw
+GET /api/web/admin/cameras/c110-1/frame/corrected
+GET /api/web/admin/cameras/c110-1/frame/grid
+Authorization: Bearer <관리자 JWT>
+```
+
+성공 시 `image/jpeg` 단일 프레임을 반환합니다. 기존 `GET /api/web/admin/cameras/:cameraId/raw`도 원본 보기로 유지됩니다. 관리자 페이지는 선택한 카메라·화면 한 개만 약 1초 간격으로 갱신합니다.
+
+```http
+GET /api/web/admin/cameras/c110-1/status
+Authorization: Bearer <관리자 JWT>
+```
+
+성공 응답은 `status.privacy_state`(`on`: 프라이버시 모드, `off`: 시청 가능, `error`: 제어 실패, `unconfigured`: 제어 미설정), 최근 원본 프레임 해상도 `source_width/source_height`, 출력 크기 `output_width/output_height`(항상 1280×720), 활성 프레임 레이트 `output_fps`(항상 15)를 포함합니다. 원본 해상도는 카메라 RTSP 연결 후에 채워집니다. 원본이 1280×720이 아니면 관리자 화면이 확인 경고를 표시합니다. 이 경고는 표시 전용이며 C110 원본 해상도를 직접 바꾸지는 않습니다.
+
+```http
+GET /api/web/admin/cameras/c110-1/profile
+Authorization: Bearer <관리자 JWT>
+```
+
+현재 고정 송출 규격을 반환합니다. `fps`는 항상 15이고 `supportedFps`는 `[15]`입니다.
+
+```http
+PUT /api/web/admin/cameras/c110-1/profile
+Authorization: Bearer <관리자 JWT>
+Content-Type: application/json
+{ "fps": 15 }
+```
+
+이 PUT은 15 FPS 고정 규격을 확인하는 멱등 요청입니다. 다른 값은 `400`입니다. 모든 식물 스트림은 1280×720/15 FPS로 송출됩니다. 이는 RDK→시청자 출력 규격이며 C110 원본 RTSP 해상도나 카메라 내부 FPS를 바꾸지는 않습니다.
+
+```http
+GET /api/web/admin/cameras/c110-1/calibration
+Authorization: Bearer <관리자 JWT>
+```
+
+기본 18칸 모드에서 응답의 `zones`는 1~18번 셀의 `[왼쪽, 위쪽, 오른쪽, 아래쪽]` 정규화 좌표(0~1)입니다. 사용자 지정 영역을 저장하면 현재 그린 영역만 반환됩니다.
+
+```http
+PUT /api/web/admin/cameras/c110-1/calibration
+Authorization: Bearer <관리자 JWT>
+Content-Type: application/json
+```
+
+기본 18칸 모드에서만 GET 응답의 `zones` 전체를 복사해 수정한 다음 `{ "zones": 수정한전체좌표 }`로 보낼 수 있습니다. **1~18번을 모두** 포함해야 합니다. 서로 겹치거나 0~1 범위를 벗어난 셀은 `400`입니다. 사용자 지정 영역이 활성화된 카메라에서는 개별 셀 보정 PUT이 `409`이며 아래 영역 배치 API로 수정합니다.
+
+#### 사용자 지정 식물 영역과 식물 매칭
+
+관리자 페이지에서 `영역 편집 시작`을 누른 뒤 영상 **아래** 도구 영역의 삼각형 두 개를 보정 영상의 좌상단과 우하단으로 끌어 놓습니다. 빨간 사각형 **하나가 식물 영상 하나**이며 `식물 영역 추가`로 개수와 크기를 자유롭게 정할 수 있습니다(카메라당 최대 144개). 기존 6×3 자동 분할은 새 영역을 저장하기 전까지만 유지됩니다.
+
+기본 18칸에 이미 배정된 식물이 있다면 편집 시작 시 그 칸의 번호와 위치를 먼저 가져옵니다. 기존 식물의 스트림을 유지한 채 크기를 조정하거나 새 영역을 추가할 수 있습니다. 배정된 영역을 삭제하려면 먼저 관리자 스트리밍 화면에서 해당 식물을 다른 영역으로 옮기거나 미배정해야 합니다.
+
+```http
+GET /api/web/admin/cameras/c110-1/grid-layouts
+Authorization: Bearer <관리자 JWT>
+```
+
+```json
+{
+  "success": true,
+  "cameraId": "c110-1",
+  "grids": [{ "id": "grid-1", "anchors": [[0.02, 0.04], [0.48, 0.96]] }],
+  "customized": true,
+  "zoneCount": 1,
+  "zoneIds": [1],
+  "assignableZones": [1]
+}
+```
+
+`zoneIds`와 `assignableZones`는 실제 응답에서 전체 번호 배열입니다. `grid-1`은 영역 1번, `grid-2`는 영역 2번이며 ID가 번호를 고정하므로 다른 영역을 추가하거나 삭제해도 기존 식물의 번호는 이동하지 않습니다.
+
+```http
+PUT /api/web/admin/cameras/c110-1/grid-layouts
+Authorization: Bearer <관리자 JWT>
+Content-Type: application/json
+
+{
+  "grids": [
+    { "id": "grid-1", "anchors": [[0.02, 0.04], [0.48, 0.96]] },
+    { "id": "grid-2", "anchors": [[0.52, 0.04], [0.98, 0.96]] }
+  ]
+}
+```
+
+좌표는 0~1 정규화 값입니다. 겹치는 영역, 뒤집힌/너무 작은 영역, 중복 ID는 `400`입니다. 사용 중인 식물 칸이 사라지는 변경은 `409`입니다. 저장 후 RDK의 `grid_layouts.json`에 유지되고 관리자 영역 영상, 배정 가능 칸 수, 사용자별 영상 크롭에 즉시 적용됩니다. 각 영역은 좌상단·우하단 두 점으로 정의한 직사각형입니다.
+
+```http
+PATCH /api/web/admin/plants/:plantId/camera
+Authorization: Bearer <관리자 JWT>
+Content-Type: application/json
+
+{ "rdkCameraId": "c110-1", "rdkZone": 20 }
+```
+
+관리자 `스트리밍` 화면에서 식물의 카메라와 빈 칸을 선택하면 이 API가 해당 식물 소유자에게 보여줄 영역을 배정합니다. 응답 `plant`에는 수정된 `rdkCameraId`, `rdkZone`, `streamingUrl`이 포함됩니다. 다른 식물이나 사용자 배정이 점유한 칸은 `409`입니다. `{ "rdkCameraId": null, "rdkZone": null }`은 배정을 해제합니다.
+
+#### 베드 4점 평면화
+
+원본 영상에서 베드 모서리 4점을 잡아 직사각형으로 펼칩니다. 관리자 페이지의 `베드 평면화` 탭에서 영상 **아래** 도구 영역의 원 4개를 좌상단→우상단→우하단→좌하단 위치로 끌어 놓고 다시 조정할 수 있습니다. 좌표는 원본 화면 기준 0~1 정규화 값이며 네 점은 볼록 사각형이어야 합니다.
+
+```http
+GET /api/web/admin/cameras/c110-1/perspective
+Authorization: Bearer <관리자 JWT>
+```
+
+```json
+{
+  "success": true,
+  "cameraId": "c110-1",
+  "corners": [[0, 0], [1, 0], [1, 1], [0, 1]],
+  "customized": false
+}
+```
+
+```http
+PUT /api/web/admin/cameras/c110-1/perspective
+Authorization: Bearer <관리자 JWT>
+Content-Type: application/json
+```
+
+```json
+{
+  "corners": [[0.12, 0.16], [0.88, 0.12], [0.92, 0.86], [0.08, 0.9]]
+}
+```
+
+저장 후 보정 프레임과 사용자별 식물 화면에 즉시 적용되며 RDK의 `perspective.json`에 유지됩니다. 수동 4점 설정이 활성화된 동안에는 추정 렌즈 계수와 자동 영역 검출을 섞지 않고 원본 기준 homography를 적용합니다. `DELETE /api/web/admin/cameras/:cameraId/perspective`는 수동 설정을 지우고 기존 설정 파일의 렌즈/자동 보정 경로로 복귀합니다. 평면화는 원근 투영을 보정하지만 광각 렌즈의 방사형 왜곡까지 교정하는 렌즈 캘리브레이션은 아닙니다.
+
+RDK는 해당 카메라 영상 요청이 30초 동안 없으면 RTSP 캡처를 닫습니다. RDK의 `CAMERA_PRIVACY_COMMAND`를 설정하면 서비스 시작 시 프라이버시 모드를 켜고 시청 시작/유휴 종료에 맞춰 전환합니다. C110의 실제 전원은 유지됩니다. 제어 실패는 status API에 나타나며, RDK에 연결된 시청자만 감지합니다. 출력 영상은 `1280×720, 15 FPS`로 고정됩니다. C110 원본 RTSP 해상도는 Tapo 앱에서 별도로 설정하고 status API에서 확인해야 합니다. 출력 FPS 고정은 카메라→RDK 원본 RTSP 설정과 별개입니다.
 ## 7. 데모 데이터
 
-`npm run seed:demo`로 프론트 테스트용 데이터를 생성할 수 있습니다. 실행을 반복하면 데모 계정의 두 식물 데이터만 새로 생성합니다.
+`npm run seed:demo`로 프론트 테스트용 데이터를 생성할 수 있습니다. 실행을 반복하면 전용 데모 계정의 네 식물과 관련 기록을 새로 생성하고, 기존 미배정 데모 식물에는 예시 카메라·Zone을 채웁니다.
 
 | 항목 | 값 |
 | --- | --- |
 | 이메일 | `demo@smartfarm.local` |
 | 비밀번호 | `demo1234!` |
-| 상추 `plantId` | `6a63a5195dca549788050772` |
-| 토마토 plantId | 6a63a5195dca549788050771 |
-| 스트리밍 포트 | 상추·토마토 모두 5000 (/video_feed) |
+| 식물 | 상추·토마토·딸기·바질 |
+| 스트리밍 설정 | `c110-1` Zone 1/2, `c110-3` Zone 1, `c110-4` Zone 1 |
 | 센서 로그 | 식물별 최근 7일, 10분 간격 |
 | 급수 데이터 | 식물별 완료된 급수 명령·이력 5건 |
 | 성장 이벤트 | 식물별 성장 타임라인 4건 |

@@ -105,22 +105,42 @@ async function seedDemoData() {
     { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
   );
 
-  const [lettuce, tomato] = await Promise.all([
+  const [lettuce, tomato, strawberry, basil] = await Promise.all([
     Plant.findOneAndUpdate(
       { userId: user._id, name: '상추' },
-      { $set: { type: '청상추', streamingPort: 5000 } },
+      { $set: { type: '청상추', rdkCameraId: 'c110-1', rdkZone: 1 } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ),
     Plant.findOneAndUpdate(
       { userId: user._id, name: '토마토' },
-      { $set: { type: '방울토마토', streamingPort: 5000 } },
+      { $set: { type: '방울토마토', rdkCameraId: 'c110-1', rdkZone: 2 } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    ),
+    Plant.findOneAndUpdate(
+      { userId: user._id, name: '딸기' },
+      { $set: { type: '설향딸기', rdkCameraId: 'c110-3', rdkZone: 1 } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    ),
+    Plant.findOneAndUpdate(
+      { userId: user._id, name: '바질' },
+      { $set: { type: '스위트바질', rdkCameraId: 'c110-4', rdkZone: 1 } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     )
   ]);
 
-  const plantIds = [lettuce._id, tomato._id];
+  const plantIds = [lettuce._id, tomato._id, strawberry._id, basil._id];
 
-  // Re-running the seed refreshes only this dedicated demo user's two plants.
+  // Give any older demo plants that predate camera assignment a deterministic
+  // spare camera/zone so the admin streaming view can render every plant.
+  const unassignedPlants = await Plant.find({ userId: user._id, rdkCameraId: null })
+    .sort({ createdAt: 1, _id: 1 });
+  await Promise.all(unassignedPlants.map((plant, index) => {
+    plant.rdkCameraId = 'c110-2';
+    plant.rdkZone = (index % 18) + 1;
+    return plant.save();
+  }));
+
+  // Re-running the seed refreshes only this dedicated demo user's four plants.
   await Promise.all([
     Log.deleteMany({ plantId: { $in: plantIds } }),
     Water.deleteMany({ plantId: { $in: plantIds } }),
@@ -132,11 +152,15 @@ async function seedDemoData() {
   const now = new Date();
   const logs = [
     ...createSensorLogs(lettuce._id, { baseTemp: 21.5, baseAirHumidity: 63, maxLux: 840, soilOffset: 0 }, now),
-    ...createSensorLogs(tomato._id, { baseTemp: 24, baseAirHumidity: 58, maxLux: 1180, soilOffset: 54 }, now)
+    ...createSensorLogs(tomato._id, { baseTemp: 24, baseAirHumidity: 58, maxLux: 1180, soilOffset: 54 }, now),
+    ...createSensorLogs(strawberry._id, { baseTemp: 22, baseAirHumidity: 67, maxLux: 920, soilOffset: 28 }, now),
+    ...createSensorLogs(basil._id, { baseTemp: 23, baseAirHumidity: 61, maxLux: 760, soilOffset: 82 }, now)
   ];
   const waterEvents = [
     ...createWaterEvents(lettuce, user._id, [6.5, 5.1, 3.7, 2.3, 0.9], 120, now),
-    ...createWaterEvents(tomato, user._id, [6.1, 4.6, 3.1, 1.6, 0.3], 180, now)
+    ...createWaterEvents(tomato, user._id, [6.1, 4.6, 3.1, 1.6, 0.3], 180, now),
+    ...createWaterEvents(strawberry, user._id, [6.3, 4.9, 3.5, 2.1, 0.7], 100, now),
+    ...createWaterEvents(basil, user._id, [6.8, 5.2, 3.8, 2.4, 1.0], 90, now)
   ];
 
   const growthEvents = [
@@ -151,6 +175,16 @@ async function seedDemoData() {
       { daysAgo: 4.8, title: '첫 꽃봉오리 발견', content: '줄기 끝에 작은 꽃봉오리가 보여서 기대돼요.' },
       { daysAgo: 2.4, title: '노란 꽃이 피었어요', content: '작은 노란 꽃이 활짝 피었어요.' },
       { daysAgo: 0.4, title: '작은 토마토가 맺혔어요', content: '꽃이 지고 동그란 초록 열매가 생겼어요.' }
+    ], now),
+    ...createGrowthEvents(strawberry, user._id, [
+      { daysAgo: 6.2, title: '딸기 잎이 나왔어요', content: '작은 잎이 힘차게 올라왔어요.' },
+      { daysAgo: 3.6, title: '꽃대가 올라왔어요', content: '하얀 꽃이 피기 전 꽃대가 보이기 시작했어요.' },
+      { daysAgo: 0.8, title: '첫 꽃이 피었어요', content: '작고 하얀 딸기꽃이 활짝 피었어요.' }
+    ], now),
+    ...createGrowthEvents(basil, user._id, [
+      { daysAgo: 5.8, title: '바질 새싹 발견', content: '향긋한 바질 새싹이 흙 위로 올라왔어요.' },
+      { daysAgo: 2.9, title: '잎이 커지고 있어요', content: '초록 잎이 점점 넓어지고 있어요.' },
+      { daysAgo: 0.6, title: '향이 진해졌어요', content: '가까이 가면 바질 향이 느껴져요.' }
     ], now)
   ];
 
@@ -220,6 +254,8 @@ async function seedDemoData() {
   console.log(`Login password: ${DEMO_PASSWORD}`);
   console.log(`Lettuce plantId: ${lettuce._id}`);
   console.log(`Tomato plantId: ${tomato._id}`);
+  console.log(`Strawberry plantId: ${strawberry._id}`);
+  console.log(`Basil plantId: ${basil._id}`);
   console.log(`Created ${logs.length} sensor logs, ${waterEvents.length} commands, ${waterEvents.length} water records, ${growthEvents.length} growth events, one activity summary, and ${notifications.length} notifications.`);
 }
 

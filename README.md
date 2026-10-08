@@ -30,12 +30,13 @@ Local account signup accepts `{ "email", "phone", "pwd" }`; `pwd` must be at lea
 | POST | `/api/web/users/login` | - | `email`, `pwd` |
 | GET | `/api/web/users/me` | Bearer | - |
 | PATCH | `/api/web/users/password` | Bearer | `currentPwd`, `newPwd` |
-| POST | `/api/web/plants` | Bearer | `name`, `type`, `streamingPort?` (생략 시 5000) |
+| POST | `/api/web/plants` | Bearer | `name`, `type`, `rdkCameraId?`, `rdkZone?`, `growthTargetDays?` |
 | GET | `/api/web/plants` | Bearer | - |
 | GET | `/api/web/plants/with-records` | Bearer | - |
 | GET | `/api/web/plants/:plantId` | Bearer | - |
-| PATCH | `/api/web/plants/:plantId` | Bearer | `name?`, `type?`, `streamingPort?` |
+| PATCH | `/api/web/plants/:plantId` | Bearer | `name?`, `type?`, `rdkCameraId?`, `rdkZone?`, `growthTargetDays?` |
 | GET | `/api/web/plants/:plantId/current` | Bearer | - |
+| POST | `/api/rdk/current` | RDK API Key | `plantId`, current sensor fields, `sampledAt` |
 | GET | `/api/web/logs/:plantId?page=1&limit=30` | Bearer | - |
 | POST | `/api/web/events` | Bearer | multipart: `plantId`, `title`, `content`, `eventDate?`, `image?` |
 | GET | `/api/web/events/:plantId?page=1&limit=30&order=desc` | Bearer | - |
@@ -46,6 +47,20 @@ Local account signup accepts `{ "email", "phone", "pwd" }`; `pwd` must be at lea
 | POST | `/api/web/notifications` | Bearer | `title`, `type`, `content`, `notifyAt?` |
 | GET | `/api/web/notifications?page=1&limit=30&unreadOnly=false` | Bearer | - |
 | PATCH | `/api/web/notifications/:notificationId/read` | Bearer | - |
+| GET | `/api/web/admin/cameras` | Admin Bearer | RDK 카메라 목록 |
+| GET | `/api/web/admin/cameras/:cameraId/raw` | Admin Bearer | 보정 전 원본 JPEG 1프레임 |
+| GET | `/api/web/admin/cameras/:cameraId/frame/:mode` | Admin Bearer | 원본·보정·6×3 그리드 JPEG. `mode=raw/corrected/grid` |
+| GET | `/api/web/admin/cameras/:cameraId/status` | Admin Bearer | 프라이버시 상태와 카메라 원본/출력 해상도 |
+| GET | `/api/web/admin/cameras/:cameraId/profile` | Admin Bearer | 카메라 송출 FPS 조회 |
+| PUT | `/api/web/admin/cameras/:cameraId/profile` | Admin Bearer | 고정 송출 규격 15 FPS 확인(다른 값은 400) |
+| GET | `/api/web/admin/cameras/:cameraId/calibration` | Admin Bearer | 현재 18개 셀 좌표 |
+| PUT | `/api/web/admin/cameras/:cameraId/calibration` | Admin Bearer | `zones` 전체 18개 셀 좌표 저장 |
+| GET | `/api/web/admin/cameras/:cameraId/grid-layouts` | Admin Bearer | 식물별 사용자 지정 영역의 두 앵커와 영역 번호 조회 |
+| PUT | `/api/web/admin/cameras/:cameraId/grid-layouts` | Admin Bearer | 최대 144개 영역 배치 저장; 영역 하나가 식물 영상 하나 |
+| PATCH | `/api/web/admin/plants/:plantId/camera` | Admin Bearer | 식물을 카메라/영역에 배정 또는 해제 |
+| GET | `/api/web/admin/cameras/:cameraId/perspective` | Admin Bearer | 베드 평면화 4점 조회 |
+| PUT | `/api/web/admin/cameras/:cameraId/perspective` | Admin Bearer | 원본 기준 네 모서리 저장·즉시 적용 |
+| DELETE | `/api/web/admin/cameras/:cameraId/perspective` | Admin Bearer | 사용자 보정 초기화, 기존 자동 보정 복귀 |
 | POST | `/api/rdk/logs` | Private network | `plantId`, `degree`, `moisture_soil`, `moisture_air`, `rux` |
 | GET | `/api/rdk/command/:plantId` | Private network | - |
 | POST | `/api/rdk/water` | Private network | `plantId`, `commandId`, `volume` |
@@ -54,12 +69,14 @@ All persistent models use `timestamps: true`, so MongoDB stores `createdAt` and 
 
 ## RDK sensor flow
 
-The RDK gateway collects ESP32 readings every two seconds, keeps the latest reading in memory, and sends a five-minute average every ten minutes to `POST /api/rdk/logs`. `rux` is optional when no light sensor is connected.
+The RDK gateway collects ESP32 readings every two seconds. For active camera-zone assignments it pushes a plant-specific latest snapshot every 60 seconds to `POST /api/rdk/current`, while ten-minute averages remain in `POST /api/rdk/logs`. `rux` is `null` when no light sensor is connected.
 
-For an on-demand reading, the web client calls `GET /api/web/plants/:plantId/current`. After confirming that the plant belongs to the signed-in user, the backend requests the RDK gateway's `GET /api/rdk/current` using `RDK_CURRENT_API_URL`. The gateway must be reachable from the backend network.
+For an on-demand reading, the web client calls `GET /api/web/plants/:plantId/current` with its Bearer token. After ownership validation, the backend returns the latest snapshot from MongoDB; snapshots older than three minutes return `503`. No request from Render back to the RDK sensor port is needed.
 
-For the current RDK Flask server, configure `RDK_STREAMING_BASE_URL` as `http://<RDK_X5_IP>/video_feed` and set each connected plant's `streamingPort` to `5000`. The backend returns the resulting MJPEG address as `streamingUrl` from `GET /api/web/plants/:plantId`.
+For the current RDK X5 deployment, configure `RDK_STREAM_BASE_URL` as `http://<RDK_X5_TAILSCALE_IP>:5001`, `RDK_STREAM_ADMIN_KEY`, and Render's internal Tailscale HTTP proxy as `RDK_HTTP_PROXY_HOSTPORT`. Set each plant's `rdkCameraId` and `rdkZone`; the backend requests a per-plant assignment and returns a short-lived signed `streamingUrl` from `GET /api/web/plants/:plantId`. Render proxies MJPEG so the browser never needs Tailnet access.
 The ready-to-run RDK sample is at [`rdk/rdk_gateway.py`](rdk/rdk_gateway.py). Install its packages with `pip install -r rdk/requirements.txt`, then configure its environment variables before starting it.
+
+The administrator page at `/admin/` has a `카메라 설정` screen for source, bed-plane flattening, corrected, and numbered region views. Drag four circles from the tray below the raw video to set perspective corners. Drag two triangles from the tray below the corrected video to place each plant region. One rectangle creates one plant crop; up to 144 regions can be saved per camera, with stable region IDs matching zone numbers. The `스트리밍` admin screen assigns each plant to an available camera region. Existing assigned zones cannot be removed until the plants are moved. The earlier individual cell editor remains available for the original eighteen-cell layout. User-facing output is fixed at 1280×720 and 15 FPS. These endpoints are protected by the administrator JWT and backend-to-RDK `RDK_STREAM_ADMIN_KEY`.
 
 ## RDK water-command polling flow
 

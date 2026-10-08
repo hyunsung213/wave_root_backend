@@ -3,12 +3,13 @@ const Event = require('../models/Event');
 const Water = require('../models/Water');
 const Log = require('../models/Log');
 const Command = require('../models/Command');
+const SensorSnapshot = require('../models/SensorSnapshot');
 const fs = require('fs/promises');
 const path = require('path');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { getEnv } = require('../config/env');
-const { findOwnedPlant } = require('../utils/plant');
+const { findOwnedPlant, getStreamUrl } = require('../utils/plant');
 const { recordUserActivity } = require('../services/userActivity');
 const { requireNonEmptyString, requirePositiveInteger, getPositiveIntegerQuery } = require('../utils/validation');
 const { eventUploadDirectory } = require('../middlewares/eventUpload');
@@ -44,7 +45,9 @@ function normalizeSensor(body) {
     degree: validateSensorField(source.degree, 'degree', -50, 100),
     moisture_air: validateSensorField(source.moisture_air, 'moisture_air', 0, 100),
     moisture_soil: validateSensorField(source.moisture_soil, 'moisture_soil', 0, 4095),
-    rux: validateSensorField(source.rux ?? source.lux, 'rux', 0, 200000)
+    rux: source.rux === null || (source.rux === undefined && source.lux === undefined)
+      ? null
+      : validateSensorField(source.rux ?? source.lux, 'rux', 0, 200000)
   };
   if (Number.isFinite(source.timestamp)) sensor.timestamp = source.timestamp;
   return sensor;
@@ -65,35 +68,6 @@ async function removeEventImage(imageUrl) {
   }
 }
 
-function getStreamingPort(value, { required = false } = {}) {
-  if (value === undefined) {
-    if (required) {
-      throw new AppError('streamingPort is required.', 400);
-    }
-    return undefined;
-  }
-  if (value === null) return null;
-  if (!Number.isInteger(value) || value < 1 || value > 65535) {
-    throw new AppError('streamingPort must be an integer between 1 and 65535.', 400);
-  }
-  return value;
-}
-
-function buildStreamingUrl(streamingPort) {
-  if (!streamingPort) return null;
-
-  const { rdkStreamingBaseUrl } = getEnv();
-  if (!rdkStreamingBaseUrl) return null;
-
-  try {
-    const url = new URL(rdkStreamingBaseUrl);
-    url.port = String(streamingPort);
-    return url.toString();
-  } catch (_error) {
-    throw new AppError('RDK streaming access is not configured correctly.', 500);
-  }
-}
-
 function findRecentRecords(Model, plantIds, recordLimit, sort) {
   return Model.aggregate([
     { $match: { plantId: { $in: plantIds } } },
@@ -107,11 +81,12 @@ function findRecentRecords(Model, plantIds, recordLimit, sort) {
 const createPlant = asyncHandler(async (req, res) => {
   const name = requireNonEmptyString(req.body.name, 'name', 60);
   const type = requireNonEmptyString(req.body.type, 'type', 100);
-  const streamingPort = getStreamingPort(req.body.streamingPort) ?? 5000;
+  const rdkCameraId = typeof req.body.rdkCameraId === 'string' ? req.body.rdkCameraId.trim().slice(0, 64) || null : null;
+  const rdkZone = req.body.rdkZone == null ? null : requirePositiveInteger(req.body.rdkZone, 'rdkZone', { max: 144 });
   const growthTargetDays = req.body.growthTargetDays === undefined
     ? 60
     : requirePositiveInteger(req.body.growthTargetDays, 'growthTargetDays', { max: 3650 });
-  const plant = await Plant.create({ userId: req.user._id, name, type, streamingPort, growthTargetDays });
+  const plant = await Plant.create({ userId: req.user._id, name, type, rdkCameraId, rdkZone, growthTargetDays });
 
   res.status(201).json({ success: true, plant: withGrowthData(plant) });
 });
@@ -127,7 +102,7 @@ const getPlantDetail = asyncHandler(async (req, res) => {
     success: true,
     plant: {
       ...withGrowthData(plant),
-      streamingUrl: buildStreamingUrl(plant.streamingPort)
+      streamingUrl: await getStreamUrl(plant, req.user._id)
     }
   });
 });
@@ -142,14 +117,17 @@ const updatePlant = asyncHandler(async (req, res) => {
   if (Object.hasOwn(req.body, 'type')) {
     updates.type = requireNonEmptyString(req.body.type, 'type', 100);
   }
-  if (Object.hasOwn(req.body, 'streamingPort')) {
-    updates.streamingPort = getStreamingPort(req.body.streamingPort, { required: true });
+  if (Object.hasOwn(req.body, 'rdkCameraId')) {
+    updates.rdkCameraId = typeof req.body.rdkCameraId === 'string' ? req.body.rdkCameraId.trim().slice(0, 64) || null : null;
+  }
+  if (Object.hasOwn(req.body, 'rdkZone')) {
+    updates.rdkZone = req.body.rdkZone == null ? null : requirePositiveInteger(req.body.rdkZone, 'rdkZone', { max: 144 });
   }
   if (Object.hasOwn(req.body, 'growthTargetDays')) {
     updates.growthTargetDays = requirePositiveInteger(req.body.growthTargetDays, 'growthTargetDays', { max: 3650 });
   }
   if (Object.keys(updates).length === 0) {
-    throw new AppError('At least one of name, type, streamingPort, or growthTargetDays is required.', 400);
+    throw new AppError('At least one of name, type, rdkCameraId, rdkZone, or growthTargetDays is required.', 400);
   }
 
   Object.assign(plant, updates);
@@ -188,7 +166,7 @@ const listPlantsWithRecords = asyncHandler(async (req, res) => {
 
   const plantsWithRecords = plants.map((plant) => ({
     ...withGrowthData(plant),
-    streamingUrl: buildStreamingUrl(plant.streamingPort),
+    streamingUrl: null,
     waterRecords: watersByPlantId.get(plant._id.toString()) ?? [],
     eventRecords: eventsByPlantId.get(plant._id.toString()) ?? []
   }));
@@ -196,32 +174,19 @@ const listPlantsWithRecords = asyncHandler(async (req, res) => {
   res.json({ success: true, plants: plantsWithRecords });
 });
 const getCurrentSensorData = asyncHandler(async (req, res) => {
-  await findOwnedPlant(req.params.plantId, req.user._id);
-  const { rdkCurrentApiUrl, rdkCurrentTimeoutMs } = getEnv();
+  const plant = await findOwnedPlant(req.params.plantId, req.user._id);
+  const { rdkSensorStaleMs } = getEnv();
+  const snapshot = await SensorSnapshot.findOne({ plantId: plant._id }).lean();
+  if (!snapshot) throw new AppError('Current sensor data has not been received from the RDK yet.', 503);
 
-  if (!rdkCurrentApiUrl) {
-    throw new AppError('Live RDK sensor access is not configured.', 503);
+  const sampledAt = new Date(snapshot.sampledAt);
+  if (Number.isNaN(sampledAt.getTime()) || Date.now() - sampledAt.getTime() > rdkSensorStaleMs) {
+    throw new AppError('Current sensor data is stale; waiting for the next RDK update.', 503);
   }
 
-  let rdkResponse;
-  try {
-    rdkResponse = await fetch(rdkCurrentApiUrl, { signal: AbortSignal.timeout(rdkCurrentTimeoutMs) });
-  } catch (_error) {
-    throw new AppError('The RDK gateway is unreachable.', 503);
-  }
-
-  if (!rdkResponse.ok) {
-    throw new AppError('The RDK gateway could not provide current sensor data.', 503);
-  }
-
-  let body;
-  try {
-    body = await rdkResponse.json();
-  } catch (_error) {
-    throw new AppError('The RDK gateway returned an invalid response.', 502);
-  }
-
-  const sensor = normalizeSensor(body);
+  const sensor = normalizeSensor(snapshot);
+  sensor.timestamp = Math.floor(sampledAt.getTime() / 1000);
+  sensor.sampledAt = sampledAt.toISOString();
   await recordUserActivity(req.user._id, 'liveStreamView');
   res.json({ success: true, sensor });
 });

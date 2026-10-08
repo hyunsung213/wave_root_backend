@@ -38,4 +38,24 @@ const requireUser = asyncHandler(async (req, _res, next) => {
   next();
 });
 
-module.exports = { requireUser };
+const requireAdmin = (req, _res, next) => {
+  const authorization = req.get('authorization');
+  const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null;
+  if (!token) throw new AppError('A Bearer access token is required.', 401);
+
+  const { jwtSecret } = getEnv();
+  if (!jwtSecret) throw new AppError('JWT authentication is not configured.', 500);
+
+  let payload;
+  try {
+    payload = jwt.verify(token, jwtSecret);
+  } catch (_error) {
+    throw new AppError('Invalid or expired access token.', 401);
+  }
+  if (payload.role !== 'admin') throw new AppError('Administrator access required.', 403);
+
+  req.admin = true;
+  next();
+};
+
+module.exports = { requireUser, requireAdmin };

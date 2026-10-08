@@ -14,7 +14,7 @@ const {
 } = require('../utils/validation');
 
 function buildImageUrl(req, file) {
-  const configuredBaseUrl = process.env.PUBLIC_BASE_URL?.replace(/\/$/, '');
+  const configuredBaseUrl = (process.env.PUBLIC_BASE_URL || process.env.RENDER_EXTERNAL_URL)?.replace(/\/$/, '');
   const baseUrl = configuredBaseUrl || `${req.protocol}://${req.get('host')}`;
   return `${baseUrl}/uploads/events/${file.filename}`;
 }

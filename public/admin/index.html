@@ -1,0 +1,1598 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ROOT 관리자</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#eef1f5;--sidebar:#2f3a4f;--sidebar2:#3a465e;--card:#fff;--line:#e4e8ee;
+    --txt:#2b3648;--sub:#8a94a6;--teal:#1bb0a6;--teal-d:#159b92;--coral:#ef6b6b;
+    --yellow:#f2c14e;--green:#2ecc71;--red:#e74c3c;--radius:8px;
+    --shadow:0 1px 3px rgba(30,40,60,.06),0 1px 2px rgba(30,40,60,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+  button{font:inherit;cursor:pointer}
+  input,select{font:inherit}
+
+  /* login */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lcard{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:32px;width:100%;max-width:360px}
+  .lcard h1{margin:0 0 4px;font-size:20px;color:var(--sidebar)}
+  .lcard p{margin:0 0 20px;color:var(--sub);font-size:13px}
+  .lcard label{display:block;font-size:13px;color:var(--sub);margin:14px 0 6px}
+  .lcard input{width:100%;padding:11px 12px;background:#f7f9fb;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:14px}
+  .lcard input:focus{outline:none;border-color:var(--teal)}
+  .lbtn{width:100%;margin-top:22px;padding:12px;background:var(--teal);color:#fff;border:none;border-radius:8px;font-weight:600}
+  .lbtn:disabled{opacity:.5;cursor:default}
+  .err{color:var(--red);font-size:13px;margin-top:12px;min-height:16px}
+
+  /* shell */
+  #app{display:none;min-height:100vh}
+  .shell{display:flex;min-height:100vh}
+  .side{width:220px;flex:0 0 220px;background:var(--sidebar);color:#c7cfdb;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:10px;padding:20px 22px;font-weight:700;color:#fff;font-size:16px;border-bottom:1px solid rgba(255,255,255,.07)}
+  .brand .logo{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,var(--teal),#2ee6c0);display:flex;align-items:center;justify-content:center;color:#0c2b28;font-weight:800}
+  .nav{padding:12px 10px;flex:1}
+  .nav a{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:7px;color:#c7cfdb;text-decoration:none;font-size:14px;margin-bottom:2px;cursor:pointer}
+  .nav a:hover{background:var(--sidebar2);color:#fff}
+  .nav a.active{background:var(--teal);color:#fff}
+  .nav a .ic{width:18px;text-align:center;opacity:.9}
+  .side .foot{padding:14px;border-top:1px solid rgba(255,255,255,.07)}
+  .side .foot button{width:100%;background:transparent;border:1px solid rgba(255,255,255,.16);color:#c7cfdb;border-radius:7px;padding:9px;font-size:13px}
+  .side .foot button:hover{background:var(--sidebar2);color:#fff}
+
+  .content{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 26px;background:var(--card);border-bottom:1px solid var(--line)}
+  .topbar h2{margin:0;font-size:18px}
+  .topbar .meta{display:flex;align-items:center;gap:14px;color:var(--sub);font-size:12px}
+  .topbar .refresh{background:var(--teal);color:#fff;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:600}
+  .wrap{padding:22px 26px;flex:1}
+  .view{display:none}
+  .view.active{display:block}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+  .kpi{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px}
+  .kpi .lab{color:var(--sub);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .kpi .val{font-size:26px;font-weight:700;margin-top:6px}
+  .kpi .delta{font-size:12px;margin-top:6px;font-weight:600}
+  .kpi .delta.up{color:var(--green)} .kpi .delta.down{color:var(--red)} .kpi .delta.flat{color:var(--sub)}
+
+  .row{display:grid;gap:16px;margin-bottom:20px}
+  .row.r-2{grid-template-columns:2fr 1fr}
+  .row.r-3{grid-template-columns:1fr 1fr 1fr}
+  .row.r-half{grid-template-columns:1fr 1fr}
+  @media(max-width:900px){.row.r-2,.row.r-3,.row.r-half{grid-template-columns:1fr}}
+  .panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px}
+  .panel h3{margin:0 0 14px;font-size:14px;color:var(--txt)}
+  .panel .cwrap{position:relative;height:240px}
+  .panel.mini .cwrap{height:180px}
+
+  /* table + toolbar */
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .toolbar input[type=search],.toolbar select{padding:9px 12px;background:var(--card);border:1px solid var(--line);border-radius:7px;color:var(--txt);font-size:13px}
+  .toolbar input[type=search]{min-width:240px}
+  .toolbar input:focus,.toolbar select:focus{outline:none;border-color:var(--teal)}
+  .toolbar .count{color:var(--sub);font-size:13px;margin-left:auto}
+  .tablewrap{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:11px 16px;font-size:13px;border-bottom:1px solid var(--line)}
+  th{color:var(--sub);font-weight:600;background:#f8fafc;user-select:none}
+  th.sortable{cursor:pointer}
+  th.sortable:hover{color:var(--txt)}
+  th .arrow{opacity:.4;font-size:11px}
+  th.sort-asc .arrow,th.sort-desc .arrow{opacity:1;color:var(--teal)}
+  tbody tr:hover{background:#f8fafc}
+  tbody tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .tag.social{background:#e8f6f5;color:var(--teal-d)}
+  .tag.local{background:#eef1f5;color:var(--sub)}
+  .muted{color:var(--sub)}
+  .empty{color:var(--sub);font-size:13px;padding:26px;text-align:center}
+
+  /* streaming grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+  .plant{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .plant .cam{aspect-ratio:4/3;background:#0c1116;display:flex;align-items:center;justify-content:center;color:#6b7686;font-size:13px}
+  .plant .cam img{width:100%;height:100%;object-fit:contain;cursor:zoom-in}
+  .plant .body{padding:12px 14px}
+  .plant .body .nm{font-weight:600}
+  .plant .body .meta{color:var(--sub);font-size:12px;margin-top:4px;line-height:1.5}
+  .bar{height:6px;background:#eef1f5;border-radius:3px;margin-top:9px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--teal)}
+  .plant-assign{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #e5e9ed}
+  .plant-assign label{font-size:11px;color:#66737e;font-weight:700}
+  .plant-assign select{display:block;width:100%;margin-top:5px;padding:8px;border:1px solid #cfd9dc;border-radius:7px;background:#fff;color:#23333b;font-size:12px}
+  .plant-assign button{grid-column:1/-1;border:0;border-radius:7px;background:#177f78;color:#fff;padding:8px;font-size:12px;font-weight:800}
+  .plant-assign button:disabled{opacity:.5}
+  .plant-assign small{grid-column:1/-1;min-height:14px;color:#607980}
+  .plant-assign small.error{color:#b73343}
+  .stream-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:28px;background:rgba(7,12,19,.82)}
+  .stream-modal[hidden]{display:none}
+  .stream-modal .dialog{position:relative;width:min(1180px,96vw);max-height:calc(100vh - 56px);padding:16px;background:#111923;border:1px solid rgba(255,255,255,.14);border-radius:12px;box-shadow:0 20px 70px rgba(0,0,0,.45)}
+  .stream-modal .media{display:flex;align-items:center;justify-content:center;min-height:240px;max-height:calc(100vh - 140px);overflow:hidden;border-radius:8px;background:#060a0e;color:#aeb7c4}
+  .stream-modal .media img{display:block;width:100%;height:auto;max-height:calc(100vh - 140px);object-fit:contain;cursor:default}
+  .stream-modal .caption{padding:10px 4px 2px;color:#dce4ee;font-size:13px}
+  .stream-modal .close{position:absolute;top:8px;right:8px;width:34px;height:34px;border:1px solid rgba(255,255,255,.24);border-radius:50%;background:rgba(17,25,35,.85);color:#fff;font-size:23px;line-height:1;z-index:1}
+  .stream-modal .close:hover{background:var(--teal);border-color:var(--teal)}
+  body.modal-open{overflow:hidden}
+  /* sensor */
+  .sensor{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
+  .sensor .s{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+  .sensor .s .v{font-size:24px;font-weight:700;color:var(--teal-d)}
+  .sensor .s .k{color:var(--sub);font-size:12px;margin-top:5px;font-weight:600}
+  .camera-console{background:#101c20;color:#eaf4f1;border-radius:18px;overflow:hidden;box-shadow:0 18px 45px rgba(22,43,45,.16)}
+  .camera-console button{font:inherit}
+  .camera-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 24px;border-bottom:1px solid #284044;background:linear-gradient(115deg,#142a2c,#101c20 68%)}
+  .camera-kicker{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#6ce1ce;font-weight:800}
+  .camera-head h3{font-size:21px;letter-spacing:-.03em;margin:4px 0 0;color:#f4faf7}
+  .camera-head p{font-size:12px;color:#9cb5b2;margin:5px 0 0}
+  .camera-health{font-size:12px;color:#9fd9ca;border:1px solid #38675e;background:#1a3936;padding:7px 11px;border-radius:100px;white-space:nowrap}
+  .camera-health.error{color:#ffc1b7;border-color:#975145;background:#472b2b}
+  #cameraOpsStatus.source-warning{color:#ffd17a}
+  .camera-profile{padding:12px;margin:0 0 18px;border:1px solid #355451;border-radius:10px;background:#112124}
+  .camera-profile h4{margin:0 0 5px}
+  .camera-profile p{margin:0 0 10px}
+  .camera-profile-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+  .camera-profile-controls label{margin:0}
+  .camera-profile-controls button{white-space:nowrap}
+  .camera-profile-feedback{font-size:11px;color:#9fc7ba;min-height:16px;margin-top:8px}
+  .camera-profile-feedback.error{color:#ffb9ad}
+  .camera-workspace{display:grid;grid-template-columns:176px minmax(0,1fr) 248px;min-height:580px}
+  .camera-rail{padding:17px 12px;background:#142226;border-right:1px solid #284044}
+  .camera-rail-title{font-size:10px;letter-spacing:.15em;color:#799c99;text-transform:uppercase;padding:3px 10px 12px;font-weight:800}
+  .camera-choice{display:block;width:100%;text-align:left;border:1px solid transparent;border-radius:10px;background:transparent;color:#aac1bd;padding:11px 10px;margin-bottom:5px}
+  .camera-choice:hover{background:#20383a;color:#fff}
+  .camera-choice.active{background:#20473f;border-color:#3f8878;color:#fff}
+  .camera-choice strong{display:block;font-size:13px}
+  .camera-choice small{display:block;font-size:11px;color:#81a6a0;margin-top:4px}
+  .camera-main{min-width:0;padding:18px 20px 20px}
+  .camera-modes{display:flex;gap:5px;padding:4px;background:#1d3034;border-radius:10px;width:max-content;max-width:100%;margin-bottom:16px}
+  .camera-modes button{padding:8px 15px;border:0;background:transparent;color:#9db9b5;border-radius:7px;font-size:12px}
+  .camera-modes button.active{color:#14342c;background:#9ce8d1;font-weight:800}
+  .camera-stage{position:relative;background:#080f12;border:1px solid #315153;border-radius:12px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
+  .camera-stage img{width:100%;height:100%;object-fit:contain;cursor:default}
+  .camera-stage svg{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+  .camera-stage svg[hidden]{display:none}
+  #perspectiveOverlay{pointer-events:all;z-index:4}
+  .camera-perspective-guide{position:absolute;z-index:5;top:12px;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px);padding:10px 14px;border:1px solid #ff5964;border-radius:9px;background:rgba(66,15,21,.94);box-shadow:0 8px 24px rgba(0,0,0,.38);color:#fff4f4;font-size:12px;font-weight:800;text-align:center;pointer-events:none}
+  .camera-perspective-guide[hidden]{display:none}
+  .camera-perspective-triangle{fill:rgba(255,53,65,.11);pointer-events:none}
+  .camera-perspective-border{fill:rgba(255,53,65,.035);stroke:#ff3948;stroke-width:4;vector-effect:non-scaling-stroke;pointer-events:none}
+  .camera-perspective-diagonal{fill:none;stroke:#ffd3d6;stroke-width:2;stroke-dasharray:8 6;vector-effect:non-scaling-stroke;pointer-events:none}
+  .camera-perspective-mesh{fill:none;stroke:#ff515d;stroke-width:2.5;vector-effect:non-scaling-stroke;pointer-events:none}
+  .camera-perspective-handle{cursor:grab;touch-action:none;pointer-events:all}
+  .camera-perspective-handle:active{cursor:grabbing}
+  .camera-perspective-handle .handle-hit{fill:transparent;stroke:transparent;pointer-events:all}
+  .camera-perspective-handle .handle-ring{fill:#ff3948;stroke:#fff;stroke-width:5;vector-effect:non-scaling-stroke;pointer-events:none}
+  .camera-perspective-number{font-size:25px;font-weight:900;fill:#fff;pointer-events:none;text-anchor:middle;dominant-baseline:central;paint-order:stroke;stroke:#8d0713;stroke-width:3}
+  .camera-perspective-label{fill:#fff;font-size:21px;font-weight:800;paint-order:stroke;stroke:#160d0e;stroke-width:5;pointer-events:none}
+  .camera-placement-tools{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-top:12px;padding:12px 14px;border:1px dashed #52726d;border-radius:10px;background:#132426}
+  .camera-placement-tools[hidden]{display:none}
+  .camera-placement-tools strong{font-size:11px;color:#b9d6cc;margin-right:4px}
+  .camera-placement-tools small{color:#91aaa7;font-size:11px}
+  .camera-placement-piece{display:inline-flex;align-items:center;gap:7px;min-height:43px;border:1px solid #99515a;border-radius:9px;background:#391e24;color:#fff;padding:5px 10px;font-size:11px;font-weight:800;cursor:grab;touch-action:none;user-select:none}
+  .camera-placement-piece:active{cursor:grabbing}
+  .camera-placement-piece.placed{border-color:#e15e68;background:#4e252d}
+  .camera-placement-piece .circle{display:grid;place-items:center;width:27px;height:27px;border:2px solid #fff;border-radius:50%;background:#ff3948;color:#fff}
+  .camera-placement-piece .triangle{display:grid;place-items:center;width:30px;height:29px;background:#ff3948;color:#fff;clip-path:polygon(50% 0,100% 100%,0 100%)}
+  .camera-drag-ghost{position:fixed;z-index:10000;transform:translate(-50%,-50%);pointer-events:none;display:grid;place-items:center;width:50px;height:50px;border:3px solid #fff;border-radius:50%;background:#ff3948;box-shadow:0 10px 25px #0009;color:#fff;font-weight:900}
+  .camera-drag-ghost.triangle{border:0;border-radius:0;clip-path:polygon(50% 0,100% 100%,0 100%)}
+  .camera-drag-ghost[hidden]{display:none}
+  .camera-stage.drop-ready{outline:3px solid #ff5260;outline-offset:3px}
+  .camera-grid-anchor{cursor:grab;touch-action:none}
+  .camera-grid-anchor:active{cursor:grabbing}
+  .camera-grid-anchor .hit{fill:transparent;pointer-events:all}
+  .camera-grid-anchor .shape{fill:#ff3948;stroke:#fff;stroke-width:4;vector-effect:non-scaling-stroke;pointer-events:none}
+  .camera-grid-line{fill:none;stroke:#ff515d;stroke-width:2.5;vector-effect:non-scaling-stroke;pointer-events:none}
+  .camera-grid-boundary{fill:rgba(255,57,72,.06);stroke:#ff3948;stroke-width:4;vector-effect:non-scaling-stroke;pointer-events:none}
+  .camera-grid-name{fill:#fff;font-size:18px;font-weight:800;paint-order:stroke;stroke:#421016;stroke-width:5;pointer-events:none}
+  .camera-grid-groups{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .camera-grid-groups button.active{background:#ff3948;border-color:#ff3948;color:#fff}
+  .camera-stage .camera-empty{position:absolute;color:#91aaa7;text-align:center;padding:20px;font-size:13px}
+  .camera-footnote{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;color:#82a29f;font-size:11px}
+  .camera-footnote-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
+  .camera-footnote-actions button:disabled{opacity:.42;cursor:default}
+  .camera-editor{padding:20px 18px;background:#15272b;border-left:1px solid #284044}
+  .camera-editor h4{font-size:13px;margin:0 0 7px;color:#e8faf3}
+  .camera-editor p{color:#91b0a8;font-size:12px;line-height:1.5;margin:0 0 16px}
+  .camera-editor label{display:block;color:#a6c3bb;font-size:11px;margin-bottom:8px}
+  .camera-editor select,.camera-editor input{width:100%;border:1px solid #42615f;border-radius:7px;background:#102024;color:#f3faf6;padding:8px;font-size:12px}
+  .camera-coords{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:13px 0}
+  .camera-coords label{margin:0}
+  .camera-coords input{margin-top:5px}
+  .camera-editor button,.camera-refresh{border:1px solid #42615f;border-radius:8px;background:#1a3839;color:#d9f3ea;padding:9px 11px;font-size:12px}
+  .camera-editor button:hover,.camera-refresh:hover{border-color:#8cdec8}
+  .camera-editor .primary{background:#86dec0;border-color:#86dec0;color:#12362e;font-weight:800}
+  .camera-editor button:disabled{opacity:.45;cursor:default}
+  .camera-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .camera-feedback{min-height:34px;color:#a6c8bc;font-size:11px;line-height:1.45;margin-top:13px}
+  .camera-feedback.error{color:#ffb9ad}
+  .camera-perspective-panel{padding:12px;margin-bottom:18px;border:1px solid #38675e;border-radius:10px;background:linear-gradient(145deg,#153633,#112124)}
+  .camera-perspective-state{font-size:11px;color:#8fe0c6;margin:0 0 10px}
+  .camera-perspective-state.customized{color:#b6f0d1}
+  .camera-perspective-actions{display:flex;flex-wrap:wrap;gap:7px}
+  .camera-perspective-feedback{min-height:30px;color:#a6c8bc;font-size:11px;line-height:1.45;margin-top:10px}
+  .camera-perspective-feedback.error{color:#ffb9ad}
+  @media(max-width:1100px){.camera-workspace{grid-template-columns:148px minmax(0,1fr)}.camera-editor{grid-column:1/-1;border-left:0;border-top:1px solid #284044}.camera-coords{grid-template-columns:repeat(4,1fr)}}
+  @media(max-width:680px){.camera-workspace{display:block}.camera-rail{display:flex;gap:6px;overflow:auto;border-right:0;border-bottom:1px solid #284044}.camera-rail-title{display:none}.camera-choice{min-width:118px}.camera-main{padding:14px}.camera-coords{grid-template-columns:repeat(2,1fr)}.camera-head{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+  <div id="login">
+    <form class="lcard" id="loginForm">
+      <h1>ROOT 관리자</h1>
+      <p>관리자 계정으로 로그인하세요.</p>
+      <label for="id">아이디</label>
+      <input id="id" autocomplete="username" autofocus />
+      <label for="pw">비밀번호</label>
+      <input id="pw" type="password" autocomplete="current-password" />
+      <button class="lbtn" type="submit">로그인</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+
+  <div id="app">
+   <div class="shell">
+    <aside class="side">
+      <div class="brand"><span class="logo">R</span> ROOT Admin</div>
+      <nav class="nav" id="nav">
+        <a data-view="dash" class="active"><span class="ic">▦</span> 대시보드</a>
+        <a data-view="users"><span class="ic">☰</span> 사용자 관리</a>
+        <a data-view="stream"><span class="ic">▷</span> 스트리밍</a>
+        <a data-view="camera"><span class="ic">▣</span> 카메라 설정</a>
+        <a data-view="sensor"><span class="ic">◈</span> 센서</a>
+      </nav>
+      <div class="foot"><button id="logout">로그아웃</button></div>
+    </aside>
+
+    <div class="content">
+      <div class="topbar">
+        <h2 id="pageTitle">대시보드</h2>
+        <div class="meta"><span id="updatedAt">–</span><button class="refresh" id="refreshAll">새로고침</button></div>
+      </div>
+      <div class="wrap">
+
+        <!-- DASHBOARD -->
+        <section class="view active" id="view-dash">
+          <div class="kpis" id="kpis"></div>
+          <div class="row r-2">
+            <div class="panel"><h3>월별 신규 가입</h3><div class="cwrap"><canvas id="chSignups"></canvas></div></div>
+            <div class="panel mini"><h3>스트리밍 가동률</h3><div class="cwrap"><canvas id="chStream"></canvas></div></div>
+          </div>
+          <div class="row r-2">
+            <div class="panel"><h3>누적 사용자</h3><div class="cwrap"><canvas id="chCumulative"></canvas></div></div>
+            <div class="panel mini"><h3>가입 유형</h3><div class="cwrap"><canvas id="chSocial"></canvas></div></div>
+          </div>
+          <div class="row r-half">
+            <div class="panel"><h3>식물 종류 분포</h3><div class="cwrap"><canvas id="chTypes"></canvas></div></div>
+            <div class="panel"><h3>성장 단계 분포</h3><div class="cwrap"><canvas id="chGrowth"></canvas></div></div>
+          </div>
+        </section>
+
+        <!-- USERS -->
+        <section class="view" id="view-users">
+          <div class="toolbar">
+            <input type="search" id="uSearch" placeholder="이름·이메일·전화 검색" />
+            <select id="uType">
+              <option value="">전체 유형</option>
+              <option value="local">일반 가입</option>
+              <option value="social">소셜 가입</option>
+            </select>
+            <select id="uPlant">
+              <option value="">식물 보유 전체</option>
+              <option value="has">1개 이상</option>
+              <option value="none">보유 없음</option>
+            </select>
+            <span class="count" id="uCount"></span>
+          </div>
+          <div class="tablewrap" id="usersTable"></div>
+        </section>
+
+        <!-- STREAMING -->
+        <section class="view" id="view-stream">
+          <div class="toolbar">
+            <input type="search" id="pSearch" placeholder="식물명·소유자·종류 검색" />
+            <select id="pType"><option value="">전체 종류</option></select>
+            <select id="pStream">
+              <option value="">스트림 전체</option>
+              <option value="on">연결됨</option>
+              <option value="off">없음</option>
+            </select>
+            <span class="count" id="pCount"></span>
+          </div>
+          <div class="grid" id="plants"><div class="empty">불러오는 중…</div></div>
+        </section>
+
+        <!-- CAMERA OPERATIONS -->
+        <section class="view" id="view-camera">
+          <div class="camera-console">
+            <div class="camera-head">
+              <div><div class="camera-kicker">RDK X5 / OPTICS WORKBENCH</div><h3>카메라 화면 설정</h3>
+                <p>원본·보정 영상을 확인하고 식물별 영상 영역을 직접 배치합니다.</p>
+                <p id="cameraOpsStatus" aria-live="polite">프라이버시 상태 · 확인 중 / 원본 해상도 · 확인 중</p></div>
+              <span class="camera-health" id="cameraHealth">카메라 대기 중</span>
+            </div>
+            <div class="camera-workspace">
+              <aside class="camera-rail" aria-label="카메라 선택"><div class="camera-rail-title">Camera inputs</div><div id="cameraChoices"></div></aside>
+              <div class="camera-main">
+                <div class="camera-modes" role="tablist" aria-label="카메라 화면 보기">
+                  <button type="button" data-camera-mode="raw" class="active" role="tab" aria-selected="true">원본</button>
+                  <button type="button" data-camera-mode="perspective" role="tab" aria-selected="false">베드 평면화</button>
+                  <button type="button" data-camera-mode="corrected" role="tab" aria-selected="false">왜곡 보정</button>
+                  <button type="button" data-camera-mode="grid" role="tab" aria-selected="false">식물 영역</button>
+                </div>
+                <div class="camera-stage" id="cameraStage">
+                  <img id="cameraFrame" alt="선택한 카메라 영상" hidden />
+                  <svg id="cameraOverlay" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-label="편집 중인 식물 그리드" hidden></svg>
+                  <svg id="perspectiveOverlay" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-label="베드 평면화 기준 모서리" hidden></svg>
+                  <div class="camera-perspective-guide" id="perspectiveGuide" role="status" hidden></div>
+                  <div class="camera-empty" id="cameraEmpty">카메라를 선택하면 영상이 표시됩니다.</div>
+                </div>
+                <div class="camera-placement-tools" id="perspectivePalette" aria-label="영상 밖 베드 모서리 도구" hidden>
+                  <strong>여기서 원을 영상으로 드래그</strong>
+                  <button type="button" class="camera-placement-piece" data-perspective-tool="0"><span class="circle">1</span>좌상</button>
+                  <button type="button" class="camera-placement-piece" data-perspective-tool="1"><span class="circle">2</span>우상</button>
+                  <button type="button" class="camera-placement-piece" data-perspective-tool="2"><span class="circle">3</span>우하</button>
+                  <button type="button" class="camera-placement-piece" data-perspective-tool="3"><span class="circle">4</span>좌하</button>
+                </div>
+                <div class="camera-placement-tools" id="gridPalette" aria-label="영상 밖 그리드 영역 도구" hidden>
+                  <strong>삼각형 2개를 영상으로 드래그</strong>
+                  <button type="button" class="camera-placement-piece" data-grid-tool="0"><span class="triangle">1</span>시작점</button>
+                  <button type="button" class="camera-placement-piece" data-grid-tool="1"><span class="triangle">2</span>끝점</button>
+                  <small>빨간 사각형 하나 = 식물 영상 하나</small>
+                </div>
+                <div class="camera-footnote"><span id="cameraFootnote">카메라 원본 프레임을 대기 중입니다.</span>
+                  <div class="camera-footnote-actions">
+                    <button class="camera-refresh" id="zoomCamera" type="button" disabled>화면 크게 보기</button>
+                    <button class="camera-refresh" id="refCameras" type="button">프레임 다시 읽기</button>
+                  </div></div>
+              </div>
+              <aside class="camera-editor">
+                <section class="camera-perspective-panel" aria-labelledby="cameraPerspectiveHeading">
+                  <h4 id="cameraPerspectiveHeading">베드 4점 평면화</h4>
+                  <p><b>모서리 원 드래그 편집</b>을 누른 뒤 영상 아래 도구 영역의 빨간 원 4개를 영상 위 베드 모서리로 끌어 놓으세요. 배치한 원은 다시 움직일 수 있습니다.</p>
+                  <div class="camera-perspective-state" id="cameraPerspectiveState" role="status">평면화 설정을 불러오는 중입니다.</div>
+                  <div class="camera-perspective-actions">
+                    <button type="button" id="perspectiveEdit" class="primary">모서리 원 드래그 편집</button>
+                    <button type="button" id="perspectiveSave" class="primary">평면화 저장</button>
+                    <button type="button" id="perspectiveCancel">취소</button>
+                    <button type="button" id="perspectiveReset">자동 보정으로 복귀</button>
+                  </div>
+                  <div class="camera-perspective-feedback" id="perspectiveFeedback" role="status">저장된 모서리 설정은 이 RDK에 유지됩니다.</div>
+                </section>
+                <div class="camera-profile">
+                  <h4>고정 송출 규격</h4>
+                  <p>모든 카메라 영상은 1280 × 720 해상도, 15 FPS로 송출됩니다.</p>
+                  <div class="camera-profile-feedback" id="cameraProfileFeedback" role="status">고정 규격을 확인하는 중입니다.</div>
+                </div>
+                <h4>식물 영상 영역 편집</h4>
+                <p>영역을 추가하고 영상 아래의 삼각형 두 개를 각각 좌상단과 우하단으로 끌어 놓으세요. 빨간 사각형마다 식물 영상 하나가 생성됩니다.</p>
+                <div class="camera-grid-groups" id="cameraGridGroups" aria-label="배치한 그리드 목록"></div>
+                <div class="camera-actions">
+                  <button type="button" id="gridLayoutEdit">영역 편집 시작</button>
+                  <button type="button" id="gridLayoutAdd">식물 영역 추가</button>
+                  <button type="button" id="gridLayoutRemove">선택 영역 삭제</button>
+                  <button type="button" id="gridLayoutSave" class="primary">영역 저장</button>
+                  <button type="button" id="gridLayoutCancel">편집 취소</button>
+                </div>
+                <div class="camera-feedback" id="gridLayoutFeedback" role="status">삼각형 두 개가 만든 빨간 사각형 하나가 식물 영상 하나입니다.</div>
+                <p>빨간 선은 셀 경계이며 선택한 셀은 더 밝게 표시됩니다. 셀을 끌어 위치를 바꾸거나 오른쪽 아래 점을 끌어 크기를 조절하세요. 값은 영상 전체의 백분율입니다.</p>
+                <label for="cameraZone">편집할 셀</label>
+                <select id="cameraZone"></select>
+                <div class="camera-coords">
+                  <label>왼쪽 %<input id="cameraLeft" type="number" min="0" max="100" step="0.1" /></label>
+                  <label>위쪽 %<input id="cameraTop" type="number" min="0" max="100" step="0.1" /></label>
+                  <label>오른쪽 %<input id="cameraRight" type="number" min="0" max="100" step="0.1" /></label>
+                  <label>아래쪽 %<input id="cameraBottom" type="number" min="0" max="100" step="0.1" /></label>
+                </div>
+                <div class="camera-actions">
+                  <button type="button" id="cameraEdit">편집 시작</button>
+                  <button type="button" id="cameraEqual">균등 분할</button>
+                  <button type="button" id="cameraSave" class="primary">그리드 저장</button>
+                  <button type="button" id="cameraCancel">취소</button>
+                </div>
+                <div class="camera-feedback" id="cameraFeedback" role="status">편집 내용은 저장하기 전까지 적용되지 않습니다.</div>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <!-- SENSOR -->
+        <section class="view" id="view-sensor">
+          <div class="toolbar"><span class="count">RDK 게이트웨이 실시간 값</span>
+            <button class="refresh" id="refSensor" style="margin-left:auto">센서 새로고침</button></div>
+          <div class="sensor" id="sensor"><div class="empty">불러오는 중…</div></div>
+        </section>
+
+      </div>
+    </div>
+   </div>
+  </div>
+  <div id="cameraDragGhost" class="camera-drag-ghost" aria-hidden="true" hidden></div>
+
+  <div class="stream-modal" id="streamModal" hidden role="dialog" aria-modal="true" aria-label="확대 스트리밍">
+    <div class="dialog">
+      <button class="close" id="streamModalClose" type="button" aria-label="스트리밍 닫기">×</button>
+      <div class="media" id="streamModalMedia"></div>
+      <div class="caption" id="streamModalCaption"></div>
+    </div>
+  </div>
+
+<script>
+const KEY='rootAdminToken';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const T={teal:'#1bb0a6',coral:'#ef6b6b',yellow:'#f2c14e',sub:'#8a94a6',line:'#e4e8ee'};
+
+let users=[], plants=[], cameras=[];
+let uState={q:'',type:'',plant:'',sort:'createdAt',dir:'desc'};
+let pState={q:'',type:'',stream:''};
+const charts={};
+const cameraState={id:null,mode:'raw',zone:'1',zones:null,savedZones:null,editing:false,
+  perspectiveCorners:null,savedPerspectiveCorners:null,perspectiveEditing:false,
+  perspectiveDrag:null,perspectiveDirty:false,perspectiveCustomized:false,
+  grids:[],savedGrids:[],selectedGridId:null,layoutEditing:false,layoutDirty:false,
+  layoutCustomized:false,layoutLoaded:false,paletteDrag:null,gridDrag:null,
+  timer:null,statusTimer:null,controller:null,objectUrl:null,drag:null,requestVersion:0,fps:15};
+
+function token(){ try{return sessionStorage.getItem(KEY)}catch{return null} }
+function setToken(t){ try{ t?sessionStorage.setItem(KEY,t):sessionStorage.removeItem(KEY) }catch{} }
+function show(app){ $('login').style.display=app?'none':'flex'; $('app').style.display=app?'block':'none' }
+
+async function api(path){
+  const r=await fetch('/api/web/admin'+path,{headers:{Authorization:'Bearer '+token()}});
+  if(r.status===401||r.status===403){ logout(); throw new Error('unauthorized') }
+  const d=await r.json();
+  if(!r.ok||!d.success) throw new Error(d.message||'요청 실패');
+  return d;
+}
+
+/* ---------- login ---------- */
+$('loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const btn=e.target.querySelector('button'); btn.disabled=true; $('loginErr').textContent='';
+  try{
+    const r=await fetch('/api/web/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id:$('id').value,pwd:$('pw').value})});
+    const d=await r.json();
+    if(!r.ok||!d.success) throw new Error(d.message||'로그인 실패');
+    setToken(d.accessToken); $('pw').value=''; start();
+  }catch(err){ $('loginErr').textContent=err.message }
+  finally{ btn.disabled=false }
+});
+$('logout').addEventListener('click',logout);
+function logout(){ stopCameraPolling(); stopPlantStreams(); setToken(null); show(false) }
+
+/* ---------- nav ---------- */
+const titles={dash:'대시보드',users:'사용자 관리',stream:'스트리밍',camera:'카메라 설정',sensor:'센서'};
+$('nav').addEventListener('click',e=>{
+  const a=e.target.closest('a[data-view]'); if(!a) return;
+  const v=a.dataset.view;
+  document.querySelectorAll('.nav a').forEach(x=>x.classList.toggle('active',x===a));
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+v));
+  $('pageTitle').textContent=titles[v];
+  if(v==='camera') startCameraPolling(); else stopCameraPolling();
+  if(v==='stream') renderPlants(); else stopPlantStreams();
+});
+
+/* ---------- data load ---------- */
+$('refreshAll').addEventListener('click',start);
+$('refSensor').addEventListener('click',loadSensor);
+$('refCameras').addEventListener('click',startCameraPolling);
+
+async function start(){
+  show(true);
+  try{
+    const [u,p,c]=await Promise.all([
+      api('/users'),
+      api('/plants'),
+      api('/cameras').catch(()=>({cameras:[]}))
+    ]);
+    users=u.users; plants=p.plants; cameras=c.cameras||[];
+    $('updatedAt').textContent='업데이트 '+new Date().toLocaleString('ko-KR');
+    renderKpis(); renderCharts();
+    fillTypeFilter(); renderUsers();
+    if($('view-stream').classList.contains('active')) renderPlants();
+    renderCameras();
+    if($('view-camera').classList.contains('active')) startCameraPolling();
+  }catch(e){ if(e.message!=='unauthorized') alert(e.message) }
+  loadSensor();
+}
+
+/* ---------- month helpers ---------- */
+function monthKey(d){ const x=new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0') }
+function last12(){
+  const out=[]; const now=new Date();
+  for(let i=11;i>=0;i--){ const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    out.push({key:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),label:(d.getMonth()+1)+'월'}); }
+  return out;
+}
+
+/* ---------- KPI ---------- */
+function renderKpis(){
+  const months=last12();
+  const thisM=months[11].key, lastM=months[10].key;
+  const uThis=users.filter(u=>monthKey(u.createdAt)===thisM).length;
+  const uLast=users.filter(u=>monthKey(u.createdAt)===lastM).length;
+  const pThis=plants.filter(p=>monthKey(p.createdAt)===thisM).length;
+  const pLast=plants.filter(p=>monthKey(p.createdAt)===lastM).length;
+  const streams=plants.filter(p=>p.streamingUrl).length;
+  const streamPct=plants.length?Math.round(streams/plants.length*100):0;
+  const avgGrowth=plants.length?Math.round(plants.reduce((s,p)=>s+(p.growthPercent||0),0)/plants.length):0;
+
+  const cards=[
+    {lab:'전체 사용자',val:users.length,delta:pctDelta(uThis,uLast),sub:'이번 달 신규 '+uThis+'명'},
+    {lab:'전체 식물',val:plants.length,delta:pctDelta(pThis,pLast),sub:'이번 달 신규 '+pThis+'개'},
+    {lab:'스트리밍 가동',val:streams,delta:null,sub:'전체 식물의 '+streamPct+'%'},
+    {lab:'평균 성장률',val:avgGrowth+'%',delta:null,sub:'식물 성장 목표 대비'}
+  ];
+  $('kpis').innerHTML=cards.map(c=>{
+    let d='';
+    if(c.delta) d=`<div class="delta ${c.delta.cls}">${c.delta.txt} · 전월 대비</div>`;
+    else d=`<div class="delta flat">${esc(c.sub)}</div>`;
+    return `<div class="kpi"><div class="lab">${esc(c.lab)}</div><div class="val">${esc(c.val)}</div>${d}</div>`;
+  }).join('');
+}
+function pctDelta(cur,prev){
+  if(!prev) return cur? {cls:'up',txt:'▲ 신규'} : {cls:'flat',txt:'변동 없음'};
+  const p=Math.round((cur-prev)/prev*100);
+  return p>=0? {cls:'up',txt:'▲ '+p+'%'} : {cls:'down',txt:'▼ '+Math.abs(p)+'%'};
+}
+
+/* ---------- charts ---------- */
+function mkChart(id,cfg){ if(charts[id]) charts[id].destroy(); charts[id]=new Chart($(id),cfg); }
+Chart.defaults.font.family='system-ui,-apple-system,"Segoe UI",sans-serif';
+Chart.defaults.color=T.sub;
+Chart.defaults.plugins.legend.labels.boxWidth=12;
+
+function renderCharts(){
+  const months=last12();
+  const sBy=Object.fromEntries(months.map(m=>[m.key,0]));
+  users.forEach(u=>{ const k=monthKey(u.createdAt); if(k in sBy) sBy[k]++; });
+  const signupData=months.map(m=>sBy[m.key]);
+  let acc=users.filter(u=>new Date(u.createdAt)<new Date(months[0].key+'-01')).length;
+  const cum=months.map(m=>{ acc+=sBy[m.key]; return acc; });
+
+  mkChart('chSignups',{type:'bar',data:{labels:months.map(m=>m.label),
+    datasets:[{label:'신규 가입',data:signupData,backgroundColor:T.teal,borderRadius:4,maxBarThickness:26}]},
+    options:baseOpts()});
+
+  mkChart('chCumulative',{type:'line',data:{labels:months.map(m=>m.label),
+    datasets:[{label:'누적 사용자',data:cum,borderColor:T.yellow,backgroundColor:'rgba(242,193,78,.15)',
+      fill:true,tension:.35,pointRadius:3,pointBackgroundColor:T.yellow}]},options:baseOpts()});
+
+  const streams=plants.filter(p=>p.streamingUrl).length;
+  gauge('chStream',streams,plants.length-streams,T.teal,'#eef1f5',plants.length?Math.round(streams/plants.length*100)+'%':'0%');
+
+  const social=users.filter(u=>u.isSocial).length;
+  mkChart('chSocial',{type:'doughnut',data:{labels:['일반','소셜'],
+    datasets:[{data:[users.length-social,social],backgroundColor:['#cfd6e0',T.coral],borderWidth:0}]},
+    options:{...donutOpts(),cutout:'62%'}});
+
+  const typeMap={}; plants.forEach(p=>{ typeMap[p.type]=(typeMap[p.type]||0)+1; });
+  const tEntries=Object.entries(typeMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  mkChart('chTypes',{type:'bar',data:{labels:tEntries.map(e=>e[0]),
+    datasets:[{label:'식물 수',data:tEntries.map(e=>e[1]),backgroundColor:T.teal,borderRadius:4,maxBarThickness:22}]},
+    options:{...baseOpts(),indexAxis:'y'}});
+
+  const buckets=[0,0,0,0]; // 0-25,26-50,51-75,76-100
+  plants.forEach(p=>{ const g=p.growthPercent||0; buckets[Math.min(3,Math.floor(g/26))]++; });
+  mkChart('chGrowth',{type:'bar',data:{labels:['0–25%','26–50%','51–75%','76–100%'],
+    datasets:[{label:'식물 수',data:buckets,backgroundColor:[T.coral,T.yellow,'#5bc0be',T.teal],borderRadius:4,maxBarThickness:40}]},
+    options:baseOpts()});
+}
+function baseOpts(){return{responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{display:false}},
+  scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:T.line},ticks:{precision:0}}}};}
+function donutOpts(){return{responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{position:'bottom'}}};}
+// center-text doughnut gauge
+const centerText={id:'centerText',afterDraw(c){ const t=c.config._centerText; if(!t)return;
+  const{ctx,chartArea:{left,right,top,bottom}}=c; ctx.save();
+  ctx.font='700 22px system-ui'; ctx.fillStyle='#2b3648'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(t,(left+right)/2,(top+bottom)/2); ctx.restore(); }};
+Chart.register(centerText);
+function gauge(id,on,off,cOn,cOff,label){
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart($(id),{type:'doughnut',
+    data:{datasets:[{data:[on,Math.max(off,0)||(on?0:1)],backgroundColor:[cOn,cOff],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:false}}}});
+  charts[id].config._centerText=label; charts[id].update();
+}
+
+/* ---------- users table (search/filter/sort) ---------- */
+['uSearch','uType','uPlant'].forEach(id=>$(id).addEventListener('input',()=>{
+  uState.q=$('uSearch').value.trim().toLowerCase();
+  uState.type=$('uType').value; uState.plant=$('uPlant').value; renderUsers();
+}));
+function renderUsers(){
+  let rows=users.filter(u=>{
+    if(uState.type==='social'&&!u.isSocial) return false;
+    if(uState.type==='local'&&u.isSocial) return false;
+    if(uState.plant==='has'&&!u.plantCount) return false;
+    if(uState.plant==='none'&&u.plantCount) return false;
+    if(uState.q){ const hay=((u.name||'')+' '+(u.email||'')+' '+(u.phone||'')).toLowerCase();
+      if(!hay.includes(uState.q)) return false; }
+    return true;
+  });
+  const dir=uState.dir==='asc'?1:-1;
+  rows.sort((a,b)=>{
+    let x=a[uState.sort],y=b[uState.sort];
+    if(uState.sort==='createdAt'){ x=new Date(x); y=new Date(y); }
+    if(uState.sort==='name'||uState.sort==='email'){ x=(x||'').toLowerCase(); y=(y||'').toLowerCase(); }
+    return x<y?-dir:x>y?dir:0;
+  });
+  $('uCount').textContent=rows.length+' / '+users.length+' 명';
+  const cols=[['name','이름'],['email','이메일'],['phone','전화번호'],['plantCount','식물'],['isSocial','유형'],['createdAt','가입일']];
+  const head='<tr>'+cols.map(([k,l])=>{
+    const sortable=k!=='phone'&&k!=='isSocial';
+    const cls=sortable?'sortable'+(uState.sort===k?' sort-'+uState.dir:''):'';
+    const arrow=sortable?` <span class="arrow">${uState.sort===k?(uState.dir==='asc'?'▲':'▼'):'↕'}</span>`:'';
+    return `<th class="${cls}" data-k="${k}">${l}${arrow}</th>`;
+  }).join('')+'</tr>';
+  const body=rows.length? rows.map(u=>`<tr>
+    <td>${esc(u.name)||'<span class="muted">이름 없음</span>'}</td>
+    <td>${esc(u.email)}</td>
+    <td>${esc(u.phone)||'<span class="muted">-</span>'}</td>
+    <td>${u.plantCount}</td>
+    <td><span class="tag ${u.isSocial?'social':'local'}">${u.isSocial?'소셜':'일반'}</span></td>
+    <td>${new Date(u.createdAt).toLocaleDateString('ko-KR')}</td>
+  </tr>`).join('') : `<tr><td colspan="6" class="empty">조건에 맞는 사용자가 없습니다.</td></tr>`;
+  $('usersTable').innerHTML=`<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  $('usersTable').querySelectorAll('th.sortable').forEach(th=>th.addEventListener('click',()=>{
+    const k=th.dataset.k;
+    if(uState.sort===k) uState.dir=uState.dir==='asc'?'desc':'asc';
+    else{ uState.sort=k; uState.dir=(k==='name'||k==='email')?'asc':'desc'; }
+    renderUsers();
+  }));
+}
+
+/* ---------- streaming (search/filter) ---------- */
+['pSearch','pType','pStream'].forEach(id=>$(id).addEventListener('input',()=>{
+  pState.q=$('pSearch').value.trim().toLowerCase();
+  pState.type=$('pType').value; pState.stream=$('pStream').value; renderPlants();
+}));
+function fillTypeFilter(){
+  const types=[...new Set(plants.map(p=>p.type))].sort();
+  $('pType').innerHTML='<option value="">전체 종류</option>'+types.map(t=>`<option>${esc(t)}</option>`).join('');
+}
+function streamMarkup(url,label){
+  const safe=esc(url);
+  return `<img data-stream-url="${safe}" data-stream-title="${esc(label||'실시간 스트리밍')}" data-retry="0" src="${safe}" alt="stream" onerror="retryStream(this)"/>`;
+}
+function retryStream(img){
+  const retry=Number(img.dataset.retry||0);
+  if(retry>=8){
+    img.replaceWith(document.createTextNode('스트림 연결 실패'));
+    return;
+  }
+  img.dataset.retry=String(retry+1);
+  const delay=Math.min(1000*(retry+1),5000);
+  setTimeout(()=>{
+    const base=img.dataset.streamUrl;
+    const separator=base.includes('?')?'&':'?';
+    img.src=base+separator+'retry='+Date.now();
+  },delay);
+}
+let modalStream=null;
+function openStream(img){
+  if(!img||!img.parentNode) return;
+  closeStream();
+  modalStream={img,parent:img.parentNode,next:img.nextSibling};
+  $('streamModalMedia').appendChild(img);
+  img.classList.add('expanded-stream');
+  $('streamModalCaption').textContent=img.dataset.streamTitle||'실시간 스트리밍';
+  $('streamModal').hidden=false;
+  document.body.classList.add('modal-open');
+  $('streamModalClose').focus();
+}
+function closeStream(){
+  if(!modalStream){ $('streamModal').hidden=true; document.body.classList.remove('modal-open'); return; }
+  const {img,parent,next}=modalStream;
+  if(parent&&parent.isConnected){
+    img.classList.remove('expanded-stream');
+    parent.insertBefore(img,next&&next.parentNode===parent?next:null);
+  }
+  modalStream=null;
+  $('streamModal').hidden=true;
+  document.body.classList.remove('modal-open');
+}
+$('plants').addEventListener('click',e=>{
+  const img=e.target.closest('img[data-stream-url]');
+  if(img) openStream(img);
+});
+$('zoomCamera').addEventListener('click',()=>{
+  if(hasCameraEdits())return;
+  if(!$('cameraFrame').hidden&&$('cameraFrame').src)openStream($('cameraFrame'));
+});
+$('streamModalClose').addEventListener('click',closeStream);
+$('streamModal').addEventListener('click',e=>{ if(e.target===e.currentTarget) closeStream(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('streamModal').hidden) closeStream(); });
+function renderPlants(){
+  closeStream();
+  let list=plants.filter(p=>{
+    if(pState.type&&p.type!==pState.type) return false;
+    if(pState.stream==='on'&&!p.streamingUrl) return false;
+    if(pState.stream==='off'&&p.streamingUrl) return false;
+    if(pState.q){ const hay=((p.name||'')+' '+(p.type||'')+' '+(p.owner?.name||'')+' '+(p.owner?.email||'')).toLowerCase();
+      if(!hay.includes(pState.q)) return false; }
+    return true;
+  });
+  $('pCount').textContent=list.length+' / '+plants.length+' 개';
+  const cameraOptions=cameraList();
+  $('plants').innerHTML=list.length? list.map(p=>`<div class="plant">
+    <div class="cam">${p.streamingUrl
+      ? streamMarkup(p.streamingUrl,p.name)
+      : '스트림 없음'}</div>
+    <div class="body">
+      <div class="nm">${esc(p.name)} <span class="muted" style="font-weight:400">· ${esc(p.type)}</span></div>
+      <div class="meta">소유자: ${esc(p.owner?.name)||esc(p.owner?.email)||'알 수 없음'}<br>
+        성장 ${p.growthDays}/${p.growthTargetDays}일 · Cam ${esc(p.rdkCameraId)||'-'} / Zone ${p.rdkZone??'-'}</div>
+      <div class="bar"><i style="width:${p.growthPercent}%"></i></div>
+      <div class="plant-assign" data-plant-assignment="${esc(p._id)}">
+        <label>카메라<select data-assign-camera><option value="">미배정</option>${cameraOptions.map(camera=>
+          `<option value="${esc(camera.cameraId)}" ${camera.cameraId===p.rdkCameraId?'selected':''}>${esc(camera.cameraId)}</option>`).join('')}</select></label>
+        <label>식물 영역<select data-assign-zone>${zoneOptionsForPlant(p.rdkCameraId,p)}</select></label>
+        <button type="button" data-save-assignment>이 식물에 영역 배정</button>
+        <small data-assign-status>그리드에서 생성한 칸 번호를 선택하세요.</small>
+      </div>
+    </div>
+  </div>`).join('') : '<div class="empty">조건에 맞는 식물이 없습니다.</div>';
+}
+function zoneOptionsForPlant(cameraId,plant){
+  if(!cameraId)return '<option value="">카메라를 선택하세요</option>';
+  const free=cameras.find(camera=>camera.cameraId===cameraId)?.zones||[];
+  const current=plant.rdkCameraId===cameraId?plant.rdkZone:null;
+  const values=[...new Set([...free,current].filter(zone=>Number.isInteger(zone)))].sort((a,b)=>a-b);
+  return '<option value="">영역 선택</option>'+values.map(zone=>
+    `<option value="${zone}" ${zone===current?'selected':''}>영역 ${zone}</option>`).join('');
+}
+$('plants').addEventListener('change',event=>{
+  if(!event.target.matches('[data-assign-camera]'))return;
+  const form=event.target.closest('[data-plant-assignment]');
+  const plant=plants.find(item=>String(item._id)===form?.dataset.plantAssignment);
+  if(plant)form.querySelector('[data-assign-zone]').innerHTML=zoneOptionsForPlant(event.target.value,plant);
+});
+$('plants').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-save-assignment]');
+  if(!button)return;
+  const form=button.closest('[data-plant-assignment]');
+  const plant=plants.find(item=>String(item._id)===form?.dataset.plantAssignment);
+  if(!plant)return;
+  const rdkCameraId=form.querySelector('[data-assign-camera]').value||null;
+  const zoneText=form.querySelector('[data-assign-zone]').value;
+  const rdkZone=rdkCameraId&&zoneText?Number(zoneText):null;
+  const status=form.querySelector('[data-assign-status]');
+  if(rdkCameraId&&!rdkZone){status.textContent='식물 영역을 선택하세요.';status.classList.add('error');return;}
+  button.disabled=true;
+  status.classList.remove('error');status.textContent='영역을 배정하는 중입니다…';
+  try{
+    const data=await cameraJson('/plants/'+encodeURIComponent(plant._id)+'/camera',
+      'PATCH',{rdkCameraId,rdkZone});
+    Object.assign(plant,data.plant);
+    cameras=(await api('/cameras')).cameras||[];
+    renderPlants();renderCameras();
+  }catch(error){
+    status.textContent=error.message;status.classList.add('error');button.disabled=false;
+  }
+});
+function stopPlantStreams(){
+  closeStream();
+  $('plants').replaceChildren();
+}
+
+/* ---------- camera workbench ---------- */
+function cameraList(){
+  const byId=new Map((cameras||[]).map(c=>[c.cameraId,c]));
+  plants.forEach(p=>{
+    if(p.rdkCameraId&&!byId.has(p.rdkCameraId))
+      byId.set(p.rdkCameraId,{cameraId:p.rdkCameraId,zones:[]});
+  });
+  return [...byId.values()].sort((a,b)=>String(a.cameraId).localeCompare(String(b.cameraId)));
+}
+function cameraFeedback(message,error=false){
+  $('cameraFeedback').textContent=message;
+  $('cameraFeedback').classList.toggle('error',error);
+}
+function perspectiveFeedback(message,error=false){
+  $('perspectiveFeedback').textContent=message;
+  $('perspectiveFeedback').classList.toggle('error',error);
+}
+function gridLayoutFeedback(message,error=false){
+  $('gridLayoutFeedback').textContent=message;
+  $('gridLayoutFeedback').classList.toggle('error',error);
+}
+function perspectiveState(message,customized=false){
+  $('cameraPerspectiveState').textContent=message;
+  $('cameraPerspectiveState').classList.toggle('customized',customized);
+}
+function isValidPerspectiveCorners(corners){
+  if(!Array.isArray(corners)||corners.length!==4||corners.some(point=>
+    !Array.isArray(point)||point.length!==2||point.some(value=>!Number.isFinite(value)||value<0||value>1))) return false;
+  const crosses=corners.map((a,index)=>{
+    const b=corners[(index+1)%4],c=corners[(index+2)%4];
+    return (b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]);
+  });
+  const area=Math.abs(corners.reduce((sum,point,index)=>{
+    const next=corners[(index+1)%4];return sum+point[0]*next[1]-next[0]*point[1];
+  },0))/2;
+  return crosses.every(cross=>cross>1e-5)&&area>=.02;
+}
+function validGridLayouts(grids){
+  if(!Array.isArray(grids)||grids.length>144)return false;
+  if(new Set(grids.map(grid=>grid.id)).size!==grids.length)return false;
+  if(!grids.every(grid=>{
+    if(!Array.isArray(grid.anchors)||grid.anchors.length!==2||
+        grid.anchors.some(point=>!Array.isArray(point)||point.length!==2||point.some(value=>
+          !Number.isFinite(value)||value<0||value>1)))return false;
+    const [start,end]=grid.anchors;
+    return end[0]-start[0]>=.04&&end[1]-start[1]>=.04;
+  }))return false;
+  return grids.every((first,index)=>grids.slice(index+1).every(second=>{
+    const [a,b]=first.anchors,[c,d]=second.anchors;
+    return Math.min(b[0],d[0])<=Math.max(a[0],c[0])||
+      Math.min(b[1],d[1])<=Math.max(a[1],c[1]);
+  }));
+}
+function renderGridGroupButtons(){
+  $('cameraGridGroups').innerHTML=cameraState.grids.length
+    ?cameraState.grids.map(grid=>`<button type="button" data-grid-id="${esc(grid.id)}" class="${grid.id===cameraState.selectedGridId?'active':''}" ${cameraState.layoutEditing?'':'disabled'}>식물 영역 ${grid.id.slice(5)} · ${grid.anchors.filter(Array.isArray).length}/2</button>`).join('')
+    :'<small>배치한 그리드가 없습니다.</small>';
+}
+function hasCameraEdits(){return cameraState.editing||cameraState.perspectiveEditing||cameraState.layoutEditing}
+function cameraHealth(message,error=false){
+  $('cameraHealth').textContent=message;
+  $('cameraHealth').classList.toggle('error',error);
+}
+function renderCameras(){
+  const list=cameraList();
+  $('cameraChoices').innerHTML=list.length?list.map(c=>{
+    const id=esc(c.cameraId);
+    const count=Array.isArray(c.zones)?c.zones.length:0;
+    return `<button class="camera-choice" type="button" data-camera-choice="${id}">
+      <strong>${id}</strong><small>${count}개 빈 영역</small></button>`;
+  }).join(''):'<div class="empty">등록된 카메라가 없습니다.</div>';
+  const next=list.some(c=>c.cameraId===cameraState.id)?cameraState.id:list[0]?.cameraId;
+  if(next===cameraState.id&&hasCameraEdits()){
+    document.querySelectorAll('[data-camera-choice]').forEach(button=>
+      button.classList.toggle('active',button.dataset.cameraChoice===next));
+    return;
+  }
+  if(next) selectCamera(next);
+  else { stopCameraPolling(); cameraState.id=null; cameraHealth('카메라 없음',true); }
+}
+async function cameraJson(path,method='GET',body){
+  const response=await fetch('/api/web/admin'+path,{
+    method,
+    headers:{Authorization:'Bearer '+token(),...(body?{'Content-Type':'application/json'}:{})},
+    body:body?JSON.stringify(body):undefined
+  });
+  if(response.status===401||response.status===403){ logout(); throw new Error('관리자 인증이 만료되었습니다.'); }
+  const data=await response.json();
+  if(!response.ok||!data.success) throw new Error(data.message||'카메라 요청 실패');
+  return data;
+}
+function cameraProfileFeedback(message,error=false){
+  $('cameraProfileFeedback').textContent=message;
+  $('cameraProfileFeedback').classList.toggle('error',error);
+}
+async function loadCameraProfile(cameraId){
+  try{
+    const profile=await cameraJson('/cameras/'+encodeURIComponent(cameraId)+'/profile');
+    if(cameraState.id!==cameraId)return;
+    cameraState.fps=profile.fps;
+    cameraProfileFeedback('고정 규격 확인됨: '+profile.fps+' FPS');
+  }catch(error){
+    if(cameraState.id===cameraId)cameraProfileFeedback(error.message,true);
+  }
+}
+async function selectCamera(cameraId){
+  if(hasCameraEdits()&&cameraState.id!==cameraId&&
+      !confirm('저장하지 않은 카메라 보정 변경이 있습니다. 다른 카메라로 이동할까요?')) return;
+  stopCameraPolling();
+  cameraState.id=cameraId;
+  cameraState.mode='raw';
+  cameraState.zones=null;
+  cameraState.savedZones=null;
+  cameraState.editing=false;
+  cameraState.perspectiveCorners=null;
+  cameraState.savedPerspectiveCorners=null;
+  cameraState.perspectiveEditing=false;
+  cameraState.perspectiveDirty=false;
+  cameraState.perspectiveCustomized=false;
+  cameraState.grids=[];
+  cameraState.savedGrids=[];
+  cameraState.selectedGridId=null;
+  cameraState.layoutEditing=false;
+  cameraState.layoutDirty=false;
+  cameraState.layoutCustomized=false;
+  cameraState.layoutLoaded=false;
+  cameraState.paletteDrag=null;
+  cameraState.gridDrag=null;
+  cameraState.zone='1';
+  $('cameraFrame').hidden=true;
+  $('cameraEmpty').hidden=false;
+  $('cameraEmpty').textContent='카메라 영상 연결 중…';
+  cameraHealth(cameraId+' 연결 중');
+  document.querySelectorAll('[data-camera-choice]').forEach(button=>
+    button.classList.toggle('active',button.dataset.cameraChoice===cameraId));
+  cameraFeedback('그리드를 읽는 중입니다.');
+  perspectiveState('평면화 설정을 읽는 중입니다.');
+  perspectiveFeedback('저장된 모서리 설정은 이 RDK에 유지됩니다.');
+  cameraProfileFeedback('현재 설정을 불러오는 중입니다.');
+  updateCameraControls();
+  loadCameraProfile(cameraId);
+  const [calibrationResult,perspectiveResult,layoutsResult]=await Promise.allSettled([
+      cameraJson('/cameras/'+encodeURIComponent(cameraId)+'/calibration'),
+      cameraJson('/cameras/'+encodeURIComponent(cameraId)+'/perspective'),
+      cameraJson('/cameras/'+encodeURIComponent(cameraId)+'/grid-layouts')
+  ]);
+  if(cameraState.id!==cameraId) return;
+  if(calibrationResult.status==='fulfilled'){
+    const data=calibrationResult.value;
+    cameraState.zones=structuredClone(data.zones);
+    cameraState.savedZones=structuredClone(data.zones);
+    cameraFeedback(data.customized?'저장된 사용자 설정을 불러왔습니다.':'현재 균등 그리드를 불러왔습니다.');
+  }else cameraFeedback(calibrationResult.reason.message,true);
+  if(perspectiveResult.status==='fulfilled'){
+    const perspective=perspectiveResult.value;
+    cameraState.perspectiveCorners=structuredClone(perspective.corners);
+    cameraState.savedPerspectiveCorners=structuredClone(perspective.corners);
+    cameraState.perspectiveCustomized=perspective.customized;
+    perspectiveState(perspective.customized?'사용자 지정 평면화가 적용되어 있습니다.':'사용자 지정 없음 · 기존 자동 보정 사용 중',perspective.customized);
+    perspectiveFeedback('원본 프레임을 기준으로 설정합니다.');
+  }else perspectiveState('평면화 설정을 읽지 못했습니다: '+perspectiveResult.reason.message);
+  if(layoutsResult.status==='fulfilled'){
+    cameraState.grids=structuredClone(layoutsResult.value.grids);
+    cameraState.savedGrids=structuredClone(layoutsResult.value.grids);
+    cameraState.selectedGridId=cameraState.grids[0]?.id||null;
+    cameraState.layoutCustomized=layoutsResult.value.customized;
+    cameraState.layoutLoaded=true;
+    gridLayoutFeedback(cameraState.grids.length
+      ?`저장된 그리드 ${cameraState.grids.length}개를 불러왔습니다.`
+      :'새 그리드를 배치할 수 있습니다.');
+  }else gridLayoutFeedback('그리드 배치를 읽지 못했습니다: '+layoutsResult.reason.message,true);
+  updateCameraControls();
+  if($('view-camera').classList.contains('active')) startCameraPolling();
+}
+function stopCameraPolling(){
+  clearTimeout(cameraState.timer);
+  clearTimeout(cameraState.statusTimer);
+  cameraState.timer=null;
+  cameraState.statusTimer=null;
+  cameraState.requestVersion++;
+  cameraState.controller?.abort();
+  cameraState.controller=null;
+  if(cameraState.objectUrl) URL.revokeObjectURL(cameraState.objectUrl);
+  cameraState.objectUrl=null;
+  closeStream();
+}
+function startCameraPolling(){
+  stopCameraPolling();
+  if(!cameraState.id||!$('view-camera').classList.contains('active')||document.hidden) return;
+  const cameraId=cameraState.id;
+  loadCameraFrame(cameraState.requestVersion);
+  const pollStatus=async()=>{
+    try{
+      const {status}=await cameraJson('/cameras/'+encodeURIComponent(cameraId)+'/status');
+      if(cameraState.id!==cameraId) return;
+      const privacy={on:'프라이버시 모드',off:'시청 가능',error:'제어 오류',
+        unconfigured:'제어 미설정'}[status.privacy_state]||'상태 불명';
+      const source=status.source_width&&status.source_height?
+        `${status.source_width} × ${status.source_height}`:'원본 프레임 대기 중';
+      const sourceIs720p=status.source_width===1280&&status.source_height===720;
+      const fps=status.output_fps||cameraState.fps;
+      $('cameraOpsStatus').textContent=`${privacy} · 원본 ${source} → 출력 ${status.output_width} × ${status.output_height} · ${fps} FPS`+
+        (status.source_width&&status.source_height&&!sourceIs720p?' · 원본 해상도 확인 필요':'');
+      $('cameraOpsStatus').classList.toggle('source-warning',
+        Boolean(status.source_width&&status.source_height&&!sourceIs720p));
+    }catch(error){
+      if(cameraState.id===cameraId&&error.message!=='관리자 인증이 만료되었습니다.')
+        $('cameraOpsStatus').textContent='카메라 상태를 읽을 수 없습니다.';
+    }finally{
+      if(cameraState.id===cameraId&&token()&&$('view-camera').classList.contains('active')&&!document.hidden)
+        cameraState.statusTimer=setTimeout(pollStatus,5000);
+    }
+  };
+  pollStatus();
+}
+async function loadCameraFrame(version){
+  if(version!==cameraState.requestVersion||!cameraState.id) return;
+  const mode=cameraState.mode==='perspective'?'raw':
+    (cameraState.mode==='grid'&&(cameraState.editing||cameraState.layoutEditing)
+      ?'corrected':cameraState.mode);
+  const controller=new AbortController();
+  cameraState.controller=controller;
+  try{
+    const response=await fetch('/api/web/admin/cameras/'+encodeURIComponent(cameraState.id)+
+      '/frame/'+mode+'?ts='+Date.now(),{
+      headers:{Authorization:'Bearer '+token()},signal:controller.signal,cache:'no-store'
+    });
+    if(response.status===401||response.status===403){ logout(); return; }
+    if(!response.ok) throw new Error('HTTP '+response.status);
+    const blob=await response.blob();
+    if(version!==cameraState.requestVersion) return;
+    const objectUrl=URL.createObjectURL(blob);
+    const previous=cameraState.objectUrl;
+    cameraState.objectUrl=objectUrl;
+    $('cameraFrame').src=objectUrl;
+    $('cameraFrame').hidden=false;
+    $('cameraEmpty').hidden=true;
+    updateCameraControls();
+    if(previous) URL.revokeObjectURL(previous);
+    cameraHealth(cameraState.id+' · 연결됨');
+    $('cameraFootnote').textContent='최종 수신 '+new Date().toLocaleTimeString('ko-KR')+
+      ' · '+({raw:'카메라 원본',perspective:'베드 4점 지정용 원본',corrected:'왜곡 보정',grid:'영역 분할'}[cameraState.mode]);
+  }catch(error){
+    if(error.name!=='AbortError'&&version===cameraState.requestVersion){
+      cameraHealth(cameraState.id+' · 연결 실패',true);
+      $('cameraFootnote').textContent='RDK 카메라 프레임을 읽을 수 없습니다.';
+      if(!cameraState.objectUrl){ $('cameraFrame').hidden=true; $('cameraEmpty').hidden=false;
+        $('cameraEmpty').textContent='카메라 연결을 확인해 주세요.'; updateCameraControls(); }
+    }
+  }finally{
+    if(version===cameraState.requestVersion&&$('view-camera').classList.contains('active')&&!document.hidden)
+      cameraState.timer=setTimeout(()=>loadCameraFrame(version),1000);
+  }
+}
+$('cameraFrame').addEventListener('load',()=>{
+  if($('cameraFrame').naturalWidth&&$('cameraFrame').naturalHeight)
+    $('cameraStage').style.aspectRatio=$('cameraFrame').naturalWidth+'/'+$('cameraFrame').naturalHeight;
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) stopCameraPolling();
+  else if($('view-camera').classList.contains('active')) startCameraPolling();
+  if(document.hidden) stopPlantStreams();
+  else if($('view-stream').classList.contains('active')) renderPlants();
+});
+$('cameraChoices').addEventListener('click',event=>{
+  const button=event.target.closest('[data-camera-choice]');
+  if(button) selectCamera(button.dataset.cameraChoice);
+});
+document.querySelectorAll('[data-camera-mode]').forEach(button=>button.addEventListener('click',()=>{
+  if(cameraState.editing&&button.dataset.cameraMode!=='grid'){
+    cameraFeedback('그리드 편집을 저장하거나 취소한 뒤 화면을 전환하세요.',true); return;
+  }
+  if(cameraState.perspectiveEditing&&button.dataset.cameraMode!=='perspective'){
+    perspectiveFeedback('평면화 편집을 저장하거나 취소한 뒤 화면을 전환하세요.',true); return;
+  }
+  if(cameraState.layoutEditing&&button.dataset.cameraMode!=='grid'){
+    $('gridLayoutFeedback').textContent='그리드 배치를 저장하거나 취소한 뒤 화면을 전환하세요.'; return;
+  }
+  cameraState.mode=button.dataset.cameraMode;
+  updateCameraControls();
+  startCameraPolling();
+}));
+function updateCameraControls(){
+  document.querySelectorAll('[data-camera-mode]').forEach(button=>{
+    const active=button.dataset.cameraMode===cameraState.mode;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-selected',String(active));
+  });
+  const ready=!!cameraState.zones;
+  $('zoomCamera').disabled=!cameraState.id||$('cameraFrame').hidden||hasCameraEdits();
+  const rectangles=ready&&Object.values(cameraState.zones).every(Array.isArray);
+  $('cameraEdit').disabled=!rectangles||cameraState.editing;
+  $('cameraEdit').disabled=$('cameraEdit').disabled||cameraState.perspectiveEditing||
+    cameraState.layoutEditing||cameraState.layoutCustomized;
+  $('cameraEqual').disabled=!ready||!cameraState.editing;
+  $('cameraSave').disabled=!ready||!cameraState.editing;
+  $('cameraCancel').disabled=!cameraState.editing;
+  $('cameraZone').disabled=!ready;
+  for(const id of ['cameraLeft','cameraTop','cameraRight','cameraBottom'])
+    $(id).disabled=!ready||!cameraState.editing;
+  $('cameraZone').innerHTML=Array.from({length:18},(_,index)=>{
+    const value=String(index+1);
+    return `<option value="${value}">영역 ${value}</option>`;
+  }).join('');
+  $('cameraZone').value=cameraState.zone;
+  $('cameraOverlay').hidden=!((cameraState.editing||cameraState.layoutEditing)&&cameraState.mode==='grid');
+  $('perspectiveOverlay').hidden=!(cameraState.perspectiveEditing&&cameraState.mode==='perspective');
+  $('perspectiveEdit').disabled=!cameraState.id||!Array.isArray(cameraState.savedPerspectiveCorners)||hasCameraEdits();
+  $('perspectiveSave').disabled=!cameraState.perspectiveEditing||!cameraState.perspectiveDirty||
+    !isValidPerspectiveCorners(cameraState.perspectiveCorners);
+  $('perspectiveCancel').disabled=!cameraState.perspectiveEditing;
+  $('perspectiveReset').disabled=!cameraState.id||hasCameraEdits()||!cameraState.perspectiveCustomized;
+  $('perspectivePalette').hidden=!(cameraState.perspectiveEditing&&cameraState.mode==='perspective');
+  $('gridPalette').hidden=!(cameraState.layoutEditing&&cameraState.mode==='grid');
+  document.querySelectorAll('[data-perspective-tool]').forEach(button=>
+    button.classList.toggle('placed',Array.isArray(cameraState.perspectiveCorners?.[Number(button.dataset.perspectiveTool)])));
+  const activeGrid=cameraState.grids.find(grid=>grid.id===cameraState.selectedGridId);
+  document.querySelectorAll('[data-grid-tool]').forEach(button=>{
+    button.disabled=!activeGrid;
+    button.classList.toggle('placed',Array.isArray(activeGrid?.anchors[Number(button.dataset.gridTool)]));
+  });
+  $('gridLayoutEdit').disabled=!cameraState.id||!cameraState.layoutLoaded||hasCameraEdits();
+  $('gridLayoutAdd').disabled=!cameraState.layoutEditing;
+  $('gridLayoutRemove').disabled=!cameraState.layoutEditing||!activeGrid;
+  $('gridLayoutSave').disabled=!cameraState.layoutEditing||!cameraState.layoutDirty||!validGridLayouts(cameraState.grids);
+  $('gridLayoutCancel').disabled=!cameraState.layoutEditing;
+  renderGridGroupButtons();
+  const guide=$('perspectiveGuide');
+  guide.hidden=!(cameraState.perspectiveEditing&&cameraState.mode==='perspective');
+  if(!guide.hidden){
+    const count=cameraState.perspectiveCorners.filter(Array.isArray).length;
+    guide.textContent=`영상 아래 빨간 원을 끌어 놓으세요 · ${count}/4개 배치됨`;
+  }
+  updateCameraInputs();
+  renderCameraOverlay();
+  renderPerspectiveOverlay();
+}
+function updateCameraInputs(){
+  const box=cameraState.zones?.[cameraState.zone];
+  if(!Array.isArray(box)) return;
+  ['cameraLeft','cameraTop','cameraRight','cameraBottom'].forEach((id,index)=>{
+    $(id).value=(box[index]*100).toFixed(1);
+  });
+}
+function renderCameraOverlay(){
+  if($('cameraOverlay').hidden)return;
+  if(cameraState.layoutEditing){renderGridLayoutOverlay();return;}
+  if(!cameraState.zones)return;
+  $('cameraOverlay').innerHTML=Object.entries(cameraState.zones).map(([zone,box])=>{
+    if(!Array.isArray(box)) return '';
+    const [x0,y0,x1,y1]=[box[0]*1600,box[1]*900,box[2]*1600,box[3]*900];
+    const selected=zone===cameraState.zone;
+    return `<g data-zone="${zone}">
+      <rect data-zone="${zone}" data-part="move" x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}"
+        fill="${selected?'rgba(255,48,58,.22)':'rgba(255,48,58,.055)'}"
+        stroke="${selected?'#ff3f4d':'#f36a70'}" stroke-width="${selected?4:2.5}" vector-effect="non-scaling-stroke" style="cursor:move" />
+      <text x="${x0+9}" y="${y0+25}" fill="#fff8f8" stroke="#66141c" stroke-width="5" paint-order="stroke" font-size="21" font-weight="800" pointer-events="none">${zone}</text>
+      ${selected?`<circle data-zone="${zone}" data-part="resize" cx="${x1}" cy="${y1}"
+        r="11" fill="#ff4653" stroke="#fff4f4" stroke-width="3" vector-effect="non-scaling-stroke" style="cursor:nwse-resize" />`:''}
+    </g>`;
+  }).join('');
+}
+function renderGridLayoutOverlay(){
+  const svg=$('cameraOverlay');
+  const pieces=[];
+  cameraState.grids.forEach(grid=>{
+    const selected=grid.id===cameraState.selectedGridId;
+    const [start,end]=grid.anchors;
+    if(Array.isArray(start)&&Array.isArray(end)){
+      const [x0,y0]=[start[0]*1600,start[1]*900];
+      const [x1,y1]=[end[0]*1600,end[1]*900];
+      if(x1>x0&&y1>y0){
+        pieces.push(`<g opacity="${selected?'1':'.5'}"><rect class="camera-grid-boundary" x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" />`);
+        pieces.push(`<text class="camera-grid-name" x="${x0+12}" y="${y0+28}">영역 ${grid.id.slice(5)}</text></g>`);
+      }
+    }
+    grid.anchors.forEach((point,anchorIndex)=>{
+      if(!Array.isArray(point))return;
+      const [x,y]=[point[0]*1600,point[1]*900];
+      const vertices=anchorIndex===0
+        ?`${x},${y-31} ${x+28},${y+23} ${x-28},${y+23}`
+        :`${x-28},${y-23} ${x+28},${y-23} ${x},${y+31}`;
+      pieces.push(`<g class="camera-grid-anchor" data-grid-anchor="${anchorIndex}" data-grid-id="${esc(grid.id)}" opacity="${selected?'1':'.65'}">
+        <circle class="hit" cx="${x}" cy="${y}" r="48" />
+        <polygon class="shape" points="${vertices}" />
+        <text class="camera-perspective-number" x="${x}" y="${y}">${anchorIndex+1}</text>
+      </g>`);
+    });
+  });
+  svg.innerHTML=pieces.join('');
+}
+$('cameraZone').addEventListener('change',()=>{
+  cameraState.zone=$('cameraZone').value; updateCameraInputs(); renderCameraOverlay();
+});
+['cameraLeft','cameraTop','cameraRight','cameraBottom'].forEach(id=>$(id).addEventListener('change',()=>{
+  if(!cameraState.editing) return;
+  const box=['cameraLeft','cameraTop','cameraRight','cameraBottom'].map(key=>Number($(key).value)/100);
+  if(box.some(value=>!Number.isFinite(value)||value<0||value>1)||box[0]>=box[2]||box[1]>=box[3]){
+    cameraFeedback('좌표는 0~100%이며 왼쪽·위쪽 값은 오른쪽·아래쪽보다 작아야 합니다.',true);
+    updateCameraInputs(); return;
+  }
+  cameraState.zones[cameraState.zone]=box;
+  cameraFeedback('변경 내용이 아직 저장되지 않았습니다.');
+  renderCameraOverlay();
+}));
+$('cameraEdit').addEventListener('click',()=>{
+  cameraState.editing=true; cameraState.mode='grid';
+  updateCameraControls(); cameraFeedback('셀을 끌어 이동하거나 오른쪽 아래 점을 끌어 크기를 조절하세요.');
+  startCameraPolling();
+});
+$('cameraEqual').addEventListener('click',()=>{
+  if(!cameraState.editing) return;
+  cameraState.zones=Object.fromEntries(Array.from({length:18},(_,index)=>{
+    const col=index%6,row=Math.floor(index/6),pad=.01;
+    return [String(index+1),[col/6+pad,row/3+pad,(col+1)/6-pad,(row+1)/3-pad]];
+  }));
+  updateCameraControls(); cameraFeedback('균등 분할이 적용되었습니다. 저장을 눌러 확정하세요.');
+});
+$('cameraCancel').addEventListener('click',()=>{
+  cameraState.zones=structuredClone(cameraState.savedZones);
+  cameraState.editing=false; updateCameraControls(); cameraFeedback('편집을 취소했습니다.');
+  startCameraPolling();
+});
+$('cameraSave').addEventListener('click',async()=>{
+  if(!cameraState.editing||!cameraState.id) return;
+  const savingCameraId=cameraState.id;
+  $('cameraSave').disabled=true;
+  try{
+    const data=await cameraJson('/cameras/'+encodeURIComponent(savingCameraId)+'/calibration',
+      'PUT',{zones:cameraState.zones});
+    if(cameraState.id!==savingCameraId) return;
+    cameraState.zones=structuredClone(data.zones);
+    cameraState.savedZones=structuredClone(data.zones);
+    cameraState.editing=false;
+    updateCameraControls();
+    cameraFeedback('그리드를 저장했습니다. 식물별 영상에도 즉시 반영됩니다.');
+    startCameraPolling();
+  }catch(error){
+    if(cameraState.id===savingCameraId){
+      cameraFeedback(error.message,true); $('cameraSave').disabled=false;
+    }
+  }
+});
+$('cameraGridGroups').addEventListener('click',event=>{
+  const button=event.target.closest('[data-grid-id]');
+  if(!button||!cameraState.layoutEditing)return;
+  cameraState.selectedGridId=button.dataset.gridId;
+  updateCameraControls();
+});
+$('gridLayoutEdit').addEventListener('click',()=>{
+  if(hasCameraEdits()||!cameraState.id)return;
+  cameraState.layoutEditing=true;
+  const occupied=[...new Set(plants.filter(plant=>plant.rdkCameraId===cameraState.id)
+    .map(plant=>plant.rdkZone).filter(Number.isInteger))].sort((a,b)=>a-b);
+  cameraState.grids=cameraState.layoutCustomized
+    ?structuredClone(cameraState.savedGrids)
+    :occupied.map(zone=>({id:'grid-'+zone,anchors:[
+      cameraState.zones?.[zone]?.slice(0,2)||null,
+      cameraState.zones?.[zone]?.slice(2,4)||null
+    ]}));
+  if(!cameraState.grids.length)cameraState.grids=[{id:'grid-1',anchors:[null,null]}];
+  cameraState.layoutDirty=!cameraState.layoutCustomized&&occupied.length>0;
+  cameraState.selectedGridId=cameraState.grids[0]?.id||null;
+  cameraState.mode='grid';
+  gridLayoutFeedback(occupied.length&&!cameraState.layoutCustomized
+    ?`기존 식물 배정 ${occupied.length}개를 위치·번호 그대로 가져왔습니다. 크기를 바꾸거나 영역을 추가하세요.`
+    :'영상 아래 삼각형 두 개로 첫 식물 영역을 지정하세요. 영역 하나가 사용자 화면 하나입니다.');
+  updateCameraControls();startCameraPolling();
+});
+$('gridLayoutAdd').addEventListener('click',()=>{
+  if(!cameraState.layoutEditing)return;
+  const used=new Set(cameraState.grids.map(grid=>grid.id));
+  const number=Array.from({length:144},(_,index)=>index+1).find(index=>!used.has('grid-'+index));
+  if(!number){gridLayoutFeedback('한 카메라에 식물 영역은 최대 144개까지 배치할 수 있습니다.',true);return;}
+  const grid={id:'grid-'+number,anchors:[null,null]};
+  cameraState.grids.push(grid);
+  cameraState.selectedGridId=grid.id;
+  cameraState.layoutDirty=true;
+  gridLayoutFeedback(`식물 영역 ${number}의 시작점과 끝점 삼각형을 영상으로 옮기세요.`);
+  updateCameraControls();
+});
+$('gridLayoutRemove').addEventListener('click',()=>{
+  if(!cameraState.layoutEditing)return;
+  cameraState.grids=cameraState.grids.filter(grid=>grid.id!==cameraState.selectedGridId);
+  cameraState.selectedGridId=cameraState.grids[0]?.id||null;
+  cameraState.layoutDirty=true;
+  gridLayoutFeedback('선택한 그리드를 배치에서 제거했습니다. 저장하면 적용됩니다.');
+  updateCameraControls();
+});
+$('gridLayoutCancel').addEventListener('click',()=>{
+  if(!cameraState.layoutEditing)return;
+  cameraState.grids=structuredClone(cameraState.savedGrids);
+  cameraState.selectedGridId=cameraState.grids[0]?.id||null;
+  cameraState.layoutEditing=false;
+  cameraState.layoutDirty=false;
+  gridLayoutFeedback('그리드 배치를 취소했습니다.');
+  updateCameraControls();startCameraPolling();
+});
+$('gridLayoutSave').addEventListener('click',async()=>{
+  if(!cameraState.layoutEditing||!cameraState.id||!validGridLayouts(cameraState.grids))return;
+  const cameraId=cameraState.id;
+  $('gridLayoutSave').disabled=true;
+  try{
+    const data=await cameraJson('/cameras/'+encodeURIComponent(cameraId)+'/grid-layouts',
+      'PUT',{grids:cameraState.grids});
+    if(cameraState.id!==cameraId)return;
+    cameraState.grids=structuredClone(data.grids);
+    cameraState.savedGrids=structuredClone(data.grids);
+    cameraState.layoutCustomized=data.customized;
+    cameraState.selectedGridId=cameraState.grids[0]?.id||null;
+    cameraState.layoutEditing=false;
+    cameraState.layoutDirty=false;
+    gridLayoutFeedback(`식물 영역 ${cameraState.grids.length}개를 저장했습니다. 영역 번호를 식물에 배정할 수 있습니다.`);
+    updateCameraControls();startCameraPolling();
+    try{
+      const [availability,calibration]=await Promise.all([
+        api('/cameras'),cameraJson('/cameras/'+encodeURIComponent(cameraId)+'/calibration')
+      ]);
+      if(cameraState.id===cameraId){
+        cameras=availability.cameras||[];
+        cameraState.zones=structuredClone(calibration.zones);
+        cameraState.savedZones=structuredClone(calibration.zones);
+        document.querySelectorAll('[data-camera-choice]').forEach(button=>{
+          const count=cameras.find(camera=>camera.cameraId===button.dataset.cameraChoice)?.zones.length;
+          if(count!==undefined)button.querySelector('small').textContent=count+'개 빈 영역';
+        });
+        if($('view-stream').classList.contains('active'))renderPlants();
+      }
+    }catch(_error){ /* 저장 자체는 성공했으며 다음 새로고침에서 가용 영역이 갱신됩니다. */ }
+  }catch(error){
+    if(cameraState.id===cameraId){gridLayoutFeedback(error.message,true);updateCameraControls();}
+  }
+});
+function cameraPoint(event){
+  const rect=$('cameraOverlay').getBoundingClientRect();
+  return [Math.min(1,Math.max(0,(event.clientX-rect.left)/rect.width)),
+    Math.min(1,Math.max(0,(event.clientY-rect.top)/rect.height))];
+}
+$('cameraOverlay').addEventListener('pointerdown',event=>{
+  if(cameraState.layoutEditing){
+    const target=event.target.closest('[data-grid-anchor]');
+    if(!target)return;
+    const grid=cameraState.grids.find(item=>item.id===target.dataset.gridId);
+    if(!grid)return;
+    cameraState.selectedGridId=grid.id;
+    cameraState.gridDrag={gridId:grid.id,index:Number(target.dataset.gridAnchor),
+      pointerId:event.pointerId,original:structuredClone(grid.anchors[Number(target.dataset.gridAnchor)])};
+    $('cameraOverlay').setPointerCapture(event.pointerId);
+    event.preventDefault();
+    updateCameraControls();
+    return;
+  }
+  if(!cameraState.editing) return;
+  const target=event.target.closest('[data-zone]');
+  if(!target) return;
+  const zone=target.dataset.zone;
+  cameraState.zone=zone;
+  $('cameraZone').value=zone;
+  cameraState.drag={zone,part:target.dataset.part||'move',
+    point:cameraPoint(event),box:[...cameraState.zones[zone]]};
+  $('cameraOverlay').setPointerCapture(event.pointerId);
+  updateCameraInputs(); renderCameraOverlay();
+});
+$('cameraOverlay').addEventListener('pointermove',event=>{
+  if(cameraState.gridDrag?.pointerId===event.pointerId){
+    const point=cameraStagePoint(event.clientX,event.clientY);
+    const grid=cameraState.grids.find(item=>item.id===cameraState.gridDrag.gridId);
+    if(point&&grid){
+      grid.anchors[cameraState.gridDrag.index]=point;
+      cameraState.layoutDirty=true;
+      updateCameraControls();
+    }
+    return;
+  }
+  const drag=cameraState.drag;
+  if(!drag) return;
+  const point=cameraPoint(event);
+  let box;
+  if(drag.part==='resize'){
+    box=[drag.box[0],drag.box[1],Math.max(drag.box[0]+.01,point[0]),
+      Math.max(drag.box[1]+.01,point[1])];
+  }else{
+    const dx=point[0]-drag.point[0],dy=point[1]-drag.point[1];
+    const width=drag.box[2]-drag.box[0],height=drag.box[3]-drag.box[1];
+    const left=Math.min(1-width,Math.max(0,drag.box[0]+dx));
+    const top=Math.min(1-height,Math.max(0,drag.box[1]+dy));
+    box=[left,top,left+width,top+height];
+  }
+  cameraState.zones[drag.zone]=box.map(value=>Math.round(value*10000)/10000);
+  updateCameraInputs(); renderCameraOverlay();
+});
+function finishCameraDrag(){
+  if(cameraState.drag){ cameraState.drag=null;
+    cameraFeedback('변경 내용이 아직 저장되지 않았습니다.'); }
+}
+$('cameraOverlay').addEventListener('pointerup',finishCameraDrag);
+$('cameraOverlay').addEventListener('pointercancel',finishCameraDrag);
+function finishGridDrag(event){
+  const drag=cameraState.gridDrag;
+  if(!drag||drag.pointerId!==event.pointerId)return;
+  const grid=cameraState.grids.find(item=>item.id===drag.gridId);
+  if(grid){
+    grid.anchors[drag.index]=event.type==='pointercancel'?drag.original:
+      cameraStagePoint(event.clientX,event.clientY);
+    cameraState.layoutDirty=true;
+  }
+  cameraState.gridDrag=null;
+  gridLayoutFeedback(validGridLayouts(cameraState.grids)
+    ?'그리드 배치를 조정했습니다. 저장 전까지 미리보기입니다.'
+    :'삼각형 두 개를 영상 위 좌상단과 우하단에 놓으세요. 영역이 좁거나 뒤집히면 저장할 수 없습니다.',
+    !validGridLayouts(cameraState.grids));
+  updateCameraControls();
+}
+$('cameraOverlay').addEventListener('pointerup',finishGridDrag);
+$('cameraOverlay').addEventListener('pointercancel',finishGridDrag);
+
+function renderPerspectiveOverlay(){
+  const svg=$('perspectiveOverlay');
+  if(svg.hidden) return;
+  const points=cameraState.perspectiveCorners;
+  if(!Array.isArray(points)){ svg.innerHTML=''; return; }
+  const plotted=points.map(point=>Array.isArray(point)?[point[0]*1600,point[1]*900]:null);
+  const pointString=values=>values.map(point=>point.join(',')).join(' ');
+  const outline=plotted.every(Array.isArray)
+    ?`<polygon class="camera-perspective-border" points="${pointString(plotted)}" />`:'';
+  const labels=['좌상','우상','우하','좌하'];
+  const handles=plotted.map((point,index)=>{
+    if(!point)return '';
+    const [x,y]=point;
+    return `<g data-perspective-index="${index}" class="camera-perspective-handle" aria-label="${labels[index]} 베드 모서리 드래그">
+    <circle class="handle-hit" cx="${x}" cy="${y}" r="48" />
+    <circle class="handle-ring" cx="${x}" cy="${y}" r="34" />
+    <text class="camera-perspective-number" x="${x}" y="${y}">${index+1}</text>
+    <text class="camera-perspective-label" x="${x+43}" y="${y-35}">${labels[index]}</text>
+  </g>`;
+  }).join('');
+  svg.innerHTML=outline+handles;
+}
+function cameraStagePoint(clientX,clientY){
+  const rect=$('cameraStage').getBoundingClientRect();
+  if(clientX<rect.left||clientX>rect.right||clientY<rect.top||clientY>rect.bottom)return null;
+  return [Math.round((clientX-rect.left)/rect.width*10000)/10000,
+    Math.round((clientY-rect.top)/rect.height*10000)/10000];
+}
+function moveCameraDragGhost(event){
+  const ghost=$('cameraDragGhost');
+  ghost.style.left=event.clientX+'px';
+  ghost.style.top=event.clientY+'px';
+  $('cameraStage').classList.toggle('drop-ready',!!cameraStagePoint(event.clientX,event.clientY));
+}
+document.querySelectorAll('[data-perspective-tool],[data-grid-tool]').forEach(button=>{
+  button.addEventListener('pointerdown',event=>{
+    if(event.pointerType==='mouse'&&event.button!==0)return;
+    const perspective=button.hasAttribute('data-perspective-tool');
+    if(perspective&&!cameraState.perspectiveEditing||!perspective&&!cameraState.layoutEditing)return;
+    if(!perspective&&!cameraState.selectedGridId)return;
+    const index=Number(perspective?button.dataset.perspectiveTool:button.dataset.gridTool);
+    cameraState.paletteDrag={kind:perspective?'perspective':'grid',index,
+      gridId:cameraState.selectedGridId,pointerId:event.pointerId};
+    button.setPointerCapture(event.pointerId);
+    const ghost=$('cameraDragGhost');
+    ghost.hidden=false;
+    ghost.classList.toggle('triangle',!perspective);
+    ghost.textContent=String(index+1);
+    moveCameraDragGhost(event);
+    event.preventDefault();
+  });
+});
+document.addEventListener('pointermove',event=>{
+  if(cameraState.paletteDrag?.pointerId===event.pointerId)moveCameraDragGhost(event);
+});
+function finishPaletteDrag(event){
+  const drag=cameraState.paletteDrag;
+  if(!drag||drag.pointerId!==event.pointerId)return;
+  cameraState.paletteDrag=null;
+  $('cameraDragGhost').hidden=true;
+  $('cameraStage').classList.remove('drop-ready');
+  if(event.type==='pointercancel')return;
+  const point=cameraStagePoint(event.clientX,event.clientY);
+  if(!point){
+    if(drag.kind==='perspective')perspectiveFeedback('원을 영상 안으로 끌어다 놓으세요.',true);
+    else gridLayoutFeedback('삼각형을 영상 안으로 끌어다 놓으세요.',true);
+    return;
+  }
+  if(drag.kind==='perspective'&&cameraState.perspectiveEditing){
+    cameraState.perspectiveCorners[drag.index]=point;
+    cameraState.perspectiveDirty=true;
+    perspectiveFeedback(`모서리 ${cameraState.perspectiveCorners.filter(Array.isArray).length}/4개 배치됨 · 네 원을 맞춘 뒤 저장하세요.`,
+      cameraState.perspectiveCorners.every(Array.isArray)&&!isValidPerspectiveCorners(cameraState.perspectiveCorners));
+  }else if(drag.kind==='grid'&&cameraState.layoutEditing){
+    const grid=cameraState.grids.find(item=>item.id===drag.gridId);
+    if(!grid)return;
+    grid.anchors[drag.index]=point;
+    cameraState.layoutDirty=true;
+    gridLayoutFeedback(validGridLayouts(cameraState.grids)
+      ?'삼각형이 배치됐습니다. 식물 영역 추가 또는 영역 저장을 선택하세요.'
+      :'나머지 삼각형을 놓거나 좌상단과 우하단 순서로 조정하세요.',
+      grid.anchors.every(Array.isArray)&&!validGridLayouts(cameraState.grids));
+  }
+  updateCameraControls();
+}
+document.addEventListener('pointerup',finishPaletteDrag);
+document.addEventListener('pointercancel',finishPaletteDrag);
+$('perspectiveEdit').addEventListener('click',()=>{
+  if(hasCameraEdits()||!Array.isArray(cameraState.savedPerspectiveCorners))return;
+  cameraState.perspectiveEditing=true;
+  cameraState.perspectiveDirty=false;
+  cameraState.perspectiveCorners=cameraState.perspectiveCustomized
+    ?structuredClone(cameraState.savedPerspectiveCorners):[null,null,null,null];
+  cameraState.mode='perspective';
+  perspectiveFeedback('영상 아래 원 4개를 각각 베드 모서리로 끌어 놓으세요. 배치된 원도 다시 움직일 수 있습니다.');
+  updateCameraControls(); startCameraPolling();
+});
+$('perspectiveOverlay').addEventListener('pointerdown',event=>{
+  if(!cameraState.perspectiveEditing)return;
+  const handle=event.target.closest('[data-perspective-index]');
+  if(handle){
+    const index=Number(handle.dataset.perspectiveIndex);
+    cameraState.perspectiveDrag={index,pointerId:event.pointerId,original:cameraState.perspectiveCorners[index]};
+    $('perspectiveOverlay').setPointerCapture(event.pointerId);
+    event.preventDefault();
+    return;
+  }
+});
+$('perspectiveOverlay').addEventListener('pointermove',event=>{
+  const drag=cameraState.perspectiveDrag;
+  if(!drag||drag.pointerId!==event.pointerId)return;
+  const point=cameraStagePoint(event.clientX,event.clientY);
+  if(!point)return;
+  cameraState.perspectiveCorners[drag.index]=point;
+  cameraState.perspectiveDirty=true;
+  updateCameraControls();
+});
+function finishPerspectiveDrag(event){
+  if(!cameraState.perspectiveDrag||cameraState.perspectiveDrag.pointerId!==event.pointerId)return;
+  const point=event.type==='pointercancel'?cameraState.perspectiveDrag.original:
+    cameraStagePoint(event.clientX,event.clientY);
+  cameraState.perspectiveCorners[cameraState.perspectiveDrag.index]=point;
+  cameraState.perspectiveDirty=true;
+  cameraState.perspectiveDrag=null;
+  if(isValidPerspectiveCorners(cameraState.perspectiveCorners))
+    perspectiveFeedback('네 모서리가 배치됐습니다. 저장하면 베드 평면화에 적용됩니다.');
+  else perspectiveFeedback('원 4개를 순서에 맞게 영상 위에 배치하세요. 교차하거나 너무 좁으면 저장할 수 없습니다.',true);
+  updateCameraControls();
+}
+$('perspectiveOverlay').addEventListener('pointerup',finishPerspectiveDrag);
+$('perspectiveOverlay').addEventListener('pointercancel',finishPerspectiveDrag);
+$('perspectiveCancel').addEventListener('click',()=>{
+  cameraState.perspectiveCorners=structuredClone(cameraState.savedPerspectiveCorners);
+  cameraState.perspectiveEditing=false;
+  cameraState.perspectiveDirty=false;
+  cameraState.mode='raw';
+  updateCameraControls();
+  perspectiveFeedback('평면화 편집을 취소했습니다.');
+  startCameraPolling();
+});
+$('perspectiveSave').addEventListener('click',async()=>{
+  if(!cameraState.perspectiveEditing||!cameraState.id||!isValidPerspectiveCorners(cameraState.perspectiveCorners))return;
+  const savingCameraId=cameraState.id;
+  $('perspectiveSave').disabled=true;
+  try{
+    const data=await cameraJson('/cameras/'+encodeURIComponent(savingCameraId)+'/perspective',
+      'PUT',{corners:cameraState.perspectiveCorners});
+    if(cameraState.id!==savingCameraId)return;
+    cameraState.perspectiveCorners=structuredClone(data.corners);
+    cameraState.savedPerspectiveCorners=structuredClone(data.corners);
+    cameraState.perspectiveCustomized=data.customized;
+    cameraState.perspectiveEditing=false;
+    cameraState.perspectiveDirty=false;
+    cameraState.mode='corrected';
+    perspectiveState('사용자 지정 4점 평면화 적용 중',true);
+    perspectiveFeedback('저장했습니다. 왜곡 보정 탭에서 펼쳐진 베드 화면을 확인하세요.');
+    updateCameraControls(); startCameraPolling();
+  }catch(error){
+    if(cameraState.id===savingCameraId){ perspectiveFeedback(error.message,true); updateCameraControls(); }
+  }
+});
+$('perspectiveReset').addEventListener('click',async()=>{
+  if(!cameraState.id||cameraState.perspectiveEditing||
+      !confirm('이 카메라의 사용자 지정 평면화를 지우고 기존 자동 보정으로 되돌릴까요?'))return;
+  const resettingCameraId=cameraState.id;
+  $('perspectiveReset').disabled=true;
+  try{
+    const data=await cameraJson('/cameras/'+encodeURIComponent(resettingCameraId)+'/perspective','DELETE');
+    if(cameraState.id!==resettingCameraId)return;
+    cameraState.perspectiveCorners=structuredClone(data.corners);
+    cameraState.savedPerspectiveCorners=structuredClone(data.corners);
+    cameraState.perspectiveCustomized=false;
+    cameraState.mode='corrected';
+    perspectiveState('사용자 지정 없음 · 기존 자동 보정 사용 중');
+    perspectiveFeedback('기존 보정 경로로 되돌렸습니다.');
+    updateCameraControls(); startCameraPolling();
+  }catch(error){
+    if(cameraState.id===resettingCameraId)perspectiveFeedback(error.message,true);
+  }
+});
+
+/* ---------- sensor ---------- */
+async function loadSensor(){
+  try{
+    const {sensor}=await api('/sensor');
+    const items=[['온도',sensor.degree,'°C'],['공기 습도',sensor.moisture_air,'%'],
+      ['토양 수분',sensor.moisture_soil,''],['조도',sensor.rux??sensor.lux,'']];
+    $('sensor').innerHTML=items.map(([k,v,u])=>`<div class="s"><div class="v">${v??'-'}${u}</div><div class="k">${k}</div></div>`).join('');
+  }catch(err){ $('sensor').innerHTML=`<div class="empty">센서 데이터를 불러올 수 없습니다 (${esc(err.message)}).</div>` }
+}
+
+if(token()) start(); else show(false);
+</script>
+</body>
+</html>

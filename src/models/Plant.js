@@ -30,14 +30,20 @@ const plantSchema = new mongoose.Schema(
         message: 'growthTargetDays must be an integer between 1 and 3650.'
       }
     },
-    streamingPort: {
+    rdkCameraId: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 64
+    },
+    rdkZone: {
       type: Number,
-      default: 5000,
+      default: null,
       min: 1,
-      max: 65535,
+      max: 144,
       validate: {
         validator: (value) => value === null || Number.isInteger(value),
-        message: 'streamingPort must be an integer between 1 and 65535.'
+        message: 'rdkZone must be an integer between 1 and 144.'
       }
     }
   },
