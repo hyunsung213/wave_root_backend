@@ -20,6 +20,10 @@ const rdkRouter = require('./routes/rdk');
 
 const app = express();
 const { frontendOrigins, nodeEnv } = getEnv();
+const allowedFrontendOrigins = new Set([
+  ...frontendOrigins,
+  'https://wave-root-client.vercel.app'
+]);
 
 app.disable('x-powered-by');
 app.use(requestId);
@@ -29,7 +33,7 @@ app.use(cors((req, callback) => {
   // Same-origin covers the admin page this server serves at /admin; the allow
   // list covers the separate Next.js frontend.
   const sameOrigin = !!origin && !!host && (origin === `http://${host}` || origin === `https://${host}`);
-  if (!origin || sameOrigin || frontendOrigins.includes(origin)) {
+  if (!origin || sameOrigin || allowedFrontendOrigins.has(origin)) {
     return callback(null, { origin: true, credentials: true });
   }
   return callback(new Error('CORS origin is not allowed.'));

@@ -1,6 +1,24 @@
 # AI 작업 진행 기록
 
+## 2026-10-10
+
+- 2026-10-10 15:44:59 (+09:00) — 프론트→백엔드 CORS 교차검증에서 운영 Vercel origin으로 보낸 OPTIONS preflight가 HTTP 500 `CORS origin is not allowed`임을 확인함. 백엔드에 `https://wave-root-client.vercel.app` 고정 운영 origin 허용과 회귀 테스트를 추가하고 API_PROC.md를 갱신함. `npm test` 18/18 통과. 프론트는 Vercel env 수정 권한(403)과 CLI 부재로 production 기본 API URL을 Render `https://wave-root-backend.onrender.com`으로 안전하게 선택하는 공통 helper를 추가함; localhost는 dev에만 사용하고 production env가 localhost를 가리켜도 Render URL로 폴백. 프론트 ESLint와 API 주소 무설정 production build 통과. 다음 단계는 백엔드 main 배포 후 CORS preflight 실측, 이어서 프론트 main production 배포.
+
+- 2026-10-10 15:36:47 (+09:00) — 사용자가 알려준 실제 Render URL `https://wave-root-backend.onrender.com`을 확인함. `/health` HTTP 200 `{"success":true,"status":"ok"}`, `/health/ready` HTTP 200 `{"success":true,"status":"ready"}`로 응답해 백엔드 프로세스와 MongoDB readiness가 모두 정상임을 확인함. 기존에 테스트 설정으로 조회했던 `smartfarm-api.onrender.com`은 다른/오래된 주소였음.
+
+- 2026-10-10 15:35:29 (+09:00) — 사용자가 `@Render` 연결을 지정해 재확인함. Render 플러그인 메타데이터는 있지만 현재 실행 세션에서 `list_services` 등 Render API 도구/CLI는 노출되지 않아 서비스 목록·deploy 이벤트를 조회할 수 없었음. 공개 URL `https://smartfarm-api.onrender.com`의 `/health`와 `/health/ready`를 재요청한 결과 모두 HTTP 503 `Service Suspended`로 동일함. 배포 성공 주장과 이 URL 응답이 상충하므로 실제 새 서비스 URL인지 확인이 필요함; Render 설정은 변경하지 않음.
+
+- 2026-10-10 15:34:21 (+09:00) — Render plugin 도구와 CLI가 현재 작업 세션에는 노출되지 않아 공개 health/readiness 주소를 직접 조회함. 테스트 설정에서 발견한 `https://smartfarm-api.onrender.com`의 `/health`, `/health/ready`가 모두 HTTP 503 `Service Suspended — This service has been suspended by its owner`를 반환함. 사용자가 성공 배포한 서비스의 URL이 이 주소와 같은지 아직 불명확하므로 해당 서비스의 최신 정상 배포를 확인한 것으로 간주하지 않음. 실제 서비스가 이 주소라면 Render 대시보드에서 서비스가 suspended 상태인지 확인 후 재개해야 함; 다른 URL이면 올바른 URL을 받아 다시 검사해야 함. 코드/Render 설정은 변경하지 않음.
+
+- 2026-10-10 15:29:24 (+09:00) — 사용자가 제시한 `74.220.48.0/24`, `74.220.56.0/24`가 Render outbound CIDR 범위인지 확인하고 Atlas Network Access에 두 개를 각각 등록하도록 안내함. Atlas IP allowlist와 Render outbound 대시보드 관련 공식 문서를 확인했으며, 두 CIDR은 MongoDB Atlas에 추가할 네트워크 항목이지 Render 환경변수나 백엔드 URL이 아님을 설명함. 대시보드/DB 설정은 대신 변경하지 않음.
+
+- 2026-10-10 15:22:53 (+09:00) — 사용자가 공유한 Render 로그로 배포 실패 지점을 확인함. `node src/server.js` 실행 후 `connectDatabase()`에서 MongoDB Atlas server selection이 실패해 `start()`가 종료됨. 앱은 DB 연결 후에만 `app.listen()`을 실행하므로 Render의 “No open ports detected”는 원인이 아니라 서버 프로세스 종료의 후속 증상임. 가장 유력한 원인은 Atlas IP Access List에 Render 서비스의 outbound IP CIDR이 없는 것. Render 서비스의 Connect → Outbound IP ranges를 Atlas Project → Security → Network Access에 등록하도록 안내함. Render/Atlas 화면 변경은 수행하지 않음. ESP32/센서값은 이 startup 오류와 무관하며 현 점검 범위에서 제외함.
+
+- 2026-10-10 14:58:52 (+09:00) — Render 배포 실패를 진단함. Render 대시보드/배포 로그에 접근할 로그인된 브라우저가 없어 실제 실패 로그는 확인하지 못함. 백엔드 저장소 설정상 프로덕션 시작 전에 `MONGODB_URI`, `JWT_SECRET`, `RDK_API_KEY`, `RDK_STREAM_BASE_URL`, `RDK_STREAM_ADMIN_KEY`, `ADMIN_ID`, `ADMIN_PWD`를 검사하고, Render에서는 `RDK_HTTP_PROXY_HOSTPORT` 또는 `RDK_HTTP_PROXY_URL`도 요구함; `ADMIN_PWD`는 16자 이상이어야 함. 누락/placeholder 값은 빌드 이후 서버 시작 실패를 일으킬 수 있고, MongoDB 연결도 `listen()` 전에 성공해야 함. `npm test`는 17/17 통과. 센서값은 이번 점검 범위에서 제외했으나 현재 코드가 `RDK_API_KEY`를 프로덕션 필수값으로 유지하므로, 센서 기능을 배포 요건에서 완전히 분리할지는 실제 Render 오류 로그 확인 후 결정해야 함. 실제 원인은 미확정이며 Render Deploy Logs의 첫 오류 블록이 필요함.
+
 ## 2026-10-09
+
+- 2026-10-09 01:40:41 (+09:00) — 전체 스택 실환경 점검: 로컬 백엔드의 구형 Node 프로세스를 재시작해 readiness와 RDK current route를 확인하고 `npm test` 17/17 통과. SSH로 RDK `smartfarm-main` 코드에 60초 current snapshot sender(활성 할당별)를 배포·재시작했으며 카메라 원본/보정/그리드 확인은 RDK 진행 기록에 남김. RDK에 `/dev/ttyUSB0`·`ttyACM*`가 없어 실제 센서 입력 및 Mongo 최신 스냅샷 0건을 확인함. 급수 제외에 따라 구형 `smartfarm-rdk`를 중지·부팅 비활성화(기존 DB 명령은 보존, 펌프 호출 없음). Vercel Preview는 페이지 200이나 JS가 localhost API 기본값이며 Render URL·Vercel env 접근이 없어 원격 end-to-end는 미완. `API_PROC.md`에 결과와 남은 작업을 최신화함.
 
 - 2026-10-09 00:41:55 (+09:00) — API contract 문서를 실제 컨트롤러와 일치시켜 식물 목록은 성장 정보만 반환하고, 식물 상세 GET이 카메라 배정이 있을 때만 `streamingUrl`을 반환하도록 명확히 함. `API_PROC.md` 갱신.
 
