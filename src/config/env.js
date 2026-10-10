@@ -38,9 +38,6 @@ function getEnv() {
     if (missing.length) {
       throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
     }
-    if (env.adminPwd.length < 16) {
-      throw new Error('ADMIN_PWD must be at least 16 characters in production.');
-    }
     if (process.env.RENDER && !env.rdkHttpProxyUrl) {
       throw new Error('RDK_HTTP_PROXY_HOSTPORT or RDK_HTTP_PROXY_URL is required on Render for Tailscale access.');
     }

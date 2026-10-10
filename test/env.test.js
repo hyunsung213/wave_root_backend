@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { getEnv } = require('../src/config/env');
 
-test('production requires unique administrator credentials and a strong password', () => {
+test('production requires administrator credentials and accepts a shorter password', () => {
   const keys = [
     'NODE_ENV', 'MONGODB_URI', 'JWT_SECRET', 'RDK_API_KEY', 'RDK_STREAM_BASE_URL',
     'RDK_STREAM_ADMIN_KEY', 'ADMIN_ID', 'ADMIN_PWD', 'PUBLIC_BASE_URL', 'RENDER'
@@ -27,9 +27,8 @@ test('production requires unique administrator credentials and a strong password
     process.env.ADMIN_ID = 'farm-admin';
     assert.throws(() => getEnv(), /ADMIN_PWD/);
     process.env.ADMIN_PWD = 'short-password';
-    assert.throws(() => getEnv(), /at least 16 characters/);
-    process.env.ADMIN_PWD = 'a-unique-admin-password-123';
     assert.equal(getEnv().adminId, 'farm-admin');
+    assert.equal(getEnv().adminPwd, 'short-password');
   } finally {
     for (const key of keys) {
       if (previous[key] === undefined) delete process.env[key];
