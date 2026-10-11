@@ -28,5 +28,10 @@ const orderSchema = new mongoose.Schema({
 
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
+// Cancelled orders release the coupon; every other order reserves that user's one use.
+orderSchema.index({ userId: 1, couponId: 1 }, {
+  unique: true,
+  partialFilterExpression: { couponId: { $type: 'objectId' }, status: { $in: ['pending', 'confirming', 'confirmed'] } }
+});
 
 module.exports = mongoose.model('Order', orderSchema);

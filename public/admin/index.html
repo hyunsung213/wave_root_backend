@@ -322,7 +322,7 @@
                 <label>쿠폰 코드<input id="couponCode" required maxlength="32" pattern="[A-Za-z0-9_-]{3,32}" autocomplete="off" placeholder="WELCOME10" /></label>
                 <label>할인 방식<select id="couponType"><option value="percent">퍼센트</option><option value="fixed">고정 금액(원)</option></select></label>
                 <label>할인 값<input id="couponValue" required type="number" min="1" max="100" step="1" value="10" /></label>
-                <label>사용 횟수 한도<input id="couponMaxUses" type="number" min="1" step="1" placeholder="무제한" /></label>
+                <p class="commerce-note">사용 횟수: 사용자당 1회 (고정)</p>
                 <label class="wide">만료 일시(선택)<input id="couponExpires" type="datetime-local" /></label>
                 <label class="wide">발급 대상 사용자(복수 선택 가능)<select id="couponUsers" class="commerce-user-select" multiple></select></label>
                 <p class="commerce-note wide">대상을 선택하지 않으면 누구나 사용할 수 있는 공개 쿠폰입니다. 발급 대상 지정 시 선택한 사용자에게 알림이 전달됩니다.</p>
@@ -559,7 +559,7 @@ async function loadCoupons(){
   try{
     const data=await api('/coupons');
     const rows=data.coupons||[];
-    $('couponsTable').innerHTML=rows.length?`<table><thead><tr><th>코드</th><th>할인</th><th>사용</th><th>발급/대상</th><th>만료</th><th>상태</th><th>작업</th></tr></thead><tbody>${rows.map(coupon=>`<tr><td><b>${esc(coupon.code)}</b></td><td>${coupon.discountType==='percent'?coupon.discountValue+'%':money(coupon.discountValue)}</td><td>${coupon.usedCount}${coupon.maxUses===null?'':' / '+coupon.maxUses}</td><td>${coupon.isPublic?'공개':(coupon.issuedUserIds||[]).length+'명'}</td><td>${coupon.expiresAt?new Date(coupon.expiresAt).toLocaleString('ko-KR'):'무기한'}</td><td>${coupon.isActive?'활성':'중지'}</td><td><button class="commerce-action" data-toggle-coupon="${esc(coupon._id)}" data-active="${coupon.isActive?'true':'false'}">${coupon.isActive?'중지':'재개'}</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">등록된 쿠폰이 없습니다.</div>';
+    $('couponsTable').innerHTML=rows.length?`<table><thead><tr><th>코드</th><th>할인</th><th>사용자 사용 건수</th><th>발급/대상</th><th>만료</th><th>상태</th><th>작업</th></tr></thead><tbody>${rows.map(coupon=>`<tr><td><b>${esc(coupon.code)}</b></td><td>${coupon.discountType==='percent'?coupon.discountValue+'%':money(coupon.discountValue)}</td><td>${coupon.usedCount||0}</td><td>${coupon.isPublic?'공개':(coupon.issuedUserIds||[]).length+'명'}</td><td>${coupon.expiresAt?new Date(coupon.expiresAt).toLocaleString('ko-KR'):'무기한'}</td><td>${coupon.isActive?'활성':'중지'}</td><td><button class="commerce-action" data-toggle-coupon="${esc(coupon._id)}" data-active="${coupon.isActive?'true':'false'}">${coupon.isActive?'중지':'재개'}</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">등록된 쿠폰이 없습니다.</div>';
     $('couponsTable').querySelectorAll('[data-toggle-coupon]').forEach(button=>button.addEventListener('click',async()=>{
       button.disabled=true;
       try{await api('/coupons/'+encodeURIComponent(button.dataset.toggleCoupon),{method:'PATCH',body:JSON.stringify({isActive:button.dataset.active!=='true'}),headers:{'Content-Type':'application/json'}});await loadCoupons();}
@@ -584,9 +584,8 @@ $('couponForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const feedback=$('couponFeedback');feedback.textContent='';feedback.classList.remove('error');
   const userIds=selectedCouponUsers();
-  const maxUses=$('couponMaxUses').value.trim();
   const expiresAt=$('couponExpires').value;
-  const body={code:$('couponCode').value.trim().toUpperCase(),discountType:$('couponType').value,discountValue:Number($('couponValue').value),...(maxUses?{maxUses:Number(maxUses)}:{}),...(expiresAt?{expiresAt:new Date(expiresAt).toISOString()}:{}),...(userIds.length?{userIds}:{})};
+  const body={code:$('couponCode').value.trim().toUpperCase(),discountType:$('couponType').value,discountValue:Number($('couponValue').value),...(expiresAt?{expiresAt:new Date(expiresAt).toISOString()}:{}),...(userIds.length?{userIds}:{})};
   const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
   try{await api('/coupons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});event.currentTarget.reset();$('couponValue').value='10';Array.from($('couponUsers').options).forEach(option=>option.selected=false);await loadCouponUsers();feedback.textContent=userIds.length?userIds.length+'명에게 쿠폰을 발급했습니다.':'공개 쿠폰을 생성했습니다.';await loadCoupons();}
   catch(error){feedback.textContent=error.message;feedback.classList.add('error');}

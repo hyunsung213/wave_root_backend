@@ -151,7 +151,7 @@ DEPOSIT_ACCOUNT_HOLDER=<실제 예금주>
 | `POST` | `/api/web/orders` | 사용자 | `{ productId, plantName, depositorName, couponCode? }`; 계좌이체 주문 생성 |
 | `GET` | `/api/web/orders` | 사용자 | 본인 주문 목록 |
 | `GET` | `/api/web/orders/:orderId` | 사용자 | 본인 주문 상세 |
-| `POST` | `/api/web/orders/:orderId/cancel` | 사용자 | 입금 대기 주문 취소; 쿠폰 사용 한도 예약 해제 |
+| `POST` | `/api/web/orders/:orderId/cancel` | 사용자 | 입금 대기 주문 취소; 해당 사용자의 쿠폰 사용 예약 해제 |
 | `GET` | `/api/web/admin/orders` | 관리자 | 최근 500개 주문 |
 | `POST` | `/api/web/admin/orders/:orderId/confirm` | 관리자 | 입금 확인; 안전한 재시도 가능한 식물 생성 후 확정 알림 |
 | `GET` | `/api/web/admin/coupons` | 관리자 | 쿠폰/사용량/발급 대상 목록 |
@@ -160,7 +160,7 @@ DEPOSIT_ACCOUNT_HOLDER=<실제 예금주>
 | `POST` | `/api/web/admin/coupons/:couponId/issue` | 관리자 | 기존 쿠폰을 사용자들에게 발급 |
 | `PATCH` | `/api/web/admin/coupons/:couponId` | 관리자 | `{ isActive: boolean }`으로 쿠폰 사용 중지/재개 |
 
-쿠폰은 `percent`(1–100 정수) 또는 `fixed`(원 단위 정수) 할인입니다. 유효기간, 최대 사용 주문 수, 활성 상태 및 비공개 쿠폰 발급 계정을 확인합니다. 쿠폰 한도는 주문 시점에 예약하고 취소 시 해제, 확정 시 사용 완료 처리합니다.
+쿠폰은 `percent`(1–100 정수) 또는 `fixed`(원 단위 정수) 할인입니다. 활성 상태, 유효기간 및 비공개 쿠폰 발급 계정을 확인합니다. 같은 쿠폰은 **사용자마다 1회**만 주문에 적용할 수 있습니다. 주문 접수 시 사용이 예약되고 입금 대기 주문을 취소하면 다시 사용할 수 있으며, 확정 후에는 재사용할 수 없습니다. 서로 다른 사용자에게는 동일한 쿠폰 코드를 발급할 수 있습니다. 관리자 생성 요청의 `maxUses`는 지원하지 않으며 전달하면 `400`입니다. 기존 쿠폰의 전체 사용 한도 값도 적용하지 않습니다.
 
 새 주문 응답은 화면에 계좌 정보를 포함하며, 주문 생성 자체는 결제 완료를 뜻하지 않습니다. 관리자가 실제 입금을 확인하기 전까지 사용자의 식물 목록에는 해당 주문 식물이 없어야 합니다.
 

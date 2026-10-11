@@ -31,9 +31,6 @@ function calculateDiscount(subtotal, coupon) {
 function assertCouponAvailable(coupon, userId, now = new Date()) {
   if (!coupon || !coupon.isActive) throw new AppError('Coupon is invalid or inactive.', 400);
   if (coupon.expiresAt && new Date(coupon.expiresAt) <= now) throw new AppError('Coupon has expired.', 400);
-  if (coupon.maxUses !== null && coupon.maxUses !== undefined && coupon.usedCount >= coupon.maxUses) {
-    throw new AppError('Coupon has reached its usage limit.', 409);
-  }
   const eligibleIds = (coupon.issuedUserIds || []).map(String);
   if (!coupon.isPublic && !eligibleIds.includes(String(userId))) {
     throw new AppError('This coupon was not issued to your account.', 403);

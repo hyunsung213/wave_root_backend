@@ -27,6 +27,9 @@ async function findApplicableCoupon(codeValue, userId) {
   const code = normalizeCouponCode(codeValue);
   const coupon = await Coupon.findOne({ code });
   assertCouponAvailable(coupon, userId);
+  if (await Order.exists({ userId, couponId: coupon._id, status: { $in: ['pending', 'confirming', 'confirmed'] } })) {
+    throw new AppError('이미 사용한 쿠폰입니다.', 409);
+  }
   return coupon;
 }
 
@@ -40,10 +43,13 @@ const validateCoupon = asyncHandler(async (req, res) => {
 
 const listMyCoupons = asyncHandler(async (req, res) => {
   const now = new Date();
+  const usedCouponIds = await Order.distinct('couponId', {
+    userId: req.user._id, couponId: { $ne: null }, status: { $in: ['pending', 'confirming', 'confirmed'] }
+  });
   const coupons = await Coupon.find({ isActive: true, $and: [
     { $or: [{ isPublic: true }, { issuedUserIds: req.user._id }] },
     { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
-    { $or: [{ maxUses: null }, { $expr: { $lt: ['$usedCount', '$maxUses'] } }] }
+    { _id: { $nin: usedCouponIds } }
   ] }).select('code discountType discountValue expiresAt').sort({ createdAt: -1 }).lean();
   res.json({ success: true, coupons });
 });
@@ -72,12 +78,9 @@ const createOrder = asyncHandler(async (req, res) => {
     coupon = await Coupon.findOneAndUpdate({
       _id: coupon._id,
       isActive: true,
-      $and: [
-        { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
-        { $or: [{ maxUses: null }, { $expr: { $lt: ['$usedCount', '$maxUses'] } }] }
-      ]
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }]
     }, { $inc: { usedCount: 1 } }, { new: true });
-    if (!coupon) throw new AppError('Coupon has reached its usage limit or is no longer available.', 409);
+    if (!coupon) throw new AppError('Coupon is no longer available.', 409);
   }
 
   try {
@@ -184,7 +187,7 @@ const confirmAdminOrder = asyncHandler(async (req, res) => {
 });
 
 const listAdminCoupons = asyncHandler(async (_req, res) => {
-  const coupons = await Coupon.find().populate('issuedUserIds', 'name email').sort({ createdAt: -1 }).lean();
+  const coupons = await Coupon.find().select('-maxUses').populate('issuedUserIds', 'name email').sort({ createdAt: -1 }).lean();
   res.json({ success: true, coupons });
 });
 
@@ -193,23 +196,26 @@ const listAdminUsersForCoupons = asyncHandler(async (_req, res) => {
   res.json({ success: true, users });
 });
 
-function validateCouponDefinition(discountType, discountValue, maxUses) {
+function validateCouponDefinition(discountType, discountValue) {
   if (!['percent', 'fixed'].includes(discountType)) throw new AppError('discountType must be percent or fixed.', 400);
   if (!Number.isSafeInteger(discountValue) || discountValue < 1 || (discountType === 'percent' && discountValue > 100)) {
     throw new AppError('discountValue is outside the allowed range.', 400);
   }
-  if (maxUses !== null && maxUses !== undefined && (!Number.isSafeInteger(maxUses) || maxUses < 1)) {
-    throw new AppError('maxUses must be a positive integer or null.', 400);
-  }
 }
 
-async function issueCouponToUsers(coupon, userIds) {
+async function resolveCouponUsers(userIds) {
   if (!Array.isArray(userIds) || userIds.length < 1 || userIds.length > 500) {
     throw new AppError('userIds must contain between 1 and 500 users.', 400);
   }
   const ids = [...new Set(userIds.map((id) => requireObjectId(id, 'userId')))];
   const users = await User.find({ _id: { $in: ids } }).select('_id').lean();
   if (users.length !== ids.length) throw new AppError('One or more users were not found.', 404);
+  return users;
+}
+
+async function issueCouponToUsers(coupon, userIds) {
+  const users = await resolveCouponUsers(userIds);
+  const ids = users.map((user) => String(user._id));
   coupon.issuedUserIds = [...new Set([...coupon.issuedUserIds.map(String), ...ids])].map((id) => new mongoose.Types.ObjectId(id));
   coupon.isPublic = false;
   await coupon.save();
@@ -224,8 +230,8 @@ const createAdminCoupon = asyncHandler(async (req, res) => {
   const code = normalizeCouponCode(req.body.code);
   const discountType = requireNonEmptyString(req.body.discountType, 'discountType', 20);
   const discountValue = req.body.discountValue;
-  const maxUses = req.body.maxUses === undefined || req.body.maxUses === '' ? null : req.body.maxUses;
-  validateCouponDefinition(discountType, discountValue, maxUses);
+  if (req.body.maxUses !== undefined) throw new AppError('maxUses is not supported; each user can use a coupon once.', 400);
+  validateCouponDefinition(discountType, discountValue);
   if (req.body.userIds !== undefined && (!Array.isArray(req.body.userIds) || req.body.userIds.length < 1)) {
     throw new AppError('userIds must contain at least one user when provided.', 400);
   }
@@ -239,15 +245,19 @@ const createAdminCoupon = asyncHandler(async (req, res) => {
   if (!isPublic && !Array.isArray(req.body.userIds)) {
     throw new AppError('userIds are required for a private coupon.', 400);
   }
+  // Resolve recipients before insertion so invalid IDs cannot leave a private orphan coupon.
+  const users = req.body.userIds === undefined ? [] : await resolveCouponUsers(req.body.userIds);
   try {
-    coupon = await Coupon.create({ code, discountType, discountValue, maxUses, expiresAt, isPublic });
+    coupon = await Coupon.create({ code, discountType, discountValue, expiresAt, isPublic,
+      issuedUserIds: users.map((user) => user._id) });
   } catch (error) {
     if (error?.code === 11000) throw new AppError('Coupon code already exists.', 409);
     throw error;
   }
-  if (req.body.userIds !== undefined) {
-    coupon = await issueCouponToUsers(coupon, req.body.userIds);
-  }
+  if (users.length) await Notification.insertMany(users.map((user) => ({
+    userId: user._id, title: '쿠폰이 도착했어요', type: 'INFO',
+    content: `쿠폰 ${coupon.code}을 분양 주문에 사용할 수 있어요.`
+  })));
   res.status(201).json({ success: true, coupon });
 });
 
