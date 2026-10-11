@@ -9,9 +9,11 @@ const Command = require('../src/models/Command');
 const Event = require('../src/models/Event');
 const Notification = require('../src/models/Notification');
 const UserActivity = require('../src/models/UserActivity');
+const Order = require('../src/models/Order');
+const Coupon = require('../src/models/Coupon');
 
 test('every persistent schema enables Mongoose timestamps', () => {
-  for (const model of [User, Plant, Log, SensorSnapshot, Water, Command, Event, Notification, UserActivity]) {
+  for (const model of [User, Plant, Log, SensorSnapshot, Water, Command, Event, Notification, UserActivity, Order, Coupon]) {
     assert.equal(model.schema.options.timestamps, true, `${model.modelName} must use timestamps`);
   }
 });
@@ -40,6 +42,14 @@ test('plant RDK camera assignment fields have safe defaults', () => {
   assert.equal(Plant.schema.path('rdkCameraId').defaultValue, null);
   assert.equal(Plant.schema.path('rdkZone').defaultValue, null);
   assert.equal(Plant.schema.path('growthTargetDays').defaultValue, 60);
+});
+
+test('confirmed orders create at most one plant and one notification per order', () => {
+  assert.ok(Plant.schema.indexes().some(([fields, options]) => fields.orderId === 1 && options.unique && options.sparse));
+  assert.ok(Notification.schema.indexes().some(([fields, options]) => fields.orderId === 1 && options.unique && options.sparse));
+  assert.equal(Order.schema.path('plantId').defaultValue, null);
+  assert.deepEqual(Order.schema.path('status').enumValues, ['pending', 'confirming', 'confirmed', 'cancelled']);
+  assert.equal(Coupon.schema.path('isPublic').defaultValue, true);
 });
 
 test('notification type is restricted to the documented enum', () => {

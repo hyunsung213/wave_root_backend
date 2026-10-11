@@ -26,6 +26,9 @@ function getEnv() {
     publicBaseUrl: (process.env.PUBLIC_BASE_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5000')
       .replace(/\/+$/, ''),
     eventUploadDir: process.env.EVENT_UPLOAD_DIR,
+    depositBankName: process.env.DEPOSIT_BANK_NAME,
+    depositAccountNumber: process.env.DEPOSIT_ACCOUNT_NUMBER,
+    depositAccountHolder: process.env.DEPOSIT_ACCOUNT_HOLDER,
     adminId: process.env.ADMIN_ID || 'super1234',
     adminPwd: process.env.ADMIN_PWD
   };

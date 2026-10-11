@@ -1,6 +1,6 @@
 # 백엔드 API 점검·운영 절차
 
-최종 점검 기준: 2026-09-29 (Asia/Seoul)
+최종 점검 기준: 2026-10-09 (Asia/Seoul)
 
 이 문서는 `main` 브랜치의 API 계약과 운영자가 확인해야 하는 항목을 정리한 문서입니다. 웹 프론트는 백엔드 주소에 `/api/web`를 붙여 호출하고, RDK X5는 `/api/rdk`를 호출합니다.
 
@@ -49,7 +49,7 @@ EVENT_UPLOAD_DIR=./uploads/events
 | 장비 | 주소 | 확인할 경로 |
 | --- | --- | --- |
 | 백엔드 PC | Tailscale `100.71.47.115` | `http://100.71.47.115:5000/health` |
-| RDK X5 | Tailscale `100.90.42.36`, LAN `192.168.1.191` | 센서/펌프 `:5000`, 스트림 할당 `:5001` |
+| RDK X5 | Tailscale `100.90.42.36` | 카메라·센서 할당 `:5001`; 센서 스냅샷은 백엔드로 outbound 전송. 구형 급수/UART `:5000` 서비스는 현재 비활성화 |
 | C110 카메라 | LTE/T P-Link LAN 주소를 현장 입력 | `config/main.json`의 `cameras[].host` |
 
 Render는 `PUBLIC_BASE_URL`이 없으면 `RENDER_EXTERNAL_URL`을 사용합니다. Render에서 RDK 사설 주소로 나가는 연결은 `RDK_HTTP_PROXY_HOSTPORT`에 설정한 내부 Tailscale 프록시를 통과해야 합니다. 센서 데이터는 RDK가 백엔드로 보내므로 센서 조회 API에서 RDK로 직접 접속하지 않습니다.
@@ -65,6 +65,7 @@ RDK X5 ----------------HTTPS + RDK API Key----> Render /api/rdk/current, /api/rd
 ```
 
 - Vercel의 `NEXT_PUBLIC_API_BASE_URL`은 Render 백엔드 origin(`https://<service>.onrender.com`)으로 지정하고, Render `FRONTEND_ORIGINS`에는 Vercel 운영 도메인을 정확히 등록합니다.
+- 운영 프론트 origin `https://wave-root-client.vercel.app`은 백엔드 CORS 코드에서 항상 허용합니다. Preview/custom 도메인은 `FRONTEND_ORIGINS`에 별도로 추가합니다.
 - RDK 환경 파일의 `BACKEND_API_BASE`는 `https://<service>.onrender.com/api/rdk`, `RDK_API_KEY`는 Render와 같은 값, `BACKEND_SENSOR_INTERVAL_SECONDS=60`입니다. 센서 업로드는 RDK에서 시작하는 HTTPS 연결이므로 RDK inbound port-forward를 만들지 않습니다.
 - Render에는 같은 Render region의 private service로 Tailscale HTTP proxy를 준비합니다. 공식 Tailscale 컨테이너 설정은 `TS_USERSPACE=true`, `TS_OUTBOUND_HTTP_PROXY_LISTEN=:1055`, `TS_AUTHKEY=<ephemeral auth key>`입니다. Tailnet ACL/grant는 이 노드가 RDK의 스트림 API port `5001`에만 접근하도록 제한하고, Render backend의 `RDK_HTTP_PROXY_HOSTPORT`에 private service의 `host:1055`를 지정합니다.
 - 식물 `streamingUrl`은 브라우저에 RDK IP를 노출하지 않는 백엔드 URL입니다. Render 백엔드가 단기 서명 ticket을 확인하고 Tailscale proxy를 통해 MJPEG 응답을 중계합니다.
@@ -111,7 +112,7 @@ Authorization: Bearer <token>
 
 | 메서드 | 경로 | 점검 내용 |
 | --- | --- | --- |
-| `POST` | `/api/web/plants` | 이름·품종과 선택적 `rdkCameraId`/`rdkZone`/`growthTargetDays` 생성 |
+| `POST` | `/api/web/plants` | 기존 일반 식물 생성 차단(`403`); 분양 식물은 관리자 주문 확인에서만 생성 |
 | `GET` | `/api/web/plants` | 소유 식물 목록과 성장 계산값 반환 |
 | `GET` | `/api/web/plants/:plantId` | 소유권 확인 후 상세 정보와 (카메라 할당 시) `streamingUrl` 반환 |
 | `PATCH` | `/api/web/plants/:plantId` | 이름·품종·카메라/Zone·성장 목표일 수정 |
@@ -128,6 +129,40 @@ Authorization: Bearer <token>
   "growthPercent": 47
 }
 ```
+
+## 10. 분양 계좌이체·쿠폰 API
+
+분양 상품과 가격은 `src/config/catalog.js`의 서버 카탈로그를 기준으로 계산합니다. 프론트에서 전달한 가격/할인액은 신뢰하지 않습니다. 주문 접수 단계에서는 식물을 만들지 않으며, 관리자 입금 확인 뒤 주문 상태를 `confirmed`로 바꾸고 주문당 식물을 한 개 생성합니다. 카메라 ID/구역은 자동 할당하지 않으며, 이후 관리자 스트리밍/식물 관리 화면에서 직접 매칭합니다.
+
+일반 사용자 `POST /api/web/plants`는 주문 우회 생성을 막기 위해 `403`을 반환합니다. 사용자 `PATCH /api/web/plants/:plantId`는 이름·종류·성장 목표일만 허용하고 카메라 ID/구역 수정은 관리자 엔드포인트로 제한합니다.
+
+계좌이체 주문 활성화 전 Render 환경에 실제 은행·계좌·예금주를 설정합니다. 미설정/placeholder 상태에서는 금액이 0원인 주문만 접수되며, 유료 주문은 503으로 차단됩니다.
+
+```env
+DEPOSIT_BANK_NAME=<실제 은행명>
+DEPOSIT_ACCOUNT_NUMBER=<실제 계좌번호>
+DEPOSIT_ACCOUNT_HOLDER=<실제 예금주>
+```
+
+| 메서드 | 경로 | 인증 | 설명 |
+| --- | --- | --- | --- |
+| `GET` | `/api/web/coupons` | 사용자 | 공개/내 계정에 발급된 사용 가능한 쿠폰 |
+| `POST` | `/api/web/coupons/validate` | 사용자 | `{ productId, code }`; 서버 가격 기준 할인액·결제액 미리보기 |
+| `POST` | `/api/web/orders` | 사용자 | `{ productId, plantName, depositorName, couponCode? }`; 계좌이체 주문 생성 |
+| `GET` | `/api/web/orders` | 사용자 | 본인 주문 목록 |
+| `GET` | `/api/web/orders/:orderId` | 사용자 | 본인 주문 상세 |
+| `POST` | `/api/web/orders/:orderId/cancel` | 사용자 | 입금 대기 주문 취소; 쿠폰 사용 한도 예약 해제 |
+| `GET` | `/api/web/admin/orders` | 관리자 | 최근 500개 주문 |
+| `POST` | `/api/web/admin/orders/:orderId/confirm` | 관리자 | 입금 확인; 안전한 재시도 가능한 식물 생성 후 확정 알림 |
+| `GET` | `/api/web/admin/coupons` | 관리자 | 쿠폰/사용량/발급 대상 목록 |
+| `GET` | `/api/web/admin/coupon-users` | 관리자 | 발급 대상 사용자 선택 목록 |
+| `POST` | `/api/web/admin/coupons` | 관리자 | 쿠폰 생성. `userIds`를 포함하면 비공개 발급 및 사용자 알림 |
+| `POST` | `/api/web/admin/coupons/:couponId/issue` | 관리자 | 기존 쿠폰을 사용자들에게 발급 |
+| `PATCH` | `/api/web/admin/coupons/:couponId` | 관리자 | `{ isActive: boolean }`으로 쿠폰 사용 중지/재개 |
+
+쿠폰은 `percent`(1–100 정수) 또는 `fixed`(원 단위 정수) 할인입니다. 유효기간, 최대 사용 주문 수, 활성 상태 및 비공개 쿠폰 발급 계정을 확인합니다. 쿠폰 한도는 주문 시점에 예약하고 취소 시 해제, 확정 시 사용 완료 처리합니다.
+
+새 주문 응답은 화면에 계좌 정보를 포함하며, 주문 생성 자체는 결제 완료를 뜻하지 않습니다. 관리자가 실제 입금을 확인하기 전까지 사용자의 식물 목록에는 해당 주문 식물이 없어야 합니다.
 
 성장 이벤트 생성:
 
@@ -328,4 +363,18 @@ GET /health/ready
 | API `400` | JSON 타입, 날짜, 페이지네이션, 센서 범위 확인 |
 
 추가 운영 권고: 다중 인스턴스 배포에서는 `EVENT_UPLOAD_DIR`을 공유 영속 볼륨 또는 S3 호환 object storage로 교체하고, rate limit·구조화 로그 수집기·백그라운드 작업 큐를 붙입니다.
+
+## 9. 2026-10-09 실환경 통합 점검 결과
+
+| 구간 | 결과 | 확인 사항 |
+| --- | --- | --- |
+| 로컬 백엔드 | 통과 | 오래된 Node 프로세스를 현재 소스로 재시작. `/health/ready` 반환, 보호 프로필 무인증 요청은 401, 유효한 RDK 키로 형식 오류 요청 시 `/api/rdk/current`가 400 반환. `npm test` 17/17 통과. |
+| RDK 센서 전송 코드 | 배포 완료, 실센서 미확인 | RDK `smartfarm-main`에 식물별 최신 스냅샷을 60초마다 `/api/rdk/current`로 보내는 최신 코드를 반영하고 재시작함. 백엔드 MongoDB에는 현재 `SensorSnapshot` 0건. RDK에서 `/dev/ttyUSB0`, `/dev/ttyACM*`가 없고 USB 목록에는 허브만 있어 실제 센서 데이터가 없어 전송 성공은 확인할 수 없음. |
+| RDK 카메라 | 부분 통과 | SSH 연결, `smartfarm-main` active, `/api/availability` HTTP 200. 4대 모두 RTSP 554 포트 접속 가능하고 상태 API HTTP 200, 출력 1280×720/15 FPS. `c110-1`의 원본·보정·그리드 JPEG가 모두 HTTP 200으로 확인됨. LTE 사용량을 줄이기 위해 나머지 3대는 실제 프레임을 열지 않음. 30초 무요청 후 reader가 종료되는 것을 확인함. |
+| 카메라 프라이버시 | 미설정 | 네 카메라 모두 `privacy_state=unconfigured`. 미시청 시 RDK의 RTSP reader는 닫히지만 Tapo 프라이버시 모드가 켜졌다는 뜻은 아님. |
+| 프론트엔드 로컬 | 통과 | ESLint와 Next.js production build 통과. |
+| Vercel Preview | 페이지 전달만 통과 | `/`, `/login` HTTP 200. 배포 JS에 `http://localhost:5000` 기본값이 포함되어 실제 원격 API 호출은 사용할 수 없음. `NEXT_PUBLIC_API_BASE_URL`을 확인/변경할 권한은 403이고 Render 공개 URL도 아직 없음. Production 배포는 기존 초기 커밋 상태이므로 최신 Preview와 다름. |
+| Render 백엔드 | 미배포 | Render 서비스 URL, 대시보드/CLI 권한, RDK 스트림용 Tailscale HTTP proxy 설정이 없어 외부 API 연결은 완료할 수 없음. |
+
+급수는 이번 점검에서 호출하지 않았습니다. 구형 급수·UART 서비스 `smartfarm-rdk`는 급수 제외 및 `/dev/ttyUSB0` 경합 방지를 위해 중지하고 부팅 자동시작을 해제했습니다. DB의 기존 급수 명령은 삭제하거나 변경하지 않았으며 전체 식물에 `PENDING` 9건이 남아 있습니다. 급수 서비스를 다시 켜기 전 이 명령을 정리할지 확인해야 합니다. 실서비스 센서 확인에는 RDK에 센서를 연결해 실제 serial device 경로를 확인한 뒤 `smartfarm-main` 로그와 `SensorSnapshot.sampledAt`을 확인해야 합니다. 완전한 Vercel→Render→RDK 통합은 Render URL과 Vercel 환경변수 권한이 준비된 뒤 재점검합니다.
 

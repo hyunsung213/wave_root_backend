@@ -8,6 +8,11 @@ const plantSchema = new mongoose.Schema(
       required: true,
       index: true
     },
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Order',
+      default: undefined
+    },
     name: {
       type: String,
       required: true,
@@ -49,5 +54,7 @@ const plantSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+plantSchema.index({ orderId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Plant', plantSchema);

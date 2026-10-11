@@ -16,6 +16,7 @@ const webLogsRouter = require('./routes/web/logs');
 const webWaterRouter = require('./routes/web/water');
 const webControlRouter = require('./routes/web/control');
 const webAdminRouter = require('./routes/web/admin');
+const webCommerceRouter = require('./routes/web/commerce');
 const rdkRouter = require('./routes/rdk');
 
 const app = express();
@@ -79,6 +80,7 @@ app.use('/api/web/logs', webLogsRouter);
 app.use('/api/web/water', webWaterRouter);
 app.use('/api/web/control', webControlRouter);
 app.use('/api/web/admin', webAdminRouter);
+app.use('/api/web', webCommerceRouter);
 app.use('/api/rdk', rdkRouter);
 
 app.use(notFound);

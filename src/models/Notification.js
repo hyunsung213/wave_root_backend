@@ -9,6 +9,11 @@ const notificationSchema = new mongoose.Schema(
       ref: 'User',
       required: true
     },
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Order',
+      default: undefined
+    },
     notifyAt: {
       type: Date,
       required: true,
@@ -47,6 +52,7 @@ const notificationSchema = new mongoose.Schema(
 );
 
 notificationSchema.index({ userId: 1, notifyAt: -1, createdAt: -1 });
+notificationSchema.index({ orderId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Notification', notificationSchema);
 module.exports.NOTIFICATION_TYPES = NOTIFICATION_TYPES;

@@ -52,3 +52,24 @@ test('production Vercel frontend origin passes CORS preflight', async () => {
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('commerce customer endpoints require a user token and admin mutations require an admin token', async () => {
+  const server = app.listen(0);
+
+  try {
+    await new Promise((resolve) => server.once('listening', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const requests = [
+      fetch(`${base}/api/web/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+      fetch(`${base}/api/web/coupons`),
+      fetch(`${base}/api/web/admin/orders/507f1f77bcf86cd799439011/confirm`, { method: 'POST' }),
+      fetch(`${base}/api/web/admin/coupons`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+      fetch(`${base}/api/web/admin/coupon-users`),
+      fetch(`${base}/api/web/plants`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    ];
+    const responses = await Promise.all(requests);
+    assert.deepEqual(responses.map((response) => response.status), [401, 401, 401, 401, 401, 401]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

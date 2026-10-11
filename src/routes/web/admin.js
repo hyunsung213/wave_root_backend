@@ -18,6 +18,10 @@ const {
   updateRdkCameraCalibration,
   getGlobalSensor
 } = require('../../controllers/webAdminController');
+const {
+  listAdminOrders, confirmAdminOrder, listAdminCoupons, createAdminCoupon,
+  issueAdminCoupon, toggleAdminCoupon, listAdminUsersForCoupons
+} = require('../../controllers/webCommerceController');
 const { requireAdmin } = require('../../middlewares/auth');
 
 const router = express.Router();
@@ -40,5 +44,12 @@ router.get('/cameras/:cameraId/perspective', requireAdmin, getRdkCameraPerspecti
 router.put('/cameras/:cameraId/perspective', requireAdmin, updateRdkCameraPerspective);
 router.delete('/cameras/:cameraId/perspective', requireAdmin, resetRdkCameraPerspective);
 router.get('/sensor', requireAdmin, getGlobalSensor);
+router.get('/orders', requireAdmin, listAdminOrders);
+router.post('/orders/:orderId/confirm', requireAdmin, confirmAdminOrder);
+router.get('/coupons', requireAdmin, listAdminCoupons);
+router.get('/coupon-users', requireAdmin, listAdminUsersForCoupons);
+router.post('/coupons', requireAdmin, createAdminCoupon);
+router.post('/coupons/:couponId/issue', requireAdmin, issueAdminCoupon);
+router.patch('/coupons/:couponId', requireAdmin, toggleAdminCoupon);
 
 module.exports = router;

@@ -124,6 +124,20 @@
   .sensor .s{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
   .sensor .s .v{font-size:24px;font-weight:700;color:var(--teal-d)}
   .sensor .s .k{color:var(--sub);font-size:12px;margin-top:5px;font-weight:600}
+  .commerce-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:16px;align-items:start}
+  .commerce-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;box-shadow:var(--shadow);margin-bottom:16px}
+  .commerce-card h3{margin:0 0 14px;font-size:15px}
+  .commerce-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .commerce-form label{font-size:12px;font-weight:700;color:#66737e}
+  .commerce-form input,.commerce-form select{display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid #cfd9dc;border-radius:7px;background:#fff;color:#23333b}
+  .commerce-form .wide{grid-column:1/-1}
+  .commerce-form button,.commerce-action{border:0;border-radius:7px;background:#177f78;color:#fff;padding:9px 12px;font-size:12px;font-weight:800}
+  .commerce-form button:disabled,.commerce-action:disabled{opacity:.5;cursor:default}
+  .commerce-note{font-size:12px;line-height:1.5;color:#72818a}
+  .commerce-state{font-size:12px;color:#177f78;min-height:17px;margin-top:10px}
+  .commerce-state.error{color:#b73343}
+  .commerce-user-select{min-height:100px}
+  @media(max-width:1000px){.commerce-grid{grid-template-columns:1fr}}
   .camera-console{background:#101c20;color:#eaf4f1;border-radius:18px;overflow:hidden;box-shadow:0 18px 45px rgba(22,43,45,.16)}
   .camera-console button{font:inherit}
   .camera-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 24px;border-bottom:1px solid #284044;background:linear-gradient(115deg,#142a2c,#101c20 68%)}
@@ -242,6 +256,8 @@
       <nav class="nav" id="nav">
         <a data-view="dash" class="active"><span class="ic">▦</span> 대시보드</a>
         <a data-view="users"><span class="ic">☰</span> 사용자 관리</a>
+        <a data-view="orders"><span class="ic">₩</span> 분양 주문</a>
+        <a data-view="coupons"><span class="ic">◇</span> 쿠폰 관리</a>
         <a data-view="stream"><span class="ic">▷</span> 스트리밍</a>
         <a data-view="camera"><span class="ic">▣</span> 카메라 설정</a>
         <a data-view="sensor"><span class="ic">◈</span> 센서</a>
@@ -290,6 +306,31 @@
             <span class="count" id="uCount"></span>
           </div>
           <div class="tablewrap" id="usersTable"></div>
+        </section>
+
+        <section class="view" id="view-orders">
+          <div class="toolbar"><span class="count">계좌이체 입금 대기·확정 주문</span><button class="refresh" id="refreshOrders" style="margin-left:auto">주문 새로고침</button></div>
+          <div class="tablewrap" id="ordersTable"><div class="empty">불러오는 중…</div></div>
+          <p class="commerce-note">입금 확인을 누르면 주문이 확정되고 식물이 사용자 정원에 생성됩니다. 카메라·구역 매칭은 스트리밍 화면의 식물 관리에서 별도로 진행하세요.</p>
+        </section>
+
+        <section class="view" id="view-coupons">
+          <div class="commerce-grid">
+            <div class="commerce-card"><h3>쿠폰 목록</h3><div class="tablewrap" id="couponsTable"><div class="empty">불러오는 중…</div></div></div>
+            <div class="commerce-card"><h3>쿠폰 생성·발급</h3>
+              <form id="couponForm" class="commerce-form">
+                <label>쿠폰 코드<input id="couponCode" required maxlength="32" pattern="[A-Za-z0-9_-]{3,32}" autocomplete="off" placeholder="WELCOME10" /></label>
+                <label>할인 방식<select id="couponType"><option value="percent">퍼센트</option><option value="fixed">고정 금액(원)</option></select></label>
+                <label>할인 값<input id="couponValue" required type="number" min="1" max="100" step="1" value="10" /></label>
+                <label>사용 횟수 한도<input id="couponMaxUses" type="number" min="1" step="1" placeholder="무제한" /></label>
+                <label class="wide">만료 일시(선택)<input id="couponExpires" type="datetime-local" /></label>
+                <label class="wide">발급 대상 사용자(복수 선택 가능)<select id="couponUsers" class="commerce-user-select" multiple></select></label>
+                <p class="commerce-note wide">대상을 선택하지 않으면 누구나 사용할 수 있는 공개 쿠폰입니다. 발급 대상 지정 시 선택한 사용자에게 알림이 전달됩니다.</p>
+                <button class="wide" type="submit">쿠폰 생성 및 발급</button>
+              </form>
+              <div class="commerce-state" id="couponFeedback" role="status"></div>
+            </div>
+          </div>
         </section>
 
         <!-- STREAMING -->
@@ -428,7 +469,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const T={teal:'#1bb0a6',coral:'#ef6b6b',yellow:'#f2c14e',sub:'#8a94a6',line:'#e4e8ee'};
 
-let users=[], plants=[], cameras=[];
+let users=[], plants=[], cameras=[], couponUsers=[];
 let uState={q:'',type:'',plant:'',sort:'createdAt',dir:'desc'};
 let pState={q:'',type:'',stream:''};
 const charts={};
@@ -443,8 +484,8 @@ function token(){ try{return sessionStorage.getItem(KEY)}catch{return null} }
 function setToken(t){ try{ t?sessionStorage.setItem(KEY,t):sessionStorage.removeItem(KEY) }catch{} }
 function show(app){ $('login').style.display=app?'none':'flex'; $('app').style.display=app?'block':'none' }
 
-async function api(path){
-  const r=await fetch('/api/web/admin'+path,{headers:{Authorization:'Bearer '+token()}});
+async function api(path,options={}){
+  const r=await fetch('/api/web/admin'+path,{...options,headers:{...options.headers,Authorization:'Bearer '+token()}});
   if(r.status===401||r.status===403){ logout(); throw new Error('unauthorized') }
   const d=await r.json();
   if(!r.ok||!d.success) throw new Error(d.message||'요청 실패');
@@ -468,7 +509,7 @@ $('logout').addEventListener('click',logout);
 function logout(){ stopCameraPolling(); stopPlantStreams(); setToken(null); show(false) }
 
 /* ---------- nav ---------- */
-const titles={dash:'대시보드',users:'사용자 관리',stream:'스트리밍',camera:'카메라 설정',sensor:'센서'};
+const titles={dash:'대시보드',users:'사용자 관리',orders:'분양 주문',coupons:'쿠폰 관리',stream:'스트리밍',camera:'카메라 설정',sensor:'센서'};
 $('nav').addEventListener('click',e=>{
   const a=e.target.closest('a[data-view]'); if(!a) return;
   const v=a.dataset.view;
@@ -477,12 +518,80 @@ $('nav').addEventListener('click',e=>{
   $('pageTitle').textContent=titles[v];
   if(v==='camera') startCameraPolling(); else stopCameraPolling();
   if(v==='stream') renderPlants(); else stopPlantStreams();
+  if(v==='orders') loadOrders();
+  if(v==='coupons'){loadCoupons();loadCouponUsers();}
 });
 
 /* ---------- data load ---------- */
 $('refreshAll').addEventListener('click',start);
 $('refSensor').addEventListener('click',loadSensor);
 $('refCameras').addEventListener('click',startCameraPolling);
+$('refreshOrders').addEventListener('click',loadOrders);
+
+function money(value){return Number(value||0).toLocaleString('ko-KR')+'원'}
+function orderStatus(status){return status==='pending'?'입금 대기':status==='confirming'?'식물 생성 처리 중':status==='confirmed'?'확인 완료':'취소됨'}
+async function loadOrders(){
+  $('ordersTable').innerHTML='<div class="empty">주문을 불러오는 중…</div>';
+  try{
+    const data=await api('/orders');
+    const rows=data.orders||[];
+    $('ordersTable').innerHTML=rows.length?`<table><thead><tr><th>주문번호</th><th>회원</th><th>상품 / 식물명</th><th>입금자명</th><th>입금액</th><th>쿠폰</th><th>상태</th><th>접수일</th><th>작업</th></tr></thead><tbody>${rows.map(order=>{
+      const user=order.userId&&typeof order.userId==='object'?order.userId:{};
+      return `<tr><td><b>${esc(order.orderNumber)}</b></td><td>${esc(user.name||'이름 없음')}<br><small>${esc(user.email||'')}</small></td><td>${esc(order.productName)}<br><small>${esc(order.plantName)}</small></td><td>${esc(order.depositorName)}</td><td>${money(order.amountDue)}<br><small>할인 ${money(order.discountAmount)}</small></td><td>${esc(order.couponCode||'-')}</td><td>${orderStatus(order.status)}${order.plantId?'<br><small>식물 생성 완료</small>':''}</td><td>${new Date(order.createdAt).toLocaleString('ko-KR')}</td><td>${order.status==='pending'||order.status==='confirming'?`<button class="commerce-action" data-confirm-order="${esc(order._id)}">${order.status==='confirming'?'처리 재시도':order.amountDue>0?'입금 확인':'주문 확정'}</button>`:'-'}</td></tr>`;
+    }).join('')}</tbody></table>`:'<div class="empty">접수된 주문이 없습니다.</div>';
+    $('ordersTable').querySelectorAll('[data-confirm-order]').forEach(button=>button.addEventListener('click',async()=>{
+      if(!confirm('입금 내역을 확인했나요? 확인하면 주문이 확정되고 식물이 생성됩니다.'))return;
+      button.disabled=true;
+      try{await api('/orders/'+encodeURIComponent(button.dataset.confirmOrder)+'/confirm',{method:'POST'});await loadOrders();await start();}
+      catch(error){alert(error.message);button.disabled=false;}
+    }));
+  }catch(error){if(error.message!=='unauthorized')$('ordersTable').innerHTML=`<div class="empty">주문을 불러오지 못했습니다. ${esc(error.message)}</div>`;}
+}
+
+function selectedCouponUsers(){return Array.from($('couponUsers').selectedOptions).map(option=>option.value)}
+function renderCouponUsers(){
+  const previous=new Set(selectedCouponUsers());
+  $('couponUsers').innerHTML=couponUsers.map(user=>`<option value="${esc(user._id)}">${esc(user.name||'이름 없음')} · ${esc(user.email)}</option>`).join('');
+  Array.from($('couponUsers').options).forEach(option=>option.selected=previous.has(option.value));
+}
+async function loadCoupons(){
+  $('couponsTable').innerHTML='<div class="empty">쿠폰을 불러오는 중…</div>';
+  try{
+    const data=await api('/coupons');
+    const rows=data.coupons||[];
+    $('couponsTable').innerHTML=rows.length?`<table><thead><tr><th>코드</th><th>할인</th><th>사용</th><th>발급/대상</th><th>만료</th><th>상태</th><th>작업</th></tr></thead><tbody>${rows.map(coupon=>`<tr><td><b>${esc(coupon.code)}</b></td><td>${coupon.discountType==='percent'?coupon.discountValue+'%':money(coupon.discountValue)}</td><td>${coupon.usedCount}${coupon.maxUses===null?'':' / '+coupon.maxUses}</td><td>${coupon.isPublic?'공개':(coupon.issuedUserIds||[]).length+'명'}</td><td>${coupon.expiresAt?new Date(coupon.expiresAt).toLocaleString('ko-KR'):'무기한'}</td><td>${coupon.isActive?'활성':'중지'}</td><td><button class="commerce-action" data-toggle-coupon="${esc(coupon._id)}" data-active="${coupon.isActive?'true':'false'}">${coupon.isActive?'중지':'재개'}</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">등록된 쿠폰이 없습니다.</div>';
+    $('couponsTable').querySelectorAll('[data-toggle-coupon]').forEach(button=>button.addEventListener('click',async()=>{
+      button.disabled=true;
+      try{await api('/coupons/'+encodeURIComponent(button.dataset.toggleCoupon),{method:'PATCH',body:JSON.stringify({isActive:button.dataset.active!=='true'}),headers:{'Content-Type':'application/json'}});await loadCoupons();}
+      catch(error){alert(error.message);button.disabled=false;}
+    }));
+  }catch(error){if(error.message!=='unauthorized')$('couponsTable').innerHTML=`<div class="empty">쿠폰을 불러오지 못했습니다. ${esc(error.message)}</div>`;}
+}
+async function loadCouponUsers(){
+  try{
+    const data=await api('/coupon-users');
+    couponUsers=data.users||[];
+    renderCouponUsers();
+  }catch(error){if(error.message!=='unauthorized')$('couponUsers').innerHTML='<option disabled>사용자 목록을 불러오지 못했습니다.</option>';}
+}
+
+$('couponType').addEventListener('change',()=>{
+  const percent=$('couponType').value==='percent';
+  $('couponValue').max=percent?'100':'';
+  if(percent&&Number($('couponValue').value)>100)$('couponValue').value='100';
+});
+$('couponForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const feedback=$('couponFeedback');feedback.textContent='';feedback.classList.remove('error');
+  const userIds=selectedCouponUsers();
+  const maxUses=$('couponMaxUses').value.trim();
+  const expiresAt=$('couponExpires').value;
+  const body={code:$('couponCode').value.trim().toUpperCase(),discountType:$('couponType').value,discountValue:Number($('couponValue').value),...(maxUses?{maxUses:Number(maxUses)}:{}),...(expiresAt?{expiresAt:new Date(expiresAt).toISOString()}:{}),...(userIds.length?{userIds}:{})};
+  const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
+  try{await api('/coupons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});event.currentTarget.reset();$('couponValue').value='10';Array.from($('couponUsers').options).forEach(option=>option.selected=false);await loadCouponUsers();feedback.textContent=userIds.length?userIds.length+'명에게 쿠폰을 발급했습니다.':'공개 쿠폰을 생성했습니다.';await loadCoupons();}
+  catch(error){feedback.textContent=error.message;feedback.classList.add('error');}
+  finally{button.disabled=false;}
+});
 
 async function start(){
   show(true);
@@ -497,7 +606,7 @@ async function start(){
     renderKpis(); renderCharts();
     fillTypeFilter(); renderUsers();
     if($('view-stream').classList.contains('active')) renderPlants();
-    renderCameras();
+    renderCameras();renderCouponUsers();
     if($('view-camera').classList.contains('active')) startCameraPolling();
   }catch(e){ if(e.message!=='unauthorized') alert(e.message) }
   loadSensor();

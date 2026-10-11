@@ -79,16 +79,7 @@ function findRecentRecords(Model, plantIds, recordLimit, sort) {
   ]);
 }
 const createPlant = asyncHandler(async (req, res) => {
-  const name = requireNonEmptyString(req.body.name, 'name', 60);
-  const type = requireNonEmptyString(req.body.type, 'type', 100);
-  const rdkCameraId = typeof req.body.rdkCameraId === 'string' ? req.body.rdkCameraId.trim().slice(0, 64) || null : null;
-  const rdkZone = req.body.rdkZone == null ? null : requirePositiveInteger(req.body.rdkZone, 'rdkZone', { max: 144 });
-  const growthTargetDays = req.body.growthTargetDays === undefined
-    ? 60
-    : requirePositiveInteger(req.body.growthTargetDays, 'growthTargetDays', { max: 3650 });
-  const plant = await Plant.create({ userId: req.user._id, name, type, rdkCameraId, rdkZone, growthTargetDays });
-
-  res.status(201).json({ success: true, plant: withGrowthData(plant) });
+  throw new AppError('Plants are added after an administrator confirms an adoption order.', 403);
 });
 
 const listPlants = asyncHandler(async (req, res) => {
@@ -111,23 +102,21 @@ const updatePlant = asyncHandler(async (req, res) => {
   const plant = await findOwnedPlant(req.params.plantId, req.user._id);
   const updates = {};
 
+  if (Object.hasOwn(req.body, 'rdkCameraId') || Object.hasOwn(req.body, 'rdkZone')) {
+    throw new AppError('Camera assignments can only be changed by an administrator.', 403);
+  }
+
   if (Object.hasOwn(req.body, 'name')) {
     updates.name = requireNonEmptyString(req.body.name, 'name', 60);
   }
   if (Object.hasOwn(req.body, 'type')) {
     updates.type = requireNonEmptyString(req.body.type, 'type', 100);
   }
-  if (Object.hasOwn(req.body, 'rdkCameraId')) {
-    updates.rdkCameraId = typeof req.body.rdkCameraId === 'string' ? req.body.rdkCameraId.trim().slice(0, 64) || null : null;
-  }
-  if (Object.hasOwn(req.body, 'rdkZone')) {
-    updates.rdkZone = req.body.rdkZone == null ? null : requirePositiveInteger(req.body.rdkZone, 'rdkZone', { max: 144 });
-  }
   if (Object.hasOwn(req.body, 'growthTargetDays')) {
     updates.growthTargetDays = requirePositiveInteger(req.body.growthTargetDays, 'growthTargetDays', { max: 3650 });
   }
   if (Object.keys(updates).length === 0) {
-    throw new AppError('At least one of name, type, rdkCameraId, rdkZone, or growthTargetDays is required.', 400);
+    throw new AppError('At least one of name, type, or growthTargetDays is required.', 400);
   }
 
   Object.assign(plant, updates);
