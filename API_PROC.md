@@ -132,7 +132,7 @@ Authorization: Bearer <token>
 
 ## 10. 분양 계좌이체·쿠폰 API
 
-분양 상품과 가격은 `src/config/catalog.js`의 서버 카탈로그를 기준으로 계산합니다. 프론트에서 전달한 가격/할인액은 신뢰하지 않습니다. 주문 접수 단계에서는 식물을 만들지 않으며, 관리자 입금 확인 뒤 주문 상태를 `confirmed`로 바꾸고 주문당 식물을 한 개 생성합니다. 카메라 ID/구역은 자동 할당하지 않으며, 이후 관리자 스트리밍/식물 관리 화면에서 직접 매칭합니다.
+분양 상품과 가격은 `src/config/catalog.js`의 서버 카탈로그를 기준으로 계산합니다. 프론트에서 전달한 가격/할인액은 신뢰하지 않습니다. 주문 접수 단계에서는 식물을 만들지 않습니다. 관리자 주문 화면에서 입금 확인을 시작하면 RDK에서 현재 미배정인 카메라 영역 목록을 불러오고, 관리자가 하나를 선택해 주문 확정과 동시에 식물에 연결할 수 있습니다. 노드를 건너뛰거나 가용 노드가 없으면 주문만 확정할 수 있으며, 주문 목록의 `노드 연결` 동작으로 나중에 배정할 수 있습니다. 연결은 기존 관리자 식물 카메라 API로 RDK와 DB에 반영합니다.
 
 일반 사용자 `POST /api/web/plants`는 주문 우회 생성을 막기 위해 `403`을 반환합니다. 사용자 `PATCH /api/web/plants/:plantId`는 이름·종류·성장 목표일만 허용하고 카메라 ID/구역 수정은 관리자 엔드포인트로 제한합니다.
 
@@ -152,8 +152,11 @@ DEPOSIT_ACCOUNT_HOLDER=<실제 예금주>
 | `GET` | `/api/web/orders` | 사용자 | 본인 주문 목록 |
 | `GET` | `/api/web/orders/:orderId` | 사용자 | 본인 주문 상세 |
 | `POST` | `/api/web/orders/:orderId/cancel` | 사용자 | 입금 대기 주문 취소; 해당 사용자의 쿠폰 사용 예약 해제 |
-| `GET` | `/api/web/admin/orders` | 관리자 | 최근 500개 주문 |
+| `GET` | `/api/web/admin/orders` | 관리자 | 최근 500개 주문; `plantId`에 식물의 `rdkCameraId`, `rdkZone` 포함 |
 | `POST` | `/api/web/admin/orders/:orderId/confirm` | 관리자 | 입금 확인; 안전한 재시도 가능한 식물 생성 후 확정 알림 |
+| `GET` | `/api/web/admin/cameras` | 관리자 | RDK가 제공하는 미배정 카메라 영역 목록 |
+| `GET` | `/api/web/admin/plants` | 관리자 | 식물별 현재 카메라·영역 배정을 포함한 목록; 노드 중복 방지에 사용 |
+| `PATCH` | `/api/web/admin/plants/:plantId/camera` | 관리자 | `{ rdkCameraId, rdkZone }`로 RDK 및 DB에 노드 배정; 이미 사용 중이면 `409` |
 | `GET` | `/api/web/admin/coupons` | 관리자 | 쿠폰/사용량/발급 대상 목록 |
 | `GET` | `/api/web/admin/coupon-users` | 관리자 | 발급 대상 사용자 선택 목록 |
 | `POST` | `/api/web/admin/coupons` | 관리자 | 쿠폰 생성. `userIds`를 포함하면 비공개 발급 및 사용자 알림 |
@@ -162,7 +165,7 @@ DEPOSIT_ACCOUNT_HOLDER=<실제 예금주>
 
 쿠폰은 `percent`(1–100 정수) 또는 `fixed`(원 단위 정수) 할인입니다. 활성 상태, 유효기간 및 비공개 쿠폰 발급 계정을 확인합니다. 같은 쿠폰은 **사용자마다 1회**만 주문에 적용할 수 있습니다. 주문 접수 시 사용이 예약되고 입금 대기 주문을 취소하면 다시 사용할 수 있으며, 확정 후에는 재사용할 수 없습니다. 서로 다른 사용자에게는 동일한 쿠폰 코드를 발급할 수 있습니다. 관리자 생성 요청의 `maxUses`는 지원하지 않으며 전달하면 `400`입니다. 기존 쿠폰의 전체 사용 한도 값도 적용하지 않습니다.
 
-새 주문 응답은 화면에 계좌 정보를 포함하며, 주문 생성 자체는 결제 완료를 뜻하지 않습니다. 관리자가 실제 입금을 확인하기 전까지 사용자의 식물 목록에는 해당 주문 식물이 없어야 합니다.
+새 주문 응답은 화면에 계좌 정보를 포함하며, 주문 생성 자체는 결제 완료를 뜻하지 않습니다. 관리자가 실제 입금을 확인하기 전까지 사용자의 식물 목록에는 해당 주문 식물이 없어야 합니다. 관리자 주문 API의 `GET /api/web/admin/cameras`는 RDK가 현재 미배정으로 보고한 카메라·영역 쌍을 반환합니다. 관리자 UI는 `GET /api/web/admin/plants`의 DB 배정 현황도 대조한 뒤 선택지를 표시하고, 입금 확인 후 `POST /api/web/admin/orders/:orderId/confirm`으로 생성된 `plant._id`에 선택한 노드를 `PATCH /api/web/admin/plants/:plantId/camera`로 연결합니다. 노드 선택/연결을 건너뛴 확정 주문은 재시도 가능한 `노드 연결` 버튼을 표시합니다.
 
 성장 이벤트 생성:
 

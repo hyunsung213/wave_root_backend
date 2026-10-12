@@ -132,7 +132,12 @@ const cancelMyOrder = asyncHandler(async (req, res) => {
 });
 
 const listAdminOrders = asyncHandler(async (_req, res) => {
-  const orders = await Order.find().populate('userId', 'name email phone').sort({ createdAt: -1 }).limit(500).lean();
+  const orders = await Order.find()
+    .populate('userId', 'name email phone')
+    .populate('plantId', 'rdkCameraId rdkZone')
+    .sort({ createdAt: -1 })
+    .limit(500)
+    .lean();
   res.json({ success: true, orders });
 });
 

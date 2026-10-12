@@ -73,6 +73,11 @@ const response = await api.get("/api/web/plants", { headers });
 | 알림 | GET | `/api/web/notifications` | Bearer JWT | 알림 목록·미읽음 수 조회 |
 | 알림 | PATCH | `/api/web/notifications/:notificationId/read` | Bearer JWT | 알림 읽음 처리 |
 | 이미지 | GET | `/uploads/events/:filename` | 없음 | 업로드된 이벤트 이미지 표시 |
+| 관리자 주문 | GET | `/api/web/admin/orders` | 관리자 Bearer JWT | 최근 주문과 연결 식물의 노드 정보 조회 |
+| 관리자 주문 | POST | `/api/web/admin/orders/:orderId/confirm` | 관리자 Bearer JWT | 입금 확인 및 식물 생성 |
+| 관리자 노드 | GET | `/api/web/admin/cameras` | 관리자 Bearer JWT | RDK 미배정 카메라 영역 목록 |
+| 관리자 노드 | GET | `/api/web/admin/plants` | 관리자 Bearer JWT | 점유 중인 식물별 카메라 영역 확인 |
+| 관리자 노드 | PATCH | `/api/web/admin/plants/:plantId/camera` | 관리자 Bearer JWT | 카메라·영역을 식물에 연결 |
 | RDK | POST | `/api/rdk/current` | RDK API Key | 식물별 최신 센서 스냅샷 업서트 |
 | RDK | POST | `/api/rdk/logs` | RDK API Key | 센서 평균 로그 저장 |
 | RDK | GET | `/api/rdk/command/:plantId` | 사설망 | 대기 급수 명령 폴링 |
@@ -1037,6 +1042,28 @@ Content-Type: application/json
 저장 후 보정 프레임과 사용자별 식물 화면에 즉시 적용되며 RDK의 `perspective.json`에 유지됩니다. 수동 4점 설정이 활성화된 동안에는 추정 렌즈 계수와 자동 영역 검출을 섞지 않고 원본 기준 homography를 적용합니다. `DELETE /api/web/admin/cameras/:cameraId/perspective`는 수동 설정을 지우고 기존 설정 파일의 렌즈/자동 보정 경로로 복귀합니다. 평면화는 원근 투영을 보정하지만 광각 렌즈의 방사형 왜곡까지 교정하는 렌즈 캘리브레이션은 아닙니다.
 
 RDK는 해당 카메라 영상 요청이 30초 동안 없으면 RTSP 캡처를 닫습니다. RDK의 `CAMERA_PRIVACY_COMMAND`를 설정하면 서비스 시작 시 프라이버시 모드를 켜고 시청 시작/유휴 종료에 맞춰 전환합니다. C110의 실제 전원은 유지됩니다. 제어 실패는 status API에 나타나며, RDK에 연결된 시청자만 감지합니다. 출력 영상은 `1280×720, 15 FPS`로 고정됩니다. C110 원본 RTSP 해상도는 Tapo 앱에서 별도로 설정하고 status API에서 확인해야 합니다. 출력 FPS 고정은 카메라→RDK 원본 RTSP 설정과 별개입니다.
+
+### 6.2 관리자 분양 주문의 노드 연결
+
+관리자 페이지의 `분양 주문`에서 `입금 확인`을 누르면 주문 확인 모달이 열리고, 가용 노드인 카메라 ID와 영역 번호를 고를 수 있습니다. `GET /api/web/admin/cameras`가 RDK 기준 미배정 영역을 반환하고, UI는 `GET /api/web/admin/plants`의 DB 점유 현황과 대조해 이미 연결된 노드를 제외합니다.
+
+확정 버튼을 누르면 먼저 식물을 주문에 멱등하게 연결한 뒤, 노드를 골랐을 경우 응답의 `plant._id`로 배정 API를 호출합니다.
+
+```http
+POST /api/web/admin/orders/:orderId/confirm
+Authorization: Bearer <관리자 JWT>
+```
+
+```http
+PATCH /api/web/admin/plants/:plantId/camera
+Authorization: Bearer <관리자 JWT>
+Content-Type: application/json
+
+{ "rdkCameraId": "c110-1", "rdkZone": 3 }
+```
+
+노드 연결을 건너뛰거나 아직 빈 영역이 없으면 주문은 미배정 상태로 확정됩니다. 주문 목록은 해당 식물의 `rdkCameraId`·`rdkZone`을 보여주며, `노드 연결` 버튼으로 나중에 다시 배정할 수 있습니다. 노드가 동시 작업 등으로 선점된 경우 API는 `409`를 반환하고 UI에서 목록을 다시 불러와 다른 노드를 선택할 수 있습니다.
+
 ## 7. 데모 데이터
 
 `npm run seed:demo`로 프론트 테스트용 데이터를 생성할 수 있습니다. 실행을 반복하면 전용 데모 계정의 네 식물과 관련 기록을 새로 생성하고, 기존 미배정 데모 식물에는 예시 카메라·Zone을 채웁니다.

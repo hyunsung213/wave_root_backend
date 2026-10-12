@@ -118,6 +118,39 @@
   .stream-modal .caption{padding:10px 4px 2px;color:#dce4ee;font-size:13px}
   .stream-modal .close{position:absolute;top:8px;right:8px;width:34px;height:34px;border:1px solid rgba(255,255,255,.24);border-radius:50%;background:rgba(17,25,35,.85);color:#fff;font-size:23px;line-height:1;z-index:1}
   .stream-modal .close:hover{background:var(--teal);border-color:var(--teal)}
+  .order-node-modal{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(24,34,44,.58);backdrop-filter:blur(3px)}
+  .order-node-modal[hidden]{display:none}
+  .order-node-dialog{width:min(560px,100%);max-height:min(760px,calc(100dvh - 40px));overflow:auto;background:#fff;border:1px solid rgba(255,255,255,.7);border-radius:16px;box-shadow:0 24px 70px rgba(20,32,43,.28)}
+  .order-node-head{padding:22px 24px 16px;border-bottom:1px solid var(--line);background:linear-gradient(145deg,#f5fbfa,#fff 70%)}
+  .order-node-kicker{margin:0 0 6px;color:var(--teal-d);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+  .order-node-head h3{margin:0;color:var(--txt);font-size:19px;letter-spacing:-.02em}
+  .order-node-head p{margin:7px 0 0;color:var(--sub);font-size:12px;line-height:1.55}
+  .order-node-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 24px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#f8fafc}
+  .order-node-summary div{min-width:0}
+  .order-node-summary small{display:block;margin-bottom:3px;color:var(--sub);font-size:10px;font-weight:700}
+  .order-node-summary strong{display:block;overflow:hidden;color:var(--txt);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+  .order-node-body{padding:16px 24px 4px}
+  .order-node-legend{margin:0 0 9px;padding:0;color:var(--txt);font-size:12px;font-weight:800}
+  .order-node-options{display:grid;gap:8px;max-height:36vh;overflow:auto;padding:2px}
+  .order-node-option{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;transition:border-color .15s,background .15s}
+  .order-node-option:hover{border-color:#8ed6ce;background:#f8fcfb}
+  .order-node-option:has(input:checked){border-color:var(--teal);background:#eefaf8;box-shadow:0 0 0 2px rgba(27,176,166,.1)}
+  .order-node-option input{width:16px;height:16px;flex:none;accent-color:var(--teal)}
+  .order-node-option span{min-width:0;flex:1}
+  .order-node-option strong{display:block;color:var(--txt);font-size:12px}
+  .order-node-option small{display:block;margin-top:2px;color:var(--sub);font-size:11px;line-height:1.4}
+  .order-node-empty{padding:16px;border:1px dashed #cdd7dd;border-radius:10px;background:#f8fafc;color:var(--sub);font-size:12px;line-height:1.55}
+  .order-payment-ack{display:flex;align-items:center;gap:9px;margin:12px 0 0;padding:11px 12px;border:1px solid #f0d8a2;border-radius:9px;background:#fff9eb;color:#6f5721;font-size:12px;font-weight:700;cursor:pointer}
+  .order-payment-ack[hidden]{display:none}
+  .order-payment-ack input{width:16px;height:16px;accent-color:var(--teal)}
+  .order-node-feedback{min-height:18px;margin:10px 0 0;color:var(--teal-d);font-size:12px;line-height:1.45}
+  .order-node-feedback.error{color:#b73343}
+  .order-node-refresh{margin-top:8px;padding:0;border:0;background:transparent;color:#177f78;font-size:11px;font-weight:800;text-decoration:underline;text-underline-offset:2px}
+  .order-node-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px 20px}
+  .order-node-actions button{min-height:39px;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--txt);font-size:12px;font-weight:700}
+  .order-node-actions .primary{border-color:var(--teal);background:var(--teal);color:#fff}
+  .order-node-actions button:disabled{cursor:wait;opacity:.52}
+  @media(max-width:560px){.order-node-modal{padding:12px}.order-node-dialog{max-height:calc(100dvh - 24px);border-radius:13px}.order-node-head{padding:18px 18px 14px}.order-node-summary{margin:14px 18px 0}.order-node-body{padding:14px 18px 2px}.order-node-actions{padding:12px 18px 17px}.order-node-options{max-height:40vh}}
   body.modal-open{overflow:hidden}
   /* sensor */
   .sensor{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
@@ -311,7 +344,7 @@
         <section class="view" id="view-orders">
           <div class="toolbar"><span class="count">계좌이체 입금 대기·확정 주문</span><button class="refresh" id="refreshOrders" style="margin-left:auto">주문 새로고침</button></div>
           <div class="tablewrap" id="ordersTable"><div class="empty">불러오는 중…</div></div>
-          <p class="commerce-note">입금 확인을 누르면 주문이 확정되고 식물이 사용자 정원에 생성됩니다. 카메라·구역 매칭은 스트리밍 화면의 식물 관리에서 별도로 진행하세요.</p>
+          <p class="commerce-note">입금 확인을 누르면 현재 비어 있는 카메라 노드(카메라·영역)를 선택해 식물과 연결할 수 있습니다. 지금 연결하지 않거나 사용할 노드가 없으면 주문을 먼저 확정하고, 이후 주문 목록의 ‘노드 연결’에서 배정할 수 있습니다.</p>
         </section>
 
         <section class="view" id="view-coupons">
@@ -463,6 +496,30 @@
     </div>
   </div>
 
+  <div class="order-node-modal" id="orderNodeModal" hidden role="dialog" aria-modal="true" aria-labelledby="orderNodeTitle">
+    <form class="order-node-dialog" id="orderNodeForm">
+      <div class="order-node-head">
+        <p class="order-node-kicker">ORDER · CAMERA NODE</p>
+        <h3 id="orderNodeTitle">입금 확인 및 노드 연결</h3>
+        <p id="orderNodeDescription">입금을 확인한 뒤 이 식물에 연결할 카메라 영역을 선택하세요.</p>
+      </div>
+      <div class="order-node-summary" id="orderNodeSummary"></div>
+      <div class="order-node-body">
+        <fieldset style="margin:0;padding:0;border:0">
+          <legend class="order-node-legend">연결할 미배정 노드</legend>
+          <div class="order-node-options" id="orderNodeOptions" aria-live="polite"><div class="order-node-empty">사용 가능한 노드를 불러오는 중…</div></div>
+        </fieldset>
+        <button class="order-node-refresh" id="orderNodeRefresh" type="button">노드 목록 새로고침</button>
+        <label class="order-payment-ack" id="orderPaymentAckLabel" hidden><input id="orderPaymentAck" type="checkbox"> 실제 입금 내역을 확인했습니다</label>
+        <p class="order-node-feedback" id="orderNodeFeedback" role="status"></p>
+      </div>
+      <div class="order-node-actions">
+        <button type="button" id="orderNodeCancel">취소</button>
+        <button type="submit" class="primary" id="orderNodeSubmit" disabled>입금 확인 후 확정</button>
+      </div>
+    </form>
+  </div>
+
 <script>
 const KEY='rootAdminToken';
 const $=id=>document.getElementById(id);
@@ -470,6 +527,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const T={teal:'#1bb0a6',coral:'#ef6b6b',yellow:'#f2c14e',sub:'#8a94a6',line:'#e4e8ee'};
 
 let users=[], plants=[], cameras=[], couponUsers=[];
+let orderNodeAction=null;
 let uState={q:'',type:'',plant:'',sort:'createdAt',dir:'desc'};
 let pState={q:'',type:'',stream:''};
 const charts={};
@@ -530,6 +588,165 @@ $('refreshOrders').addEventListener('click',loadOrders);
 
 function money(value){return Number(value||0).toLocaleString('ko-KR')+'원'}
 function orderStatus(status){return status==='pending'?'입금 대기':status==='confirming'?'식물 생성 처리 중':status==='confirmed'?'확인 완료':'취소됨'}
+function availableOrderNodes(cameraList,plantList){
+  const occupied=new Set(plantList.filter(plant=>plant.rdkCameraId&&Number.isInteger(plant.rdkZone))
+    .map(plant=>plant.rdkCameraId+':'+plant.rdkZone));
+  return cameraList.flatMap(camera=>{
+    const cameraId=String(camera.cameraId||'');
+    if(!/^[A-Za-z0-9_-]{1,64}$/.test(cameraId)||!Array.isArray(camera.zones))return [];
+    return [...new Set(camera.zones.map(Number))]
+      .filter(zone=>Number.isInteger(zone)&&zone>=1&&zone<=144&&!occupied.has(cameraId+':'+zone))
+      .map(zone=>({cameraId,zone}));
+  }).sort((a,b)=>a.cameraId.localeCompare(b.cameraId)||a.zone-b.zone);
+}
+function orderNodeOption(value,title,description,checked=false){
+  return `<label class="order-node-option"><input type="radio" name="orderNodeSelection" value="${esc(value)}" ${checked?'checked':''} required><span><strong>${esc(title)}</strong><small>${esc(description)}</small></span></label>`;
+}
+function updateOrderNodeSubmit(){
+  const action=orderNodeAction;
+  if(!action)return;
+  const selected=$('orderNodeOptions').querySelector('input[name="orderNodeSelection"]:checked');
+  $('orderNodeSubmit').disabled=action.loading||action.busy||!selected||
+    (action.mode==='assign'&&selected.value==='skip')||
+    (!$('orderPaymentAckLabel').hidden&&!$('orderPaymentAck').checked);
+  $('orderNodeRefresh').disabled=action.loading||action.busy;
+  $('orderNodeCancel').disabled=action.busy;
+  $('orderNodeSubmit').textContent=action.mode==='assign'?'선택 노드 연결':
+    Number(action.order.amountDue)>0?'입금 확인 후 확정':'주문 확정';
+}
+function renderOrderNodeOptions(action){
+  const messages=[];
+  if(action.loadError)messages.push(`노드 목록을 불러오지 못했습니다. ${action.loadError}`);
+  else if(!action.nodes.length)messages.push('현재 배정 가능한 카메라 영역이 없습니다. 주문은 노드 미배정 상태로 확정한 뒤 나중에 연결할 수 있습니다.');
+  $('orderNodeOptions').innerHTML=(messages.length?`<div class="order-node-empty">${messages.map(esc).join('<br>')}</div>`:'')+
+    action.nodes.map(node=>orderNodeOption(`${node.cameraId}:${node.zone}`,`${node.cameraId} · 영역 ${node.zone}`,
+      '현재 다른 식물에 연결되지 않은 노드')).join('')+
+    (action.mode==='confirm'?orderNodeOption('skip','지금 연결하지 않고 나중에 배정',
+      action.nodes.length?'주문을 먼저 확정하고 주문 목록에서 나중에 연결할 수 있습니다.':'노드가 없는 상태로 주문을 확정합니다.',!action.nodes.length):'');
+  updateOrderNodeSubmit();
+}
+async function refreshOrderNodeOptions(){
+  const action=orderNodeAction;
+  if(!action)return;
+  action.loading=true;action.loadError='';
+  $('orderNodeFeedback').textContent='미배정 노드를 확인하고 있습니다…';
+  $('orderNodeFeedback').classList.remove('error');
+  updateOrderNodeSubmit();
+  try{
+    const [cameraData,plantData]=await Promise.all([api('/cameras'),api('/plants')]);
+    if(orderNodeAction!==action)return;
+    cameras=cameraData.cameras||[];
+    plants=plantData.plants||[];
+    action.nodes=availableOrderNodes(cameras,plants);
+  }catch(error){
+    if(orderNodeAction!==action)return;
+    if(error.message==='unauthorized'){closeOrderNodeModal();return;}
+    action.nodes=[];action.loadError=error.message||'관리자 페이지에서 다시 시도해주세요.';
+  }finally{
+    if(orderNodeAction===action){
+      action.loading=false;
+      renderOrderNodeOptions(action);
+      $('orderNodeFeedback').textContent=action.loadError?'목록 확인에 실패했습니다. 노드 없이 진행하거나 다시 불러오세요.':
+        action.nodes.length?`${action.nodes.length}개 노드를 선택할 수 있습니다.`:'배정 가능한 노드가 없습니다.';
+      if(action.loadError)$('orderNodeFeedback').classList.add('error');
+    }
+  }
+}
+function openOrderNodeModal(order,mode,triggerButton){
+  orderNodeAction={order,mode,triggerButton,nodes:[],loading:true,busy:false,loadError:''};
+  $('orderNodeForm').reset();
+  $('orderNodeTitle').textContent=mode==='assign'?'미배정 노드 연결':
+    order.status==='confirming'?'주문 처리 재시도':order.status==='confirmed'?'식물·노드 연결 재시도':'입금 확인 및 노드 연결';
+  $('orderNodeDescription').textContent=mode==='assign'
+    ?'확정된 식물에 연결할 미배정 카메라 영역을 선택하세요.'
+    :Number(order.amountDue)>0?'입금 내역을 확인한 뒤 식물을 추가하고 미배정 노드를 연결하세요. 노드 연결은 나중에 진행할 수도 있습니다.':'주문을 확정해 식물을 추가하고 미배정 노드를 연결하세요. 노드 연결은 나중에 진행할 수도 있습니다.';
+  $('orderNodeSummary').innerHTML=`<div><small>주문번호</small><strong>${esc(order.orderNumber)}</strong></div><div><small>식물</small><strong>${esc(order.plantName)} · ${esc(order.productName)}</strong></div><div><small>입금자명</small><strong>${esc(order.depositorName)}</strong></div><div><small>결제 금액</small><strong>${money(order.amountDue)}</strong></div>`;
+  $('orderNodeOptions').innerHTML='<div class="order-node-empty">사용 가능한 노드를 불러오는 중…</div>';
+  $('orderNodeFeedback').textContent='';$('orderNodeFeedback').classList.remove('error');
+  $('orderNodeRefresh').hidden=false;
+  $('orderPaymentAckLabel').hidden=mode==='assign'||Number(order.amountDue)<=0;
+  $('orderNodeModal').hidden=false;
+  document.body.classList.add('modal-open');
+  $('orderNodeCancel').focus();
+  updateOrderNodeSubmit();
+  void refreshOrderNodeOptions();
+}
+function closeOrderNodeModal(restoreFocus=true){
+  if(orderNodeAction?.busy)return;
+  const trigger=orderNodeAction?.triggerButton;
+  orderNodeAction=null;
+  $('orderNodeModal').hidden=true;
+  document.body.classList.remove('modal-open');
+  if(restoreFocus&&trigger?.isConnected)trigger.focus();
+}
+function parseOrderNodeSelection(value){
+  if(!value||value==='skip')return null;
+  const separator=value.lastIndexOf(':');
+  const rdkCameraId=value.slice(0,separator);
+  const rdkZone=Number(value.slice(separator+1));
+  if(separator<1||!/^[A-Za-z0-9_-]{1,64}$/.test(rdkCameraId)||!Number.isInteger(rdkZone)||rdkZone<1||rdkZone>144)
+    throw new Error('선택한 노드 정보가 올바르지 않습니다.');
+  return {rdkCameraId,rdkZone};
+}
+function setOrderNodeFeedback(message,isError=false){
+  $('orderNodeFeedback').textContent=message;
+  $('orderNodeFeedback').classList.toggle('error',isError);
+}
+async function submitOrderNodeAction(event){
+  event.preventDefault();
+  const action=orderNodeAction;
+  if(!action||action.busy)return;
+  const selection=$('orderNodeOptions').querySelector('input[name="orderNodeSelection"]:checked')?.value;
+  if(!selection){setOrderNodeFeedback('노드 또는 미배정을 선택해주세요.',true);return;}
+  let assignment;
+  try{assignment=parseOrderNodeSelection(selection);}catch(error){setOrderNodeFeedback(error.message,true);return;}
+  action.busy=true;updateOrderNodeSubmit();
+  setOrderNodeFeedback(action.mode==='assign'?'노드를 연결하고 있습니다…':'주문을 확정하고 식물을 추가하고 있습니다…');
+  try{
+    let plantId;
+    if(action.mode==='confirm'){
+      const confirmed=await api('/orders/'+encodeURIComponent(action.order._id)+'/confirm',{method:'POST'});
+      plantId=confirmed.plant?._id;
+      if(!plantId)throw new Error('주문은 처리됐지만 생성된 식물 ID를 받지 못했습니다. 주문 목록을 새로고침해주세요.');
+    }else{
+      const plant=action.order.plantId;
+      plantId=plant&&typeof plant==='object'?plant._id:plant;
+    }
+    if(assignment){
+      try{
+        await api('/plants/'+encodeURIComponent(plantId)+'/camera',{method:'PATCH',
+          headers:{'Content-Type':'application/json'},body:JSON.stringify(assignment)});
+      }catch(error){
+        action.mode='assign';action.order={...action.order,status:'confirmed',plantId:{_id:plantId}};
+        action.busy=false;
+        $('orderNodeTitle').textContent='노드 연결을 다시 시도하세요';
+        $('orderNodeDescription').textContent='주문과 식물은 확정됐지만 노드 연결은 완료되지 않았습니다. 다른 노드를 선택해 다시 시도할 수 있습니다.';
+        await refreshOrderNodeOptions();
+        if(orderNodeAction===action){
+          setOrderNodeFeedback(`주문은 확정됐지만 노드 연결에 실패했습니다. ${error.message}`,true);
+          await loadOrders();
+        }
+        return;
+      }
+    }
+    action.busy=false;
+    closeOrderNodeModal(false);
+    await Promise.all([loadOrders(),start()]);
+    $('refreshOrders').focus();
+  }catch(error){
+    if(orderNodeAction!==action)return;
+    action.busy=false;updateOrderNodeSubmit();
+    setOrderNodeFeedback(error.message||'주문을 처리하지 못했습니다.',true);
+    if(error.message==='unauthorized')closeOrderNodeModal(false);
+  }
+}
+$('orderNodeForm').addEventListener('submit',submitOrderNodeAction);
+$('orderNodeOptions').addEventListener('change',updateOrderNodeSubmit);
+$('orderPaymentAck').addEventListener('change',updateOrderNodeSubmit);
+$('orderNodeRefresh').addEventListener('click',()=>void refreshOrderNodeOptions());
+$('orderNodeCancel').addEventListener('click',()=>closeOrderNodeModal());
+$('orderNodeModal').addEventListener('click',event=>{if(event.target===$('orderNodeModal'))closeOrderNodeModal();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('orderNodeModal').hidden)closeOrderNodeModal();});
 async function loadOrders(){
   $('ordersTable').innerHTML='<div class="empty">주문을 불러오는 중…</div>';
   try{
@@ -537,13 +754,24 @@ async function loadOrders(){
     const rows=data.orders||[];
     $('ordersTable').innerHTML=rows.length?`<table><thead><tr><th>주문번호</th><th>회원</th><th>상품 / 식물명</th><th>입금자명</th><th>입금액</th><th>쿠폰</th><th>상태</th><th>접수일</th><th>작업</th></tr></thead><tbody>${rows.map(order=>{
       const user=order.userId&&typeof order.userId==='object'?order.userId:{};
-      return `<tr><td><b>${esc(order.orderNumber)}</b></td><td>${esc(user.name||'이름 없음')}<br><small>${esc(user.email||'')}</small></td><td>${esc(order.productName)}<br><small>${esc(order.plantName)}</small></td><td>${esc(order.depositorName)}</td><td>${money(order.amountDue)}<br><small>할인 ${money(order.discountAmount)}</small></td><td>${esc(order.couponCode||'-')}</td><td>${orderStatus(order.status)}${order.plantId?'<br><small>식물 생성 완료</small>':''}</td><td>${new Date(order.createdAt).toLocaleString('ko-KR')}</td><td>${order.status==='pending'||order.status==='confirming'?`<button class="commerce-action" data-confirm-order="${esc(order._id)}">${order.status==='confirming'?'처리 재시도':order.amountDue>0?'입금 확인':'주문 확정'}</button>`:'-'}</td></tr>`;
+      const plant=order.plantId&&typeof order.plantId==='object'?order.plantId:null;
+      const plantId=plant?._id||order.plantId;
+      const assigned=Boolean(plant?.rdkCameraId&&Number.isInteger(plant.rdkZone));
+      const plantSummary=order.plantId?`<br><small>식물 생성 완료${assigned?` · ${esc(plant.rdkCameraId)} / 영역 ${plant.rdkZone}`:' · 노드 미배정'}</small>`:'';
+      const action=order.status==='pending'||order.status==='confirming'
+        ?`<button class="commerce-action" data-confirm-order="${esc(order._id)}">${order.status==='confirming'?'처리 재시도':order.amountDue>0?'입금 확인':'주문 확정'}</button>`
+        :order.status==='confirmed'&&plantId&&!assigned
+          ?`<button class="commerce-action" data-assign-order="${esc(order._id)}">노드 연결</button>`:'-';
+      return `<tr><td><b>${esc(order.orderNumber)}</b></td><td>${esc(user.name||'이름 없음')}<br><small>${esc(user.email||'')}</small></td><td>${esc(order.productName)}<br><small>${esc(order.plantName)}</small></td><td>${esc(order.depositorName)}</td><td>${money(order.amountDue)}<br><small>할인 ${money(order.discountAmount)}</small></td><td>${esc(order.couponCode||'-')}</td><td>${orderStatus(order.status)}${plantSummary}</td><td>${new Date(order.createdAt).toLocaleString('ko-KR')}</td><td>${action}</td></tr>`;
     }).join('')}</tbody></table>`:'<div class="empty">접수된 주문이 없습니다.</div>';
-    $('ordersTable').querySelectorAll('[data-confirm-order]').forEach(button=>button.addEventListener('click',async()=>{
-      if(!confirm('입금 내역을 확인했나요? 확인하면 주문이 확정되고 식물이 생성됩니다.'))return;
-      button.disabled=true;
-      try{await api('/orders/'+encodeURIComponent(button.dataset.confirmOrder)+'/confirm',{method:'POST'});await loadOrders();await start();}
-      catch(error){alert(error.message);button.disabled=false;}
+    $('ordersTable').querySelectorAll('[data-confirm-order]').forEach(button=>button.addEventListener('click',()=>{
+      const order=rows.find(item=>String(item._id)===button.dataset.confirmOrder);
+      if(!order)return;
+      openOrderNodeModal(order,'confirm',button);
+    }));
+    $('ordersTable').querySelectorAll('[data-assign-order]').forEach(button=>button.addEventListener('click',()=>{
+      const order=rows.find(item=>String(item._id)===button.dataset.assignOrder);
+      if(order)openOrderNodeModal(order,'assign',button);
     }));
   }catch(error){if(error.message!=='unauthorized')$('ordersTable').innerHTML=`<div class="empty">주문을 불러오지 못했습니다. ${esc(error.message)}</div>`;}
 }

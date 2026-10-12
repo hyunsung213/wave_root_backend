@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const AppError = require('../src/utils/AppError');
 const { normalizeCouponCode, calculateDiscount, assertCouponAvailable } = require('../src/services/commerce');
 const { validateCouponDefinition, makeOrderNumber, getProduct } = require('../src/controllers/webCommerceController');
-const { createAdminCoupon, validateCoupon, listMyCoupons } = require('../src/controllers/webCommerceController');
+const { createAdminCoupon, validateCoupon, listMyCoupons, listAdminOrders } = require('../src/controllers/webCommerceController');
 const Coupon = require('../src/models/Coupon');
 const Order = require('../src/models/Order');
 const User = require('../src/models/User');
@@ -49,6 +49,43 @@ test('admin console inline JavaScript parses after commerce screens are added', 
   for (const script of inlineScripts) assert.doesNotThrow(() => new vm.Script(script));
   assert.match(html, /사용자당 1회/);
   assert.doesNotMatch(html, /couponMaxUses/);
+  assert.match(html, /id="orderNodeModal"/);
+  assert.match(html, /미배정 노드/);
+  assert.match(html, /실제 입금 내역을 확인했습니다/);
+  assert.match(html, /api\('\/cameras'\)/);
+  assert.match(html, /api\('\/plants'\)/);
+  assert.match(html, /\/camera'.*method:'PATCH'/);
+  assert.match(html, /data-assign-order/);
+  assert.doesNotMatch(html, /\+\s*\+\(action\.mode==='confirm'/);
+});
+
+test('admin order list includes the plant camera node assignment for retries', async () => {
+  const originalFind = Order.find;
+  const calls = [];
+  const orders = [{ _id: 'order-id', status: 'confirmed', plantId: {
+    _id: 'plant-id', rdkCameraId: 'c110-2', rdkZone: 7
+  } }];
+  const query = {
+    populate(path, fields) { calls.push(['populate', path, fields]); return this; },
+    sort(value) { calls.push(['sort', value]); return this; },
+    limit(value) { calls.push(['limit', value]); return this; },
+    async lean() { return orders; }
+  };
+  Order.find = () => query;
+  try {
+    let response;
+    let failure;
+    await listAdminOrders({}, { json(data) { response = data; } }, (error) => { failure = error; });
+    assert.equal(failure, undefined);
+    assert.equal(response.success, true);
+    assert.deepEqual(response.orders, orders);
+    assert.deepEqual(calls, [
+      ['populate', 'userId', 'name email phone'],
+      ['populate', 'plantId', 'rdkCameraId rdkZone'],
+      ['sort', { createdAt: -1 }],
+      ['limit', 500]
+    ]);
+  } finally { Order.find = originalFind; }
 });
 
 test('active user-coupon orders have a partial unique index', () => {
