@@ -482,10 +482,16 @@ const updateRdkCameraCalibration = asyncHandler(async (req, res) => {
         const box = zones[zone];
         return !Array.isArray(box) || box.length !== 4 ||
           box.some((number) => typeof number !== 'number' || !Number.isFinite(number) ||
-            number < 0 || number > 1) ||
-          !(box[0] < box[2] && box[1] < box[3]);
+            number < 0 || number > 1) || box[0] >= box[2] || box[1] >= box[3] ||
+          !(box[2] - box[0] >= 0.04 && box[3] - box[1] >= 0.04);
       })) {
-    throw new AppError('zones must contain eighteen normalized rectangles.', 400);
+    throw new AppError('zones must contain eighteen normalized rectangles at least 4% wide and high.', 400);
+  }
+  const boxes = expected.map((zone) => zones[zone]);
+  if (boxes.some((first, index) => boxes.slice(index + 1).some((second) =>
+    Math.min(first[2], second[2]) > Math.max(first[0], second[0]) &&
+    Math.min(first[3], second[3]) > Math.max(first[1], second[1])))) {
+    throw new AppError('Camera zones may not overlap.', 400);
   }
   const response = await requestRdkCamera(
     `/api/cameras/${encodeURIComponent(cameraId)}/calibration`,
@@ -503,6 +509,31 @@ const updateRdkCameraCalibration = asyncHandler(async (req, res) => {
   if (!response.ok) throw new AppError('Camera calibration could not be saved.', 503);
   res.json({ success: true, cameraId, zones: data.zones, customized: data.customized });
 });
+
+const getRdkCameraStatusList = asyncHandler(async (_req, res) => {
+  const response = await requestRdkCamera('/api/cameras/status');
+  if (!response.ok) throw new AppError('Camera status list is unavailable.', 503);
+  let data;
+  try { data = await response.json(); } catch (_error) {
+    throw new AppError('The RDK camera service returned an invalid response.', 502);
+  }
+  if (!Array.isArray(data?.cameras) || data.cameras.some((camera) =>
+    typeof camera.camera_id !== 'string' ||
+    typeof camera.reader_active !== 'boolean' ||
+    typeof camera.stream_connected !== 'boolean')) {
+    throw new AppError('The RDK camera service returned invalid camera status data.', 502);
+  }
+  res.json({ success: true, cameras: data.cameras.map((camera) => ({
+    cameraId: camera.camera_id,
+    status: {
+      readerActive: camera.reader_active,
+      streamConnected: camera.stream_connected,
+      secondsSinceFrame: camera.seconds_since_frame ?? null
+    }
+  })) });
+});
+
+const getAllRdkCameraStatuses = getRdkCameraStatusList;
 
 const getGlobalSensor = asyncHandler(async (_req, res) => {
   const { rdkSensorStaleMs } = getEnv();
@@ -537,5 +568,7 @@ module.exports = {
   getRdkCameraProfile,
   updateRdkCameraProfile,
   updateRdkCameraCalibration,
+  getRdkCameraStatusList,
+  getAllRdkCameraStatuses,
   getGlobalSensor
 };

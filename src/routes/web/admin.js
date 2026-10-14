@@ -16,6 +16,7 @@ const {
   getRdkCameraProfile,
   updateRdkCameraProfile,
   updateRdkCameraCalibration,
+  getRdkCameraStatusList,
   getGlobalSensor
 } = require('../../controllers/webAdminController');
 const {
@@ -23,6 +24,7 @@ const {
   issueAdminCoupon, toggleAdminCoupon, listAdminUsersForCoupons
 } = require('../../controllers/webCommerceController');
 const { requireAdmin } = require('../../middlewares/auth');
+const { getAdminAlertSettings, updateAdminAlertSettings, sendAdminTestAlert } = require('../../controllers/webAdminAlertsController');
 
 const router = express.Router();
 
@@ -31,6 +33,7 @@ router.get('/users', requireAdmin, listAllUsers);
 router.get('/plants', requireAdmin, listAllPlants);
 router.patch('/plants/:plantId/camera', requireAdmin, updatePlantCameraAssignment);
 router.get('/cameras', requireAdmin, listRdkCameras);
+router.get('/cameras/status', requireAdmin, getRdkCameraStatusList);
 router.get('/cameras/:cameraId/raw', requireAdmin, getRdkCameraFrame);
 router.get('/cameras/:cameraId/frame/:mode', requireAdmin, getRdkCameraFrame);
 router.get('/cameras/:cameraId/calibration', requireAdmin, getRdkCameraCalibration);
@@ -51,5 +54,8 @@ router.get('/coupon-users', requireAdmin, listAdminUsersForCoupons);
 router.post('/coupons', requireAdmin, createAdminCoupon);
 router.post('/coupons/:couponId/issue', requireAdmin, issueAdminCoupon);
 router.patch('/coupons/:couponId', requireAdmin, toggleAdminCoupon);
+router.get('/alerts', requireAdmin, getAdminAlertSettings);
+router.patch('/alerts', requireAdmin, updateAdminAlertSettings);
+router.post('/alerts/test', requireAdmin, sendAdminTestAlert);
 
 module.exports = router;

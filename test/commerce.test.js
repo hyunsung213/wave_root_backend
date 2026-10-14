@@ -115,9 +115,12 @@ test('admin coupon creation fixes usage to once per user and rejects legacy glob
     assert.equal(created.response.coupon.code, 'WELCOME10');
     assert.equal(calls.length, 1);
     assert.equal(Object.hasOwn(calls[0], 'maxUses'), false);
+    const named = await send({ name: '첫 주문 쿠폰', code: 'welcome12', discountType: 'percent', discountValue: 12 });
+    assert.equal(named.response.coupon.name, '첫 주문 쿠폰');
+    assert.equal(calls[1].name, '첫 주문 쿠폰');
     const rejected = await send({ code: 'welcome11', discountType: 'percent', discountValue: 10, maxUses: 1 });
     assert.equal(rejected.failure.statusCode, 400);
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 2);
   } finally { Coupon.create = originalCreate; }
 });
 

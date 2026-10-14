@@ -65,10 +65,12 @@ test('commerce customer endpoints require a user token and admin mutations requi
       fetch(`${base}/api/web/admin/orders/507f1f77bcf86cd799439011/confirm`, { method: 'POST' }),
       fetch(`${base}/api/web/admin/coupons`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
       fetch(`${base}/api/web/admin/coupon-users`),
+      fetch(`${base}/api/web/admin/alerts`),
+      fetch(`${base}/api/web/admin/alerts/test`, { method: 'POST' }),
       fetch(`${base}/api/web/plants`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
     ];
     const responses = await Promise.all(requests);
-    assert.deepEqual(responses.map((response) => response.status), [401, 401, 401, 401, 401, 401]);
+    assert.deepEqual(responses.map((response) => response.status), [401, 401, 401, 401, 401, 401, 401, 401]);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

@@ -11,9 +11,10 @@ const Notification = require('../src/models/Notification');
 const UserActivity = require('../src/models/UserActivity');
 const Order = require('../src/models/Order');
 const Coupon = require('../src/models/Coupon');
+const AlertSettings = require('../src/models/AlertSettings');
 
 test('every persistent schema enables Mongoose timestamps', () => {
-  for (const model of [User, Plant, Log, SensorSnapshot, Water, Command, Event, Notification, UserActivity, Order, Coupon]) {
+  for (const model of [User, Plant, Log, SensorSnapshot, Water, Command, Event, Notification, UserActivity, Order, Coupon, AlertSettings]) {
     assert.equal(model.schema.options.timestamps, true, `${model.modelName} must use timestamps`);
   }
 });
@@ -50,6 +51,15 @@ test('confirmed orders create at most one plant and one notification per order',
   assert.equal(Order.schema.path('plantId').defaultValue, null);
   assert.deepEqual(Order.schema.path('status').enumValues, ['pending', 'confirming', 'confirmed', 'cancelled']);
   assert.equal(Coupon.schema.path('isPublic').defaultValue, true);
+  assert.equal(Order.schema.path('couponName').defaultValue, null);
+  assert.equal(Coupon.schema.path('name').defaultValue, null);
+});
+
+test('Discord alert settings are global and enabled by default', () => {
+  assert.equal(AlertSettings.schema.path('key').defaultValue, 'global');
+  for (const field of ['signupAlerts', 'orderAlerts', 'cameraAlerts']) {
+    assert.equal(AlertSettings.schema.path(field).defaultValue, true);
+  }
 });
 
 test('notification type is restricted to the documented enum', () => {

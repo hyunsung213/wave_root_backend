@@ -162,8 +162,18 @@ DEPOSIT_ACCOUNT_HOLDER=<실제 예금주>
 | `POST` | `/api/web/admin/coupons` | 관리자 | 쿠폰 생성. `userIds`를 포함하면 비공개 발급 및 사용자 알림 |
 | `POST` | `/api/web/admin/coupons/:couponId/issue` | 관리자 | 기존 쿠폰을 사용자들에게 발급 |
 | `PATCH` | `/api/web/admin/coupons/:couponId` | 관리자 | `{ isActive: boolean }`으로 쿠폰 사용 중지/재개 |
+| `GET` | `/api/web/admin/alerts` | 관리자 | 알림 사용 여부와 Discord 웹훅 설정 여부 조회(웹훅 URL은 반환하지 않음) |
+| `PATCH` | `/api/web/admin/alerts` | 관리자 | `{ signupAlerts?, orderAlerts?, cameraAlerts? }` 알림 설정 저장 |
+| `POST` | `/api/web/admin/alerts/test` | 관리자 | Discord 테스트 메시지 전송 |
+| `GET` | `/api/web/admin/cameras/status` | 관리자 | 전체 RDK 카메라의 reader/프레임 연결 상태 조회 |
 
 쿠폰은 `percent`(1–100 정수) 또는 `fixed`(원 단위 정수) 할인입니다. 활성 상태, 유효기간 및 비공개 쿠폰 발급 계정을 확인합니다. 같은 쿠폰은 **사용자마다 1회**만 주문에 적용할 수 있습니다. 주문 접수 시 사용이 예약되고 입금 대기 주문을 취소하면 다시 사용할 수 있으며, 확정 후에는 재사용할 수 없습니다. 서로 다른 사용자에게는 동일한 쿠폰 코드를 발급할 수 있습니다. 관리자 생성 요청의 `maxUses`는 지원하지 않으며 전달하면 `400`입니다. 기존 쿠폰의 전체 사용 한도 값도 적용하지 않습니다.
+
+쿠폰은 선택 표시 이름(`name`, 최대 60자)을 설정할 수 있고 쿠폰 코드(`code`)는 ASCII 영문·숫자·하이픈·밑줄 3~32자입니다. 표시 이름은 checkout에서 보이고 코드로 적용합니다.
+
+## Discord 관리자 이벤트 알림
+
+서버 환경변수 `DISCORD_WEBHOOK_URL`에 비공개 Discord 채널의 HTTPS incoming webhook URL을 설정합니다. 관리자 `/admin/`의 **알림 설정**에서 가입·신규 주문·카메라 끊김/복구 알림을 각각 켜거나 끄고 테스트 메시지를 보낼 수 있습니다. 실제 웹훅 주소는 API에 반환되지 않습니다. 설정 기본값은 모두 활성입니다. 카메라 장애 감시는 30초 간격으로 검사하고, RDK 프레임 리더가 활성인데 2회 연속(통상 약 60초) 프레임이 끊겼을 때 알립니다. 유휴 또는 프라이버시 모드 상태는 장애 알림 대상이 아닙니다. `GET /api/cameras/status` RDK camera-status-list 엔드포인트가 필요합니다.
 
 새 주문 응답은 화면에 계좌 정보를 포함하며, 주문 생성 자체는 결제 완료를 뜻하지 않습니다. 관리자가 실제 입금을 확인하기 전까지 사용자의 식물 목록에는 해당 주문 식물이 없어야 합니다. 관리자 주문 API의 `GET /api/web/admin/cameras`는 RDK가 현재 미배정으로 보고한 카메라·영역 쌍을 반환합니다. 관리자 UI는 `GET /api/web/admin/plants`의 DB 배정 현황도 대조한 뒤 선택지를 표시하고, 입금 확인 후 `POST /api/web/admin/orders/:orderId/confirm`으로 생성된 `plant._id`에 선택한 노드를 `PATCH /api/web/admin/plants/:plantId/camera`로 연결합니다. 노드 선택/연결을 건너뛴 확정 주문은 재시도 가능한 `노드 연결` 버튼을 표시합니다.
 

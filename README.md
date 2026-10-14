@@ -26,7 +26,7 @@ Local account signup accepts `{ "email", "phone", "pwd" }`; `pwd` must be at lea
 
 | Method | Endpoint | Auth | Request body |
 | --- | --- | --- | --- |
-| POST | `/api/web/users/signup` | - | `email`, `phone?`, `pwd` |
+| POST | `/api/web/users/signup` | - | `name?`, `email`, `phone?`, `pwd` |
 | POST | `/api/web/users/login` | - | `email`, `pwd` |
 | GET | `/api/web/users/me` | Bearer | - |
 | PATCH | `/api/web/users/password` | Bearer | `currentPwd`, `newPwd` |
@@ -51,6 +51,9 @@ Local account signup accepts `{ "email", "phone", "pwd" }`; `pwd` must be at lea
 | GET | `/api/web/admin/cameras/:cameraId/raw` | Admin Bearer | 보정 전 원본 JPEG 1프레임 |
 | GET | `/api/web/admin/cameras/:cameraId/frame/:mode` | Admin Bearer | 원본·보정·6×3 그리드 JPEG. `mode=raw/corrected/grid` |
 | GET | `/api/web/admin/cameras/:cameraId/status` | Admin Bearer | 프라이버시 상태와 카메라 원본/출력 해상도 |
+| GET | `/api/web/admin/cameras/status` | Admin Bearer | 전체 카메라 프레임 수신 상태 |
+| GET/PATCH | `/api/web/admin/alerts` | Admin Bearer | Discord 알림 설정 조회/수정 |
+| POST | `/api/web/admin/alerts/test` | Admin Bearer | Discord 테스트 알림 전송 |
 | GET | `/api/web/admin/cameras/:cameraId/profile` | Admin Bearer | 카메라 송출 FPS 조회 |
 | PUT | `/api/web/admin/cameras/:cameraId/profile` | Admin Bearer | 고정 송출 규격 15 FPS 확인(다른 값은 400) |
 | GET | `/api/web/admin/cameras/:cameraId/calibration` | Admin Bearer | 현재 18개 셀 좌표 |
@@ -77,6 +80,8 @@ For the current RDK X5 deployment, configure `RDK_STREAM_BASE_URL` as `http://<R
 The ready-to-run RDK sample is at [`rdk/rdk_gateway.py`](rdk/rdk_gateway.py). Install its packages with `pip install -r rdk/requirements.txt`, then configure its environment variables before starting it.
 
 The administrator page at `/admin/` has a `카메라 설정` screen for source, bed-plane flattening, corrected, and numbered region views. Drag four circles from the tray below the raw video to set perspective corners. Drag two triangles from the tray below the corrected video to place each plant region. One rectangle creates one plant crop; up to 144 regions can be saved per camera, with stable region IDs matching zone numbers. The `스트리밍` admin screen assigns each plant to an available camera region. Existing assigned zones cannot be removed until the plants are moved. The earlier individual cell editor remains available for the original eighteen-cell layout. User-facing output is fixed at 1280×720 and 15 FPS. These endpoints are protected by the administrator JWT and backend-to-RDK `RDK_STREAM_ADMIN_KEY`.
+
+Set `DISCORD_WEBHOOK_URL` in the backend environment to enable Discord signup, new-order, and camera frame interruption/recovery alerts. Event delivery toggles and a test-message action are available at `/admin/`; the webhook URL is never returned to the browser. Camera health checks ignore idle readers and require two consecutive failed frame checks before an alert.
 
 ## RDK water-command polling flow
 

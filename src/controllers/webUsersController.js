@@ -4,6 +4,7 @@ const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { createAccessToken } = require('../utils/jwt');
 const { requireNonEmptyString } = require('../utils/validation');
+const { sendSignupAlert } = require('../services/discordAlerts');
 
 const signup = asyncHandler(async (req, res) => {
   const name = req.body.name === undefined || req.body.name === null
@@ -31,6 +32,7 @@ const signup = asyncHandler(async (req, res) => {
   const user = await User.create({ name, email, phone, pwd, isSocial: false });
   const accessToken = createAccessToken(user);
 
+  void sendSignupAlert(user);
   res.status(201).json({ success: true, user, accessToken });
 });
 

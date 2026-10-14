@@ -11,6 +11,7 @@ const Plant = require('../models/Plant');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { normalizeCouponCode, calculateDiscount, assertCouponAvailable } = require('../services/commerce');
+const { sendOrderAlert } = require('../services/discordAlerts');
 
 function makeOrderNumber() {
   const date = new Date().toISOString().slice(2, 10).replace(/-/g, '');
@@ -38,7 +39,7 @@ const validateCoupon = asyncHandler(async (req, res) => {
   const coupon = await findApplicableCoupon(req.body.code, req.user._id);
   const subtotal = product.price + PASS_PRICE;
   const discountAmount = calculateDiscount(subtotal, coupon);
-  res.json({ success: true, coupon: { code: coupon.code, discountType: coupon.discountType, discountValue: coupon.discountValue }, subtotal, discountAmount, amountDue: subtotal - discountAmount });
+  res.json({ success: true, coupon: { code: coupon.code, name: coupon.name || null, discountType: coupon.discountType, discountValue: coupon.discountValue }, subtotal, discountAmount, amountDue: subtotal - discountAmount });
 });
 
 const listMyCoupons = asyncHandler(async (req, res) => {
@@ -50,7 +51,7 @@ const listMyCoupons = asyncHandler(async (req, res) => {
     { $or: [{ isPublic: true }, { issuedUserIds: req.user._id }] },
     { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
     { _id: { $nin: usedCouponIds } }
-  ] }).select('code discountType discountValue expiresAt').sort({ createdAt: -1 }).lean();
+  ] }).select('code name discountType discountValue expiresAt').sort({ createdAt: -1 }).lean();
   res.json({ success: true, coupons });
 });
 
@@ -89,6 +90,7 @@ const createOrder = asyncHandler(async (req, res) => {
       productId: product.id, productName: product.name, plantName,
       productPrice: product.price, passPrice: PASS_PRICE, subtotal,
       couponId: coupon?._id || null, couponCode: coupon?.code || null,
+      couponName: coupon?.name || null,
       discountAmount, amountDue, depositorName,
       depositDetails: amountDue > 0 ? {
         bankName: env.depositBankName, accountNumber: env.depositAccountNumber,
@@ -96,6 +98,7 @@ const createOrder = asyncHandler(async (req, res) => {
       } : undefined,
       couponReservationActive: Boolean(coupon)
     });
+    void sendOrderAlert(order, req.user);
     res.status(201).json({ success: true, order });
   } catch (error) {
     if (coupon) {
@@ -233,6 +236,8 @@ async function issueCouponToUsers(coupon, userIds) {
 
 const createAdminCoupon = asyncHandler(async (req, res) => {
   const code = normalizeCouponCode(req.body.code);
+  const name = req.body.name === undefined || req.body.name === null || req.body.name === ''
+    ? null : requireNonEmptyString(req.body.name, 'name', 60);
   const discountType = requireNonEmptyString(req.body.discountType, 'discountType', 20);
   const discountValue = req.body.discountValue;
   if (req.body.maxUses !== undefined) throw new AppError('maxUses is not supported; each user can use a coupon once.', 400);
@@ -253,7 +258,7 @@ const createAdminCoupon = asyncHandler(async (req, res) => {
   // Resolve recipients before insertion so invalid IDs cannot leave a private orphan coupon.
   const users = req.body.userIds === undefined ? [] : await resolveCouponUsers(req.body.userIds);
   try {
-    coupon = await Coupon.create({ code, discountType, discountValue, expiresAt, isPublic,
+    coupon = await Coupon.create({ code, name, discountType, discountValue, expiresAt, isPublic,
       issuedUserIds: users.map((user) => user._id) });
   } catch (error) {
     if (error?.code === 11000) throw new AppError('Coupon code already exists.', 409);

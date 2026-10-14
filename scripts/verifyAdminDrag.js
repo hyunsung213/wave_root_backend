@@ -116,7 +116,35 @@ async function run() {
     assert.equal(await evaluate("cameraState.grids.length"), 2);
     assert.equal(await evaluate("validGridLayouts(cameraState.grids)"), true);
     assert.equal(await evaluate("$('cameraOverlay').querySelectorAll('.camera-grid-boundary').length"), 2);
-    console.log('Browser drag check passed: palette circles and two independent grids');
+    await evaluate("$('gridLayoutCancel').click();cameraState.layoutCustomized=false;cameraState.layoutEditing=true;cameraState.grids=[];cameraState.selectedGridId=null;updateCameraControls()");
+    await dragStage(0.12,0.18,0.38,0.46, "$('cameraOverlay').querySelector('.camera-zone-draft')?.getAttribute('width')");
+    assert.equal(await evaluate("cameraState.grids.length"), 1);
+    assert.equal(await evaluate("validGridLayouts(cameraState.grids)"), true);
+    await evaluate("$('gridLayoutCancel').click();cameraState.layoutCustomized=false;cameraState.layoutEditing=false;cameraState.editing=true;cameraState.mode='grid';cameraState.zone='1';cameraState.drawMode=true;updateCameraControls()");
+    await dragStage(0.02,0.05,0.15,0.28);
+    const drawnZone=await evaluate("cameraState.zones['1']");
+    assert.ok(drawnZone.every((value,index)=>Math.abs(value-[0.02,0.05,0.15,0.28][index])<0.002));
+    const originalZone2=await evaluate("cameraState.zones['2']");
+    await evaluate("cameraState.drawMode=true;updateCameraControls()");
+    await dragStage(0.15,0.1,0.3,0.28);
+    assert.deepEqual(await evaluate("cameraState.zones['1']"),drawnZone);
+    assert.deepEqual(await evaluate("cameraState.zones['2']"),originalZone2);
+    assert.equal(await evaluate("validGridLayouts([{id:'grid-1',anchors:[[0.05,0.05],[0.3,0.3]]},{id:'grid-2',anchors:[[0.2,0.2],[0.4,0.4]]}])"),false);
+    console.log('Browser drag check passed: palette placement, rectangle drawing, and overlap protection');
+
+    async function dragStage(x0,y0,x1,y1,draftWidthExpression){
+      await evaluate("$('cameraOverlay').scrollIntoView({block:'center'});$('cameraStage').scrollIntoView({block:'center'})");
+      const bounds=await evaluate(`(()=>{const r=$('cameraStage').getBoundingClientRect();return {from:[r.left+r.width*${x0},r.top+r.height*${y0}],to:[r.left+r.width*${x1},r.top+r.height*${y1}]}})()`);
+      await command('Input.dispatchMouseEvent',{type:'mouseMoved',x:bounds.from[0],y:bounds.from[1]});
+      await command('Input.dispatchMouseEvent',{type:'mousePressed',x:bounds.from[0],y:bounds.from[1],button:'left',clickCount:1});
+      if(draftWidthExpression)assert.equal(await evaluate("$('cameraOverlay').hasPointerCapture(cameraState.gridDraw.pointerId)"),true,'grid drawing must capture the pointer');
+      await command('Input.dispatchMouseEvent',{type:'mouseMoved',x:bounds.to[0],y:bounds.to[1],buttons:1});
+      if(draftWidthExpression){
+        const draftWidth=Number(await evaluate(draftWidthExpression));
+        assert.ok(draftWidth>0,'the in-progress grid rectangle should remain visible while dragging');
+      }
+      await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:bounds.to[0],y:bounds.to[1],button:'left',clickCount:1});
+    }
   } finally {
     socket?.close();
     chrome.kill();

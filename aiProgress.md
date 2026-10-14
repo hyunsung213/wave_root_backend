@@ -1,5 +1,13 @@
 # AI 작업 진행 기록
 
+## 2026-10-14
+
+- 2026-10-14 11:45:25 +09:00 — 다른 AI의 쿠폰 표시명·Discord 알림·카메라 상태 감시·관리자 그리드 편집 변경을 검토함. 드래그 중 빈 영역에서 포인터를 놓치고 SVG 임시 그리기가 초기화되던 문제를 투명 hit-surface와 document 포인터 처리로 수정하고 브라우저 회귀 테스트를 추가함. `npm test` 37/37, `node scripts/verifyAdminDrag.js`, 프론트 ESLint/TypeScript/production build, 양 저장소 `git diff --check` 통과. 이 저장소의 `rdk/`에서는 pytest가 0개를 수집했고 카메라 `/api/cameras/status` 구현이나 변경은 확인되지 않아 실제 RDK 연동은 미검증임. webhook 환경값은 설정/노출하지 않음.
+- Discord webhook 이벤트 알림을 추가함: 회원가입/신규 주문 훅, 관리자별 이벤트 on/off와 test endpoint, RDK 프레임 watchdog(유휴 제외, 연속 두 번 실패 시 경보, 복구 알림)을 구현함. Webhook은 `DISCORD_WEBHOOK_URL` 서버 설정이며 URL을 브라우저로 반환하지 않음.
+- 관리자 쿠폰 생성에 한국어 표시 이름, 이름에서 생성하는 코드, 10%/3,000원/전액 할인 프리셋을 추가함. 생성 이후 목록 갱신 실패를 생성 실패로 오인하지 않도록 UI 흐름을 분리함. 주문 목록에도 쿠폰 표시 이름을 반영함.
+- 관리자 카메라 영역 미리보기에 소유자 이름과 미배정 표시를 추가하고, drag-to-draw, 최소 4% 크기, 중첩 방지를 UI·백엔드·RDK 검증에 적용함. 전체 RDK 카메라 상태 API를 추가해 backend watchdog에 연결함.
+- API 문서와 `.env.example`을 갱신함. backend Node tests 37/37, RDK pytest 26/26, 관리자 drag/draw Headless Chrome 검증, frontend ESLint·TypeScript·production build가 통과함. 운영 webhook 설정 및 배포는 하지 않음.
+
 ## 2026-10-11
 
 - 2026-10-11 22:45:50 +09:00 — 프론트 레이아웃 통일 변경을 `c85d268`으로 `hyunsung213/wave_root_client`의 `main`에 푸시함. Vercel `wave-root-client` production 배포 `dpl_Cqn3AY9nsgUmAvJxsdKQSeVkXLe7`의 대상 커밋 일치, 상태 `READY`, 운영 alias `wave-root-client.vercel.app`을 확인함. 운영 `/login` HTTP 200에서 새 `app-auth-content` 클래스가 있고 이전 `p-8` 래퍼는 없어 반영됨을 교차 확인함. 인증 후 전체 페이지 및 바텀시트의 실제 시각 캡처는 브라우저 제어 부재로 미검증이며, 코드·빌드 검증만 완료함.

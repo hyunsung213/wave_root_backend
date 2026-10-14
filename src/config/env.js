@@ -29,6 +29,7 @@ function getEnv() {
     depositBankName: process.env.DEPOSIT_BANK_NAME,
     depositAccountNumber: process.env.DEPOSIT_ACCOUNT_NUMBER,
     depositAccountHolder: process.env.DEPOSIT_ACCOUNT_HOLDER,
+    discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL,
     adminId: process.env.ADMIN_ID || 'super1234',
     adminPwd: process.env.ADMIN_PWD
   };

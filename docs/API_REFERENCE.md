@@ -75,9 +75,14 @@ const response = await api.get("/api/web/plants", { headers });
 | 이미지 | GET | `/uploads/events/:filename` | 없음 | 업로드된 이벤트 이미지 표시 |
 | 관리자 주문 | GET | `/api/web/admin/orders` | 관리자 Bearer JWT | 최근 주문과 연결 식물의 노드 정보 조회 |
 | 관리자 주문 | POST | `/api/web/admin/orders/:orderId/confirm` | 관리자 Bearer JWT | 입금 확인 및 식물 생성 |
+| 관리자 쿠폰 | POST | `/api/web/admin/coupons` | 관리자 Bearer JWT | 쿠폰 생성; `{ name?, code, discountType, discountValue, expiresAt?, userIds? }` |
 | 관리자 노드 | GET | `/api/web/admin/cameras` | 관리자 Bearer JWT | RDK 미배정 카메라 영역 목록 |
 | 관리자 노드 | GET | `/api/web/admin/plants` | 관리자 Bearer JWT | 점유 중인 식물별 카메라 영역 확인 |
 | 관리자 노드 | PATCH | `/api/web/admin/plants/:plantId/camera` | 관리자 Bearer JWT | 카메라·영역을 식물에 연결 |
+| 관리자 카메라 | GET | `/api/web/admin/cameras/status` | 관리자 Bearer JWT | 전체 카메라 프레임 연결 상태 조회 |
+| 관리자 알림 | GET | `/api/web/admin/alerts` | 관리자 Bearer JWT | Discord 웹훅 구성 여부 및 이벤트 알림 설정 조회 |
+| 관리자 알림 | PATCH | `/api/web/admin/alerts` | 관리자 Bearer JWT | 가입·주문·카메라 이벤트 알림 켜기/끄기 |
+| 관리자 알림 | POST | `/api/web/admin/alerts/test` | 관리자 Bearer JWT | Discord 테스트 메시지 보내기 |
 | RDK | POST | `/api/rdk/current` | RDK API Key | 식물별 최신 센서 스냅샷 업서트 |
 | RDK | POST | `/api/rdk/logs` | RDK API Key | 센서 평균 로그 저장 |
 | RDK | GET | `/api/rdk/command/:plantId` | 사설망 | 대기 급수 명령 폴링 |

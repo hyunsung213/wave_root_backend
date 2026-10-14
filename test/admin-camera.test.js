@@ -38,6 +38,11 @@ test('administrator camera proxy validates identity and relays preview and grid 
       return res.end(Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
     }
     if (req.url.endsWith('/status')) {
+      if (req.url === '/api/cameras/status') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ cameras: [{ camera_id: 'c110-1', reader_active: true,
+          stream_connected: false, seconds_since_frame: 11 }] }));
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ privacy_state: 'off', source_width: 1920,
         source_height: 1080, output_width: 1280, output_height: 720, output_fps: streamFps }));
@@ -114,6 +119,9 @@ test('administrator camera proxy validates identity and relays preview and grid 
     assert.match(adminHtml, /id="gridPalette"/);
     assert.match(adminHtml, /data-grid-tool="1"/);
     assert.match(adminHtml, /id="gridLayoutAdd"/);
+    assert.match(adminHtml, /id="cameraDrawZone"/);
+    assert.match(adminHtml, /data-coupon-preset="welcome"/);
+    assert.match(adminHtml, /DISCORD_WEBHOOK_URL/);
     assert.match(adminHtml, /setPointerCapture\(event\.pointerId\)/);
     assert.doesNotMatch(adminHtml, /모서리를 클릭하세요/);
     assert.match(adminHtml, /id="zoomCamera"/);
@@ -128,6 +136,11 @@ test('administrator camera proxy validates identity and relays preview and grid 
     assert.equal((await (await fetch(`${base}/profile`, { headers })).json()).fps, 15);
     const status = await fetch(`${base}/status`, { headers });
     assert.equal((await status.json()).status.output_fps, 15);
+    const allStatuses = await fetch(`http://127.0.0.1:${backend.address().port}/api/web/admin/cameras/status`, { headers });
+    assert.equal(allStatuses.status, 200);
+    assert.deepEqual((await allStatuses.json()).cameras[0], {
+      cameraId: 'c110-1', status: { readerActive: true, streamConnected: false, secondsSinceFrame: 11 }
+    });
     const invalidProfile = await fetch(`${base}/profile`, {
       method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ fps: 7 })
@@ -197,6 +210,14 @@ test('administrator camera proxy validates identity and relays preview and grid 
     });
     assert.equal(invalid.status, 400);
     assert.equal(savedZones, undefined);
+
+    const overlapping = structuredClone(zones);
+    overlapping['1'] = [0.01, 0.01, 0.3, 0.3];
+    const overlapRejected = await fetch(`${base}/calibration`, {
+      method: 'PUT', headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zones: overlapping })
+    });
+    assert.equal(overlapRejected.status, 400);
 
     zones['1'] = [0.01, 0.01, 0.15, 0.3];
     const updated = await fetch(`${base}/calibration`, {

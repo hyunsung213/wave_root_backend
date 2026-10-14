@@ -170,6 +170,22 @@
   .commerce-state{font-size:12px;color:#177f78;min-height:17px;margin-top:10px}
   .commerce-state.error{color:#b73343}
   .commerce-user-select{min-height:100px}
+  .coupon-presets{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:10px;border:1px solid #dce8e5;border-radius:8px;background:#f7fbfa}
+  .coupon-presets span{width:100%;color:#72818a;font-size:11px;font-weight:800}
+  .coupon-presets button{padding:7px 9px;border:1px solid #c9e1db;border-radius:7px;background:#fff;color:#176d64;font-size:11px;font-weight:800}
+  .alert-settings-card{max-width:780px;padding:24px}
+  .alert-webhook-status{margin:12px 0 18px;padding:11px 13px;border-radius:8px;background:#f3f6f7;color:#64727d;font-size:12px}
+  .alert-webhook-status.ready{background:#eaf8f2;color:#16724f}
+  .alert-webhook-status.missing{background:#fff4e4;color:#9a5b0a}
+  .alert-toggle-list{display:grid;gap:9px}
+  .alert-toggle-list label{display:flex;align-items:flex-start;gap:11px;padding:14px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer}
+  .alert-toggle-list input{width:17px;height:17px;margin:2px 0 0;accent-color:var(--teal)}
+  .alert-toggle-list strong,.alert-toggle-list small{display:block}
+  .alert-toggle-list strong{font-size:13px;color:var(--txt)}
+  .alert-toggle-list small{margin-top:4px;color:var(--sub);font-size:11px;line-height:1.5}
+  .alert-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .alert-actions button{border:1px solid #bdd4d1;border-radius:7px;background:#fff;color:#176d64;padding:9px 13px;font-size:12px;font-weight:800}
+  .alert-actions button:disabled{opacity:.5;cursor:default}
   @media(max-width:1000px){.commerce-grid{grid-template-columns:1fr}}
   .camera-console{background:#101c20;color:#eaf4f1;border-radius:18px;overflow:hidden;box-shadow:0 18px 45px rgba(22,43,45,.16)}
   .camera-console button{font:inherit}
@@ -237,6 +253,10 @@
   .camera-grid-line{fill:none;stroke:#ff515d;stroke-width:2.5;vector-effect:non-scaling-stroke;pointer-events:none}
   .camera-grid-boundary{fill:rgba(255,57,72,.06);stroke:#ff3948;stroke-width:4;vector-effect:non-scaling-stroke;pointer-events:none}
   .camera-grid-name{fill:#fff;font-size:18px;font-weight:800;paint-order:stroke;stroke:#421016;stroke-width:5;pointer-events:none}
+  .camera-zone-owner{fill:#d9fff0;font-size:16px;font-weight:800;paint-order:stroke;stroke:#10231d;stroke-width:5;pointer-events:none}
+  .camera-zone-empty{fill:#ffe6a6;font-size:14px;font-weight:800;paint-order:stroke;stroke:#3a2b10;stroke-width:5;pointer-events:none}
+  .camera-zone-draft{fill:rgba(136,232,200,.19);stroke:#8ce8c8;stroke-width:3;stroke-dasharray:10 7;vector-effect:non-scaling-stroke;pointer-events:none}
+  #cameraDrawZone.active{background:#f5cb72;border-color:#f5cb72;color:#23333b}
   .camera-grid-groups{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
   .camera-grid-groups button.active{background:#ff3948;border-color:#ff3948;color:#fff}
   .camera-stage .camera-empty{position:absolute;color:#91aaa7;text-align:center;padding:20px;font-size:13px}
@@ -291,6 +311,7 @@
         <a data-view="users"><span class="ic">☰</span> 사용자 관리</a>
         <a data-view="orders"><span class="ic">₩</span> 분양 주문</a>
         <a data-view="coupons"><span class="ic">◇</span> 쿠폰 관리</a>
+        <a data-view="alerts"><span class="ic">◉</span> 알림 설정</a>
         <a data-view="stream"><span class="ic">▷</span> 스트리밍</a>
         <a data-view="camera"><span class="ic">▣</span> 카메라 설정</a>
         <a data-view="sensor"><span class="ic">◈</span> 센서</a>
@@ -352,9 +373,16 @@
             <div class="commerce-card"><h3>쿠폰 목록</h3><div class="tablewrap" id="couponsTable"><div class="empty">불러오는 중…</div></div></div>
             <div class="commerce-card"><h3>쿠폰 생성·발급</h3>
               <form id="couponForm" class="commerce-form">
-                <label>쿠폰 코드<input id="couponCode" required maxlength="32" pattern="[A-Za-z0-9_-]{3,32}" autocomplete="off" placeholder="WELCOME10" /></label>
+                <label class="wide">쿠폰 이름<input id="couponName" maxlength="60" autocomplete="off" placeholder="예: 첫 주문 환영 할인" /></label>
+                <label>쿠폰 코드<input id="couponCode" required maxlength="32" autocomplete="off" placeholder="이름을 입력하면 자동 생성됩니다" /></label>
                 <label>할인 방식<select id="couponType"><option value="percent">퍼센트</option><option value="fixed">고정 금액(원)</option></select></label>
                 <label>할인 값<input id="couponValue" required type="number" min="1" max="100" step="1" value="10" /></label>
+                <div class="wide coupon-presets" role="group" aria-label="쿠폰 프리셋">
+                  <span>빠른 프리셋</span>
+                  <button type="button" data-coupon-preset="welcome">첫 주문 · 10%</button>
+                  <button type="button" data-coupon-preset="fixed">3,000원 할인</button>
+                  <button type="button" data-coupon-preset="free">전액 할인</button>
+                </div>
                 <p class="commerce-note">사용 횟수: 사용자당 1회 (고정)</p>
                 <label class="wide">만료 일시(선택)<input id="couponExpires" type="datetime-local" /></label>
                 <label class="wide">발급 대상 사용자(복수 선택 가능)<select id="couponUsers" class="commerce-user-select" multiple></select></label>
@@ -363,6 +391,21 @@
               </form>
               <div class="commerce-state" id="couponFeedback" role="status"></div>
             </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-alerts">
+          <div class="commerce-card alert-settings-card">
+            <h3>Discord 이벤트 알림</h3>
+            <p class="commerce-note">서버의 <code>DISCORD_WEBHOOK_URL</code>에 연결된 Discord 채널로 알림을 보냅니다. 웹훅 주소는 이 화면에 표시하거나 브라우저로 전송하지 않습니다.</p>
+            <div class="alert-webhook-status" id="alertWebhookStatus" role="status">웹훅 연결 상태 확인 중…</div>
+            <div class="alert-toggle-list">
+              <label><input id="alertSignup" type="checkbox" /> <span><strong>새 회원 가입</strong><small>회원가입이 완료될 때 이름과 이메일을 알립니다.</small></span></label>
+              <label><input id="alertOrder" type="checkbox" /> <span><strong>새 분양 주문</strong><small>주문 번호, 상품, 주문자, 결제 예정액을 알립니다.</small></span></label>
+              <label><input id="alertCamera" type="checkbox" /> <span><strong>카메라 영상 중단·복구</strong><small>사용 중인 카메라에서 프레임이 끊기거나 복구되면 알립니다.</small></span></label>
+            </div>
+            <div class="alert-actions"><button type="button" class="refresh" id="saveAlertSettings">알림 설정 저장</button><button type="button" id="testAlert">테스트 메시지 보내기</button></div>
+            <div class="commerce-state" id="alertFeedback" role="status"></div>
           </div>
         </section>
 
@@ -465,6 +508,7 @@
                 </div>
                 <div class="camera-actions">
                   <button type="button" id="cameraEdit">편집 시작</button>
+                  <button type="button" id="cameraDrawZone">선택 영역 그리기</button>
                   <button type="button" id="cameraEqual">균등 분할</button>
                   <button type="button" id="cameraSave" class="primary">그리드 저장</button>
                   <button type="button" id="cameraCancel">취소</button>
@@ -531,7 +575,7 @@ let orderNodeAction=null;
 let uState={q:'',type:'',plant:'',sort:'createdAt',dir:'desc'};
 let pState={q:'',type:'',stream:''};
 const charts={};
-const cameraState={id:null,mode:'raw',zone:'1',zones:null,savedZones:null,editing:false,
+const cameraState={id:null,mode:'raw',zone:'1',zones:null,savedZones:null,editing:false,drawMode:false,gridDraw:null,
   perspectiveCorners:null,savedPerspectiveCorners:null,perspectiveEditing:false,
   perspectiveDrag:null,perspectiveDirty:false,perspectiveCustomized:false,
   grids:[],savedGrids:[],selectedGridId:null,layoutEditing:false,layoutDirty:false,
@@ -567,7 +611,7 @@ $('logout').addEventListener('click',logout);
 function logout(){ stopCameraPolling(); stopPlantStreams(); setToken(null); show(false) }
 
 /* ---------- nav ---------- */
-const titles={dash:'대시보드',users:'사용자 관리',orders:'분양 주문',coupons:'쿠폰 관리',stream:'스트리밍',camera:'카메라 설정',sensor:'센서'};
+const titles={dash:'대시보드',users:'사용자 관리',orders:'분양 주문',coupons:'쿠폰 관리',alerts:'알림 설정',stream:'스트리밍',camera:'카메라 설정',sensor:'센서'};
 $('nav').addEventListener('click',e=>{
   const a=e.target.closest('a[data-view]'); if(!a) return;
   const v=a.dataset.view;
@@ -578,6 +622,7 @@ $('nav').addEventListener('click',e=>{
   if(v==='stream') renderPlants(); else stopPlantStreams();
   if(v==='orders') loadOrders();
   if(v==='coupons'){loadCoupons();loadCouponUsers();}
+  if(v==='alerts')loadAlertSettings();
 });
 
 /* ---------- data load ---------- */
@@ -762,7 +807,7 @@ async function loadOrders(){
         ?`<button class="commerce-action" data-confirm-order="${esc(order._id)}">${order.status==='confirming'?'처리 재시도':order.amountDue>0?'입금 확인':'주문 확정'}</button>`
         :order.status==='confirmed'&&plantId&&!assigned
           ?`<button class="commerce-action" data-assign-order="${esc(order._id)}">노드 연결</button>`:'-';
-      return `<tr><td><b>${esc(order.orderNumber)}</b></td><td>${esc(user.name||'이름 없음')}<br><small>${esc(user.email||'')}</small></td><td>${esc(order.productName)}<br><small>${esc(order.plantName)}</small></td><td>${esc(order.depositorName)}</td><td>${money(order.amountDue)}<br><small>할인 ${money(order.discountAmount)}</small></td><td>${esc(order.couponCode||'-')}</td><td>${orderStatus(order.status)}${plantSummary}</td><td>${new Date(order.createdAt).toLocaleString('ko-KR')}</td><td>${action}</td></tr>`;
+      return `<tr><td><b>${esc(order.orderNumber)}</b></td><td>${esc(user.name||'이름 없음')}<br><small>${esc(user.email||'')}</small></td><td>${esc(order.productName)}<br><small>${esc(order.plantName)}</small></td><td>${esc(order.depositorName)}</td><td>${money(order.amountDue)}<br><small>할인 ${money(order.discountAmount)}</small></td><td>${esc(order.couponName||order.couponCode||'-')}</td><td>${orderStatus(order.status)}${plantSummary}</td><td>${new Date(order.createdAt).toLocaleString('ko-KR')}</td><td>${action}</td></tr>`;
     }).join('')}</tbody></table>`:'<div class="empty">접수된 주문이 없습니다.</div>';
     $('ordersTable').querySelectorAll('[data-confirm-order]').forEach(button=>button.addEventListener('click',()=>{
       const order=rows.find(item=>String(item._id)===button.dataset.confirmOrder);
@@ -787,7 +832,7 @@ async function loadCoupons(){
   try{
     const data=await api('/coupons');
     const rows=data.coupons||[];
-    $('couponsTable').innerHTML=rows.length?`<table><thead><tr><th>코드</th><th>할인</th><th>사용자 사용 건수</th><th>발급/대상</th><th>만료</th><th>상태</th><th>작업</th></tr></thead><tbody>${rows.map(coupon=>`<tr><td><b>${esc(coupon.code)}</b></td><td>${coupon.discountType==='percent'?coupon.discountValue+'%':money(coupon.discountValue)}</td><td>${coupon.usedCount||0}</td><td>${coupon.isPublic?'공개':(coupon.issuedUserIds||[]).length+'명'}</td><td>${coupon.expiresAt?new Date(coupon.expiresAt).toLocaleString('ko-KR'):'무기한'}</td><td>${coupon.isActive?'활성':'중지'}</td><td><button class="commerce-action" data-toggle-coupon="${esc(coupon._id)}" data-active="${coupon.isActive?'true':'false'}">${coupon.isActive?'중지':'재개'}</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">등록된 쿠폰이 없습니다.</div>';
+    $('couponsTable').innerHTML=rows.length?`<table><thead><tr><th>이름 / 코드</th><th>할인</th><th>사용자 사용 건수</th><th>발급/대상</th><th>만료</th><th>상태</th><th>작업</th></tr></thead><tbody>${rows.map(coupon=>`<tr><td><b>${esc(coupon.name||coupon.code)}</b><br><small>${esc(coupon.code)}</small></td><td>${coupon.discountType==='percent'?coupon.discountValue+'%':money(coupon.discountValue)}</td><td>${coupon.usedCount||0}</td><td>${coupon.isPublic?'공개':(coupon.issuedUserIds||[]).length+'명'}</td><td>${coupon.expiresAt?new Date(coupon.expiresAt).toLocaleString('ko-KR'):'무기한'}</td><td>${coupon.isActive?'활성':'중지'}</td><td><button class="commerce-action" data-toggle-coupon="${esc(coupon._id)}" data-active="${coupon.isActive?'true':'false'}">${coupon.isActive?'중지':'재개'}</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">등록된 쿠폰이 없습니다.</div>';
     $('couponsTable').querySelectorAll('[data-toggle-coupon]').forEach(button=>button.addEventListener('click',async()=>{
       button.disabled=true;
       try{await api('/coupons/'+encodeURIComponent(button.dataset.toggleCoupon),{method:'PATCH',body:JSON.stringify({isActive:button.dataset.active!=='true'}),headers:{'Content-Type':'application/json'}});await loadCoupons();}
@@ -803,6 +848,38 @@ async function loadCouponUsers(){
   }catch(error){if(error.message!=='unauthorized')$('couponUsers').innerHTML='<option disabled>사용자 목록을 불러오지 못했습니다.</option>';}
 }
 
+function couponFeedback(message,error=false){
+  const feedback=$('couponFeedback');feedback.textContent=message;feedback.classList.toggle('error',error);
+}
+function slugCouponName(value){
+  const normalized=value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
+    .replace(/[^A-Z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,32).replace(/-+$/g,'');
+  if(normalized.length>=3)return normalized;
+  let hash=2166136261;
+  for(const character of value.trim()){hash^=character.codePointAt(0);hash=Math.imul(hash,16777619);}
+  return value.trim()?`KR-${(hash>>>0).toString(36).toUpperCase()}`:'';
+}
+function setCouponPreset(preset){
+  const settings={
+    welcome:{name:'첫 주문 환영 할인',code:'WELCOME10',type:'percent',value:10},
+    fixed:{name:'3,000원 할인',code:'SAVE3000',type:'fixed',value:3000},
+    free:{name:'전액 할인',code:'FULLDISCOUNT',type:'percent',value:100}
+  }[preset];
+  if(!settings)return;
+  $('couponName').value=settings.name;$('couponCode').value=settings.code;
+  $('couponType').value=settings.type;$('couponValue').value=String(settings.value);
+  $('couponValue').max=settings.type==='percent'?'100':'';
+  delete $('couponCode').dataset.manual;
+}
+function getCouponSubmitButton(form){return form.querySelector('button[type="submit"]');}
+document.querySelectorAll('[data-coupon-preset]').forEach(button=>button.addEventListener('click',()=>setCouponPreset(button.dataset.couponPreset)));
+$('couponName').addEventListener('input',()=>{
+  const code=$('couponCode');
+  if(!code.dataset.manual||!code.value)code.value=slugCouponName($('couponName').value);
+  if(!code.value)delete code.dataset.manual;
+});
+$('couponCode').addEventListener('input',event=>{event.currentTarget.dataset.manual='true';});
+
 $('couponType').addEventListener('change',()=>{
   const percent=$('couponType').value==='percent';
   $('couponValue').max=percent?'100':'';
@@ -810,13 +887,52 @@ $('couponType').addEventListener('change',()=>{
 });
 $('couponForm').addEventListener('submit',async event=>{
   event.preventDefault();
-  const feedback=$('couponFeedback');feedback.textContent='';feedback.classList.remove('error');
+  couponFeedback('');
   const userIds=selectedCouponUsers();
   const expiresAt=$('couponExpires').value;
-  const body={code:$('couponCode').value.trim().toUpperCase(),discountType:$('couponType').value,discountValue:Number($('couponValue').value),...(expiresAt?{expiresAt:new Date(expiresAt).toISOString()}:{}),...(userIds.length?{userIds}:{})};
-  const button=event.currentTarget.querySelector('button[type="submit"]');button.disabled=true;
-  try{await api('/coupons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});event.currentTarget.reset();$('couponValue').value='10';Array.from($('couponUsers').options).forEach(option=>option.selected=false);await loadCouponUsers();feedback.textContent=userIds.length?userIds.length+'명에게 쿠폰을 발급했습니다.':'공개 쿠폰을 생성했습니다.';await loadCoupons();}
-  catch(error){feedback.textContent=error.message;feedback.classList.add('error');}
+  const body={name:$('couponName').value.trim()||undefined,code:$('couponCode').value.trim().toUpperCase(),discountType:$('couponType').value,discountValue:Number($('couponValue').value),...(expiresAt?{expiresAt:new Date(expiresAt).toISOString()}:{}),...(userIds.length?{userIds}:{})};
+  const button=getCouponSubmitButton(event.currentTarget);button.disabled=true;
+  try{
+    await api('/coupons',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    event.currentTarget.reset();$('couponValue').value='10';delete $('couponCode').dataset.manual;
+    Array.from($('couponUsers').options).forEach(option=>option.selected=false);
+    couponFeedback(userIds.length?userIds.length+'명에게 쿠폰을 발급했습니다.':'공개 쿠폰을 생성했습니다. 목록을 갱신합니다.');
+    void loadCouponUsers();
+    await loadCoupons();
+    if($('couponsTable').textContent.includes('쿠폰을 불러오지 못했습니다'))
+      couponFeedback('쿠폰 생성은 완료됐습니다. 목록 갱신에 실패했습니다. 목록을 새로고침해주세요.',true);
+  }catch(error){couponFeedback(error.message,true);}
+  finally{button.disabled=false;}
+});
+
+async function loadAlertSettings(){
+  $('alertFeedback').textContent='';
+  try{
+    const data=await api('/alerts');
+    $('alertSignup').checked=data.settings.signupAlerts;
+    $('alertOrder').checked=data.settings.orderAlerts;
+    $('alertCamera').checked=data.settings.cameraAlerts;
+    const status=$('alertWebhookStatus');
+    status.textContent=data.webhookConfigured?'Discord 웹훅이 서버에 설정되어 있습니다.':'DISCORD_WEBHOOK_URL 환경 변수가 설정되지 않았습니다.';
+    status.className='alert-webhook-status '+(data.webhookConfigured?'ready':'missing');
+    $('testAlert').disabled=!data.webhookConfigured;
+  }catch(error){$('alertFeedback').textContent=error.message;$('alertFeedback').classList.add('error');}
+}
+$('saveAlertSettings').addEventListener('click',async()=>{
+  const button=$('saveAlertSettings');button.disabled=true;
+  try{
+    const data=await api('/alerts',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      signupAlerts:$('alertSignup').checked,orderAlerts:$('alertOrder').checked,cameraAlerts:$('alertCamera').checked
+    })});
+    $('alertSignup').checked=data.settings.signupAlerts;$('alertOrder').checked=data.settings.orderAlerts;$('alertCamera').checked=data.settings.cameraAlerts;
+    $('alertFeedback').textContent='알림 설정을 저장했습니다.';$('alertFeedback').classList.remove('error');
+  }catch(error){$('alertFeedback').textContent=error.message;$('alertFeedback').classList.add('error');}
+  finally{button.disabled=false;}
+});
+$('testAlert').addEventListener('click',async()=>{
+  const button=$('testAlert');button.disabled=true;$('alertFeedback').textContent='Discord로 테스트 메시지를 보내는 중…';
+  try{const data=await api('/alerts/test',{method:'POST'});$('alertFeedback').textContent=data.message;$('alertFeedback').classList.remove('error');}
+  catch(error){$('alertFeedback').textContent=error.message;$('alertFeedback').classList.add('error');}
   finally{button.disabled=false;}
 });
 
@@ -1416,17 +1532,25 @@ function updateCameraControls(){
   $('cameraEdit').disabled=$('cameraEdit').disabled||cameraState.perspectiveEditing||
     cameraState.layoutEditing||cameraState.layoutCustomized;
   $('cameraEqual').disabled=!ready||!cameraState.editing;
+  $('cameraDrawZone').disabled=!ready||!cameraState.editing;
+  $('cameraDrawZone').classList.toggle('active',cameraState.drawMode);
   $('cameraSave').disabled=!ready||!cameraState.editing;
   $('cameraCancel').disabled=!cameraState.editing;
   $('cameraZone').disabled=!ready;
   for(const id of ['cameraLeft','cameraTop','cameraRight','cameraBottom'])
     $(id).disabled=!ready||!cameraState.editing;
+  $('cameraZone').disabled=!ready||!cameraState.editing;
   $('cameraZone').innerHTML=Array.from({length:18},(_,index)=>{
     const value=String(index+1);
     return `<option value="${value}">영역 ${value}</option>`;
   }).join('');
   $('cameraZone').value=cameraState.zone;
-  $('cameraOverlay').hidden=!((cameraState.editing||cameraState.layoutEditing)&&cameraState.mode==='grid');
+  $('cameraOverlay').hidden=!(cameraState.mode==='grid'&&(ready||cameraState.grids.length));
+  $('cameraOverlay').style.display=$('cameraOverlay').hidden?'none':'block';
+  $('cameraOverlay').style.width='100%';$('cameraOverlay').style.height='100%';
+  $('cameraOverlay').setAttribute('viewBox','0 0 1600 900');
+  $('cameraOverlay').style.pointerEvents=(cameraState.editing||cameraState.layoutEditing)?'all':'none';
+  $('cameraOverlay').style.touchAction='none';
   $('perspectiveOverlay').hidden=!(cameraState.perspectiveEditing&&cameraState.mode==='perspective');
   $('perspectiveEdit').disabled=!cameraState.id||!Array.isArray(cameraState.savedPerspectiveCorners)||hasCameraEdits();
   $('perspectiveSave').disabled=!cameraState.perspectiveEditing||!cameraState.perspectiveDirty||
@@ -1467,25 +1591,43 @@ function updateCameraInputs(){
 }
 function renderCameraOverlay(){
   if($('cameraOverlay').hidden)return;
-  if(cameraState.layoutEditing){renderGridLayoutOverlay();return;}
+  if(cameraState.layoutEditing||cameraState.layoutCustomized){
+    renderGridLayoutOverlay(!cameraState.layoutEditing);
+    if(cameraState.gridDraw){
+      const [left,top,right,bottom]=cameraState.gridDraw.box;
+      $('cameraOverlay').insertAdjacentHTML('beforeend',`<rect class="camera-zone-draft" x="${left*1600}" y="${top*900}" width="${Math.max(0,(right-left)*1600)}" height="${Math.max(0,(bottom-top)*900)}" />`);
+    }
+    return;
+  }
   if(!cameraState.zones)return;
-  $('cameraOverlay').innerHTML=Object.entries(cameraState.zones).map(([zone,box])=>{
+  const boxes=Object.entries(cameraState.zones).map(([zone,box])=>{
     if(!Array.isArray(box)) return '';
     const [x0,y0,x1,y1]=[box[0]*1600,box[1]*900,box[2]*1600,box[3]*900];
     const selected=zone===cameraState.zone;
+    const plant=plants.find(item=>item.rdkCameraId===cameraState.id&&item.rdkZone===Number(zone));
+    const ownerLabel=plant?.owner?.name||plant?.owner?.email?.split('@')[0]||'';
     return `<g data-zone="${zone}">
       <rect data-zone="${zone}" data-part="move" x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}"
         fill="${selected?'rgba(255,48,58,.22)':'rgba(255,48,58,.055)'}"
         stroke="${selected?'#ff3f4d':'#f36a70'}" stroke-width="${selected?4:2.5}" vector-effect="non-scaling-stroke" style="cursor:move" />
-      <text x="${x0+9}" y="${y0+25}" fill="#fff8f8" stroke="#66141c" stroke-width="5" paint-order="stroke" font-size="21" font-weight="800" pointer-events="none">${zone}</text>
+      <text x="${x0+9}" y="${y0+25}" fill="#fff8f8" stroke="#66141c" stroke-width="5" paint-order="stroke" font-size="21" font-weight="800" pointer-events="none">영역 ${zone}</text>
+      <text x="${x0+9}" y="${y0+51}" fill="${plant?'#d9fff0':'#ffe6a6'}" stroke="#10231d" stroke-width="5" paint-order="stroke" font-size="17" font-weight="800" pointer-events="none">${esc(plant?ownerLabel:'미배정')}</text>
       ${selected?`<circle data-zone="${zone}" data-part="resize" cx="${x1}" cy="${y1}"
         r="11" fill="#ff4653" stroke="#fff4f4" stroke-width="3" vector-effect="non-scaling-stroke" style="cursor:nwse-resize" />`:''}
     </g>`;
   }).join('');
+  const draft=cameraState.drag?.new?`<rect class="camera-zone-draft" x="${cameraState.drag.box[0]*1600}" y="${cameraState.drag.box[1]*900}" width="${Math.max(0,(cameraState.drag.box[2]-cameraState.drag.box[0])*1600)}" height="${Math.max(0,(cameraState.drag.box[3]-cameraState.drag.box[1])*900)}" />`:'';
+  const previewBox=cameraState.drag?.previewBox;
+  const overlapPreview=previewBox&&!isDrawableCameraBox(previewBox,cameraState.drag.zone)
+    ?`<rect class="camera-zone-draft" x="${previewBox[0]*1600}" y="${previewBox[1]*900}" width="${Math.max(0,(previewBox[2]-previewBox[0])*1600)}" height="${Math.max(0,(previewBox[3]-previewBox[1])*900)}" />`:'';
+  const hitSurface=cameraState.editing
+    ?'<rect width="1600" height="900" fill="transparent" pointer-events="all" />':'';
+  $('cameraOverlay').innerHTML=hitSurface+boxes+draft+overlapPreview;
 }
-function renderGridLayoutOverlay(){
+function renderGridLayoutOverlay(readOnly=false){
   const svg=$('cameraOverlay');
   const pieces=[];
+  if(!readOnly)pieces.push('<rect width="1600" height="900" fill="transparent" pointer-events="all" />');
   cameraState.grids.forEach(grid=>{
     const selected=grid.id===cameraState.selectedGridId;
     const [start,end]=grid.anchors;
@@ -1493,10 +1635,15 @@ function renderGridLayoutOverlay(){
       const [x0,y0]=[start[0]*1600,start[1]*900];
       const [x1,y1]=[end[0]*1600,end[1]*900];
       if(x1>x0&&y1>y0){
-        pieces.push(`<g opacity="${selected?'1':'.5'}"><rect class="camera-grid-boundary" x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" />`);
-        pieces.push(`<text class="camera-grid-name" x="${x0+12}" y="${y0+28}">영역 ${grid.id.slice(5)}</text></g>`);
+        const zone=Number(grid.id.slice(5));
+        const plant=plants.find(item=>item.rdkCameraId===cameraState.id&&item.rdkZone===zone);
+        const ownerLabel=plant?.owner?.name||plant?.owner?.email?.split('@')[0]||'';
+        pieces.push(`<g opacity="${selected?'1':'.72'}"><rect class="camera-grid-boundary" x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" />`);
+        pieces.push(`<text class="camera-grid-name" x="${x0+12}" y="${y0+28}">영역 ${zone}</text>`);
+        pieces.push(`<text class="${plant?'camera-zone-owner':'camera-zone-empty'}" x="${x0+12}" y="${y0+53}">${esc(plant?ownerLabel:'미배정')}</text></g>`);
       }
     }
+    if(readOnly)return;
     grid.anchors.forEach((point,anchorIndex)=>{
       if(!Array.isArray(point))return;
       const [x,y]=[point[0]*1600,point[1]*900];
@@ -1510,6 +1657,10 @@ function renderGridLayoutOverlay(){
       </g>`);
     });
   });
+  if(cameraState.gridDraw){
+    const [left,top,right,bottom]=cameraState.gridDraw.box;
+    pieces.push(`<rect class="camera-zone-draft" x="${left*1600}" y="${top*900}" width="${Math.max(0,(right-left)*1600)}" height="${Math.max(0,(bottom-top)*900)}" />`);
+  }
   svg.innerHTML=pieces.join('');
 }
 $('cameraZone').addEventListener('change',()=>{
@@ -1522,14 +1673,24 @@ $('cameraZone').addEventListener('change',()=>{
     cameraFeedback('좌표는 0~100%이며 왼쪽·위쪽 값은 오른쪽·아래쪽보다 작아야 합니다.',true);
     updateCameraInputs(); return;
   }
+  if(!isDrawableCameraBox(box,cameraState.zone)){
+    cameraFeedback('영역은 최소 가로·세로 4%이며 다른 영역과 겹칠 수 없습니다.',true);
+    updateCameraInputs();return;
+  }
   cameraState.zones[cameraState.zone]=box;
   cameraFeedback('변경 내용이 아직 저장되지 않았습니다.');
   renderCameraOverlay();
 }));
 $('cameraEdit').addEventListener('click',()=>{
-  cameraState.editing=true; cameraState.mode='grid';
-  updateCameraControls(); cameraFeedback('셀을 끌어 이동하거나 오른쪽 아래 점을 끌어 크기를 조절하세요.');
+  cameraState.editing=true; cameraState.drawMode=false; cameraState.mode='grid';
+  updateCameraControls(); cameraFeedback('선택 영역을 드래그해 그리거나, 기존 영역을 끌어 이동·크기 조절하세요.');
   startCameraPolling();
+});
+$('cameraDrawZone').addEventListener('click',()=>{
+  if(!cameraState.editing)return;
+  cameraState.drawMode=true;
+  $('cameraDrawZone').classList.add('active');
+  cameraFeedback('영상의 빈 곳을 누르고 드래그해 영역을 그리세요. 최소 가로·세로 4%이며 다른 영역과 겹칠 수 없습니다.');
 });
 $('cameraEqual').addEventListener('click',()=>{
   if(!cameraState.editing) return;
@@ -1541,11 +1702,15 @@ $('cameraEqual').addEventListener('click',()=>{
 });
 $('cameraCancel').addEventListener('click',()=>{
   cameraState.zones=structuredClone(cameraState.savedZones);
-  cameraState.editing=false; updateCameraControls(); cameraFeedback('편집을 취소했습니다.');
+  cameraState.editing=false;cameraState.drawMode=false;$('cameraDrawZone').classList.remove('active');
+  updateCameraControls(); cameraFeedback('편집을 취소했습니다.');
   startCameraPolling();
 });
 $('cameraSave').addEventListener('click',async()=>{
   if(!cameraState.editing||!cameraState.id) return;
+  if(!Object.entries(cameraState.zones).every(([zone,box])=>box[2]-box[0]>=.04&&box[3]-box[1]>=.04&&!cameraBoxOverlaps(box,zone))){
+    cameraFeedback('영역은 최소 가로·세로 4%이며 겹칠 수 없습니다.',true);return;
+  }
   const savingCameraId=cameraState.id;
   $('cameraSave').disabled=true;
   try{
@@ -1659,49 +1824,83 @@ function cameraPoint(event){
   return [Math.min(1,Math.max(0,(event.clientX-rect.left)/rect.width)),
     Math.min(1,Math.max(0,(event.clientY-rect.top)/rect.height))];
 }
+function cameraBoxOverlaps(box,zoneToSkip=null){
+  const current=Object.entries(cameraState.zones||{}).some(([zone,other])=>zone!==zoneToSkip&&
+    Math.min(box[2],other[2])>Math.max(box[0],other[0])&&
+    Math.min(box[3],other[3])>Math.max(box[1],other[1]));
+  if(current)return true;
+  return cameraState.layoutEditing&&cameraState.grids.some(grid=>{
+    const [start,end]=grid.anchors;
+    if(!Array.isArray(start)||!Array.isArray(end)||grid.id==='grid-'+zoneToSkip)return false;
+    return Math.min(box[2],end[0])>Math.max(box[0],start[0])&&
+      Math.min(box[3],end[1])>Math.max(box[1],start[1]);
+  });
+}
+function isDrawableCameraBox(box,zoneToSkip=null){
+  return box[2]-box[0]>=.04&&box[3]-box[1]>=.04&&!cameraBoxOverlaps(box,zoneToSkip);
+}
 $('cameraOverlay').addEventListener('pointerdown',event=>{
   if(cameraState.layoutEditing){
     const target=event.target.closest('[data-grid-anchor]');
-    if(!target)return;
-    const grid=cameraState.grids.find(item=>item.id===target.dataset.gridId);
-    if(!grid)return;
-    cameraState.selectedGridId=grid.id;
-    cameraState.gridDrag={gridId:grid.id,index:Number(target.dataset.gridAnchor),
-      pointerId:event.pointerId,original:structuredClone(grid.anchors[Number(target.dataset.gridAnchor)])};
-    $('cameraOverlay').setPointerCapture(event.pointerId);
-    event.preventDefault();
-    updateCameraControls();
+    if(target){
+      const grid=cameraState.grids.find(item=>item.id===target.dataset.gridId);
+      if(!grid)return;
+      cameraState.selectedGridId=grid.id;
+      cameraState.gridDrag={gridId:grid.id,index:Number(target.dataset.gridAnchor),pointerId:event.pointerId,
+        original:structuredClone(grid.anchors[Number(target.dataset.gridAnchor)])};
+      $('cameraOverlay').setPointerCapture(event.pointerId);event.preventDefault();updateCameraControls();return;
+    }
+    if(!event.target.closest('[data-zone]')){
+      const point=cameraPoint(event);
+      cameraState.gridDraw={point,box:[point[0],point[1],point[0],point[1]],pointerId:event.pointerId};
+      $('cameraOverlay').setPointerCapture(event.pointerId);event.preventDefault();return;
+    }
     return;
   }
-  if(!cameraState.editing) return;
+  if(!cameraState.editing)return;
+  if(cameraState.drawMode){
+    const point=cameraPoint(event);
+    cameraState.drag={new:true,point,box:[point[0],point[1],point[0],point[1]],pointerId:event.pointerId,zone:cameraState.zone};
+    $('cameraOverlay').setPointerCapture(event.pointerId);event.preventDefault();renderCameraOverlay();return;
+  }
   const target=event.target.closest('[data-zone]');
-  if(!target) return;
+  if(!target){
+    return;
+  }
   const zone=target.dataset.zone;
   cameraState.zone=zone;
   $('cameraZone').value=zone;
   cameraState.drag={zone,part:target.dataset.part||'move',
-    point:cameraPoint(event),box:[...cameraState.zones[zone]]};
+    point:cameraPoint(event),box:[...cameraState.zones[zone]],pointerId:event.pointerId};
   $('cameraOverlay').setPointerCapture(event.pointerId);
   updateCameraInputs(); renderCameraOverlay();
 });
-$('cameraOverlay').addEventListener('pointermove',event=>{
+document.addEventListener('pointermove',event=>{
+  if(cameraState.gridDraw?.pointerId===event.pointerId){
+    const point=cameraPoint(event),start=cameraState.gridDraw.point;
+    cameraState.gridDraw.box=[Math.min(start[0],point[0]),Math.min(start[1],point[1]),Math.max(start[0],point[0]),Math.max(start[1],point[1])];
+    renderGridLayoutOverlay();return;
+  }
   if(cameraState.gridDrag?.pointerId===event.pointerId){
     const point=cameraStagePoint(event.clientX,event.clientY);
     const grid=cameraState.grids.find(item=>item.id===cameraState.gridDrag.gridId);
-    if(point&&grid){
-      grid.anchors[cameraState.gridDrag.index]=point;
-      cameraState.layoutDirty=true;
-      updateCameraControls();
-    }
+    if(point&&grid){grid.anchors[cameraState.gridDrag.index]=point;cameraState.layoutDirty=true;renderGridLayoutOverlay();}
     return;
   }
   const drag=cameraState.drag;
   if(!drag) return;
   const point=cameraPoint(event);
+  if(drag.new){
+    const left=Math.min(drag.point[0],point[0]),top=Math.min(drag.point[1],point[1]);
+    const right=Math.max(drag.point[0],point[0]),bottom=Math.max(drag.point[1],point[1]);
+    drag.box=[left,top,right,bottom];
+    renderCameraOverlay();
+    return;
+  }
   let box;
   if(drag.part==='resize'){
-    box=[drag.box[0],drag.box[1],Math.max(drag.box[0]+.01,point[0]),
-      Math.max(drag.box[1]+.01,point[1])];
+    box=[drag.box[0],drag.box[1],Math.min(1,Math.max(drag.box[0]+.04,point[0])),
+      Math.min(1,Math.max(drag.box[1]+.04,point[1]))];
   }else{
     const dx=point[0]-drag.point[0],dy=point[1]-drag.point[1];
     const width=drag.box[2]-drag.box[0],height=drag.box[3]-drag.box[1];
@@ -1709,33 +1908,86 @@ $('cameraOverlay').addEventListener('pointermove',event=>{
     const top=Math.min(1-height,Math.max(0,drag.box[1]+dy));
     box=[left,top,left+width,top+height];
   }
-  cameraState.zones[drag.zone]=box.map(value=>Math.round(value*10000)/10000);
+  drag.previewBox=box;
+  box=box.map(value=>Math.round(value*10000)/10000);
+  if(drag.part==='resize'){
+    box[2]=Math.max(box[0]+.04,box[2]);box[3]=Math.max(box[1]+.04,box[3]);
+  }
+  if(isDrawableCameraBox(box,drag.zone))cameraState.zones[drag.zone]=box;
+  else cameraFeedback('영역은 최소 가로·세로 4%이며 다른 영역과 겹칠 수 없습니다.',true);
   updateCameraInputs(); renderCameraOverlay();
 });
-function finishCameraDrag(){
-  if(cameraState.drag){ cameraState.drag=null;
-    cameraFeedback('변경 내용이 아직 저장되지 않았습니다.'); }
+function finishCameraDrag(event){
+  const gridDraft=cameraState.gridDraw;
+  if(gridDraft&&gridDraft.pointerId===event.pointerId){
+    const box=gridDraft.box;
+    cameraState.gridDraw=null;
+    const valid=event.type!=='pointercancel'&&box[2]-box[0]>=.04&&box[3]-box[1]>=.04;
+    const overlaps=cameraState.grids.some(grid=>{
+      const [a,b]=grid.anchors;
+      return Array.isArray(a)&&Array.isArray(b)&&Math.min(box[2],b[0])>Math.max(box[0],a[0])&&Math.min(box[3],b[1])>Math.max(box[1],a[1]);
+    });
+    if(valid&&!overlaps){
+      const used=new Set(cameraState.grids.map(grid=>grid.id));
+      const number=Array.from({length:144},(_,index)=>index+1).find(index=>!used.has('grid-'+index));
+      if(number){cameraState.grids.push({id:'grid-'+number,anchors:[[box[0],box[1]],[box[2],box[3]]]});cameraState.selectedGridId='grid-'+number;cameraState.layoutDirty=true;gridLayoutFeedback(`식물 영역 ${number}을 그렸습니다. 저장 전까지 미리보기입니다.`);}
+    }else gridLayoutFeedback('그린 영역은 최소 가로·세로 4%이며 다른 영역과 겹칠 수 없습니다. 다시 그려주세요.',true);
+    updateCameraControls();return;
+  }
+  const drag=cameraState.drag;
+  if(!drag||drag.pointerId!==event.pointerId)return;
+  if(drag.new){
+    const box=drag.box.map(value=>Math.round(value*10000)/10000);
+    const zone=drag.zone;
+    if(event.type!=='pointercancel'&&isDrawableCameraBox(box,zone)){
+      cameraState.zones[zone]=box;cameraState.drawMode=false;
+      $('cameraDrawZone').classList.remove('active');updateCameraInputs();
+      cameraFeedback(`영역 ${zone}을 그렸습니다. 영역 저장을 눌러 반영하세요.`);
+    }else cameraFeedback('그린 영역이 너무 작거나 기존 영역과 겹칩니다. 최소 4% 크기의 빈 곳에 다시 그려주세요.',true);
+    cameraState.drag=null;renderCameraOverlay();return;
+  }
+  if(event.type==='pointercancel')cameraState.zones[drag.zone]=drag.box;
+  else {
+    const finalPoint=cameraPoint(event);
+    const width=drag.box[2]-drag.box[0],height=drag.box[3]-drag.box[1];
+    const left=Math.min(1-width,Math.max(0,drag.box[0]+finalPoint[0]-drag.point[0]));
+    const top=Math.min(1-height,Math.max(0,drag.box[1]+finalPoint[1]-drag.point[1]));
+    const candidate=drag.part==='resize'
+      ?[drag.box[0],drag.box[1],Math.max(drag.box[0]+.04,finalPoint[0]),Math.max(drag.box[1]+.04,finalPoint[1])]
+      :[left,top,left+width,top+height];
+    if(isDrawableCameraBox(candidate,drag.zone))cameraState.zones[drag.zone]=candidate;
+  }
+  cameraState.drag=null;
+  updateCameraInputs();renderCameraOverlay();
+  cameraFeedback('변경 내용이 아직 저장되지 않았습니다.');
 }
-$('cameraOverlay').addEventListener('pointerup',finishCameraDrag);
-$('cameraOverlay').addEventListener('pointercancel',finishCameraDrag);
+document.addEventListener('pointerup',finishCameraDrag);
+document.addEventListener('pointercancel',finishCameraDrag);
 function finishGridDrag(event){
   const drag=cameraState.gridDrag;
   if(!drag||drag.pointerId!==event.pointerId)return;
   const grid=cameraState.grids.find(item=>item.id===drag.gridId);
+  let rejected=false;
   if(grid){
-    grid.anchors[drag.index]=event.type==='pointercancel'?drag.original:
-      cameraStagePoint(event.clientX,event.clientY);
+    const candidate=event.type==='pointercancel'?drag.original:
+      cameraStagePoint(event.clientX,event.clientY)||drag.original;
+    grid.anchors[drag.index]=candidate;
+    if(!validGridLayouts(cameraState.grids)){
+      grid.anchors[drag.index]=drag.original;
+      rejected=true;
+      gridLayoutFeedback('영역은 4% 이상이어야 하며 다른 영역과 겹칠 수 없습니다.',true);
+    }else gridLayoutFeedback('영역을 조정했습니다.');
     cameraState.layoutDirty=true;
   }
   cameraState.gridDrag=null;
-  gridLayoutFeedback(validGridLayouts(cameraState.grids)
+  if(!rejected)gridLayoutFeedback(validGridLayouts(cameraState.grids)
     ?'그리드 배치를 조정했습니다. 저장 전까지 미리보기입니다.'
     :'삼각형 두 개를 영상 위 좌상단과 우하단에 놓으세요. 영역이 좁거나 뒤집히면 저장할 수 없습니다.',
     !validGridLayouts(cameraState.grids));
   updateCameraControls();
 }
-$('cameraOverlay').addEventListener('pointerup',finishGridDrag);
-$('cameraOverlay').addEventListener('pointercancel',finishGridDrag);
+document.addEventListener('pointerup',finishGridDrag);
+document.addEventListener('pointercancel',finishGridDrag);
 
 function renderPerspectiveOverlay(){
   const svg=$('perspectiveOverlay');
