@@ -2,6 +2,7 @@
 
 ## 2026-10-14
 
+- 2026-10-14 11:48:17 +09:00 — backend commit `a9645568984f1ee22e13bb793f6340e87ae378e6`를 Render `wave_root_backend`에 배포함. deploy `dep-db7eq8ijnfac73d7mtr0` 상태 `live`, `/health`와 `/health/ready` HTTP 200, 신규 보호 API 두 경로는 토큰 없이 401(인증 라우팅 확인), 배포 이후 오류 로그 없음.
 - 2026-10-14 11:45:25 +09:00 — 다른 AI의 쿠폰 표시명·Discord 알림·카메라 상태 감시·관리자 그리드 편집 변경을 검토함. 드래그 중 빈 영역에서 포인터를 놓치고 SVG 임시 그리기가 초기화되던 문제를 투명 hit-surface와 document 포인터 처리로 수정하고 브라우저 회귀 테스트를 추가함. `npm test` 37/37, `node scripts/verifyAdminDrag.js`, 프론트 ESLint/TypeScript/production build, 양 저장소 `git diff --check` 통과. 이 저장소의 `rdk/`에서는 pytest가 0개를 수집했고 카메라 `/api/cameras/status` 구현이나 변경은 확인되지 않아 실제 RDK 연동은 미검증임. webhook 환경값은 설정/노출하지 않음.
 - Discord webhook 이벤트 알림을 추가함: 회원가입/신규 주문 훅, 관리자별 이벤트 on/off와 test endpoint, RDK 프레임 watchdog(유휴 제외, 연속 두 번 실패 시 경보, 복구 알림)을 구현함. Webhook은 `DISCORD_WEBHOOK_URL` 서버 설정이며 URL을 브라우저로 반환하지 않음.
 - 관리자 쿠폰 생성에 한국어 표시 이름, 이름에서 생성하는 코드, 10%/3,000원/전액 할인 프리셋을 추가함. 생성 이후 목록 갱신 실패를 생성 실패로 오인하지 않도록 UI 흐름을 분리함. 주문 목록에도 쿠폰 표시 이름을 반영함.
