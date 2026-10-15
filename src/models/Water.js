@@ -12,6 +12,7 @@ const waterSchema = new mongoose.Schema(
       required: true,
       min: 0
     },
+    estimated: { type: Boolean, default: false },
     commandId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Command',

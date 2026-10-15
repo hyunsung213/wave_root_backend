@@ -50,11 +50,19 @@ const plantSchema = new mongoose.Schema(
         validator: (value) => value === null || Number.isInteger(value),
         message: 'rdkZone must be an integer between 1 and 144.'
       }
-    }
+    },
+    irrigationDeviceId: { type: String, default: null, trim: true, maxlength: 64 },
+    irrigationOutletIndex: { type: Number, default: null, min: 0, max: 9 },
+    irrigationPumpId: { type: Number, default: null, enum: [1, 2] },
+    irrigationEnabled: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
 
 plantSchema.index({ orderId: 1 }, { unique: true, sparse: true });
+plantSchema.index(
+  { irrigationDeviceId: 1, irrigationOutletIndex: 1 },
+  { unique: true, partialFilterExpression: { irrigationEnabled: true } }
+);
 
 module.exports = mongoose.model('Plant', plantSchema);

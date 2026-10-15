@@ -61,12 +61,17 @@ Local account signup accepts `{ "email", "phone", "pwd" }`; `pwd` must be at lea
 | GET | `/api/web/admin/cameras/:cameraId/grid-layouts` | Admin Bearer | 식물별 사용자 지정 영역의 두 앵커와 영역 번호 조회 |
 | PUT | `/api/web/admin/cameras/:cameraId/grid-layouts` | Admin Bearer | 최대 144개 영역 배치 저장; 영역 하나가 식물 영상 하나 |
 | PATCH | `/api/web/admin/plants/:plantId/camera` | Admin Bearer | 식물을 카메라/영역에 배정 또는 해제 |
+| PATCH | `/api/web/admin/plants/:plantId/irrigation` | Admin Bearer | 식물을 Pi/사출구/펌프에 배정 또는 해제 |
+| POST | `/api/web/admin/irrigation/commands/:commandId/acknowledge` | Admin Bearer | 현장 확인 후 불확실한 급수 명령 잠금 해제 |
+| GET | `/api/web/control/water/:commandId` | User Bearer | 급수 명령 상태 조회 |
 | GET | `/api/web/admin/cameras/:cameraId/perspective` | Admin Bearer | 베드 평면화 4점 조회 |
 | PUT | `/api/web/admin/cameras/:cameraId/perspective` | Admin Bearer | 원본 기준 네 모서리 저장·즉시 적용 |
 | DELETE | `/api/web/admin/cameras/:cameraId/perspective` | Admin Bearer | 사용자 보정 초기화, 기존 자동 보정 복귀 |
-| POST | `/api/rdk/logs` | Private network | `plantId`, `degree`, `moisture_soil`, `moisture_air`, `rux` |
-| GET | `/api/rdk/command/:plantId` | Private network | - |
-| POST | `/api/rdk/water` | Private network | `plantId`, `commandId`, `volume` |
+| POST | `/api/rdk/logs` | RDK API key | `plantId`, `degree`, `moisture_soil`, `moisture_air`, `rux` |
+| GET | `/api/rdk/command/:plantId` | RDK API key | Pi: `X-Irrigation-Device-Id` |
+| GET | `/api/rdk/commands/active` | RDK API key | Pi: `X-Irrigation-Device-Id` |
+| POST | `/api/rdk/command/:commandId/fail` | RDK API key | `reason`, `uncertain`, `estimatedVolume?` |
+| POST | `/api/rdk/water` | RDK API key | `plantId`, `commandId`, `volume` |
 
 All persistent models use `timestamps: true`, so MongoDB stores `createdAt` and `updatedAt` automatically.
 
@@ -84,6 +89,29 @@ The administrator page at `/admin/` has a `카메라 설정` screen for source, 
 Set `DISCORD_WEBHOOK_URL` in the backend environment to enable Discord signup, new-order, and camera frame interruption/recovery alerts. Event delivery toggles and a test-message action are available at `/admin/`; the webhook URL is never returned to the browser. Camera health checks ignore idle readers and require two consecutive failed frame checks before an alert.
 
 ## RDK water-command polling flow
+
+Pi 4 irrigation integration: an administrator assigns a plant using
+`PATCH /api/web/admin/plants/:plantId/irrigation` with
+`{ "deviceId": "pi4-1", "outletIndex": 0, "pumpId": 1, "enabled": true }`.
+Camera `rdkZone` is independent of irrigation `outletIndex` (0-9).
+The existing user `POST /api/web/control/water` still accepts `plantId` and
+`volume` (mL, greater than 0 and at most 100). Its response command ID can be
+checked with `GET /api/web/control/water/:commandId`. At most one pending or
+dispatched water command is accepted per plant.
+The Pi polls the existing plant command endpoint with `X-Irrigation-Device-Id`
+and `X-Rdk-Api-Key`. Its reported `Water.volume` is an estimated amount, not a
+flowmeter measurement. `GET /api/rdk/commands/active` lets a restarted Pi find
+stranded dispatched commands; `POST /api/rdk/command/:commandId/fail` records
+an error without replaying a physically uncertain dose. The Pi service must
+remain disabled until servo positions, pump flow and relay operation are
+calibrated and verified.
+An unassigned plant returns `command: null` even if a legacy pending command
+exists. `X-Irrigation-Device-Id` is a routing identifier, not a separate
+device credential; keep the shared `X-Rdk-Api-Key` confidential.
+An uncertain failure enters `NEEDS_REVIEW` and blocks further watering for
+that plant. After confirming the pump is off and inspecting the plant, an
+administrator may acknowledge it; this changes the command to `FAILED` while
+retaining the uncertainty flag and does not create a measured water record.
 
 1. The web client posts a water request. The server creates a `Command` with `PENDING` status.
 2. The RDK polls `GET /api/rdk/command/:plantId`. The oldest command becomes `DISPATCHED` and is returned.

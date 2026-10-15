@@ -24,6 +24,8 @@ const {
   issueAdminCoupon, toggleAdminCoupon, listAdminUsersForCoupons
 } = require('../../controllers/webCommerceController');
 const { requireAdmin } = require('../../middlewares/auth');
+const { updatePlantIrrigationAssignment, acknowledgeUncertainCommand } =
+  require('../../controllers/irrigationAdminController');
 const { getAdminAlertSettings, updateAdminAlertSettings, sendAdminTestAlert } = require('../../controllers/webAdminAlertsController');
 
 const router = express.Router();
@@ -32,6 +34,8 @@ router.post('/login', adminLogin);
 router.get('/users', requireAdmin, listAllUsers);
 router.get('/plants', requireAdmin, listAllPlants);
 router.patch('/plants/:plantId/camera', requireAdmin, updatePlantCameraAssignment);
+router.patch('/plants/:plantId/irrigation', requireAdmin, updatePlantIrrigationAssignment);
+router.post('/irrigation/commands/:commandId/acknowledge', requireAdmin, acknowledgeUncertainCommand);
 router.get('/cameras', requireAdmin, listRdkCameras);
 router.get('/cameras/status', requireAdmin, getRdkCameraStatusList);
 router.get('/cameras/:cameraId/raw', requireAdmin, getRdkCameraFrame);

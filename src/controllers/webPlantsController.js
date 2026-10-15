@@ -105,6 +105,10 @@ const updatePlant = asyncHandler(async (req, res) => {
   if (Object.hasOwn(req.body, 'rdkCameraId') || Object.hasOwn(req.body, 'rdkZone')) {
     throw new AppError('Camera assignments can only be changed by an administrator.', 403);
   }
+  if (['irrigationDeviceId', 'irrigationOutletIndex', 'irrigationPumpId', 'irrigationEnabled']
+    .some((field) => Object.hasOwn(req.body, field))) {
+    throw new AppError('Irrigation assignments can only be changed by an administrator.', 403);
+  }
 
   if (Object.hasOwn(req.body, 'name')) {
     updates.name = requireNonEmptyString(req.body.name, 'name', 60);

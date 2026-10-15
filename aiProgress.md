@@ -1,5 +1,15 @@
 # AI 작업 진행 기록
 
+## 2026-10-16
+
+- 00:06:34 (+09:00) — 다른 AI의 백엔드 식물 카탈로그·Pi 급수 변경을 기존 작업 트리에서 확인하고, 프론트 카탈로그와 가격/수확 목표·이미지 매핑을 교차 점검함. 미배정 식물의 예전 대기 급수 명령이 폴링으로 전달되지 않도록 `getNextCommand`를 보강하고, 배정·중복 요청·기기 일치·불확실한 실패 잠금에 대한 회귀 테스트 3개를 추가함. 백엔드 `npm test` 41/41, 프론트 ESLint·TypeScript·프로덕션 빌드, 양쪽 `git diff --check` 통과. 실제 DB·하드웨어 명령은 실행하지 않았고 Git 푸시/운영 배포는 하지 않음. 신규 식물 가격과 Pi 급수 기능의 운영 반영 범위를 사용자에게 확인 요청함.
+- 00:10:37 (+09:00) — 배포 전 스트리밍 영향만 분리 재검증함. 백엔드 테스트 파일을 직접 실행해 RDK 센서 수집·웹 센서 조회·서명 MJPEG 프록시 통합 테스트 3/3 통과(모의 RDK HTTP 서버 사용); Node test-runner 기본 자식 프로세스 실행은 Windows sandbox `spawn EPERM`으로 막혀 동일 테스트를 직접 실행하는 방식으로 검증함. 확인 결과 프론트 변경은 기본값(0°/100%)에서 기존 영상과 동일하고 CSS 표시 변환만 추가되어 RDK/HTTP 스트림 요청·카메라 부하에는 영향 없음. 다만 백엔드 시작 시 Plant/Command 인덱스 초기화가 추가되어 Atlas 인덱스 생성 실패 시 서버 전체(스트림 프록시 포함)가 기동하지 않을 수 있음. 실제 카메라·Atlas·운영 배포는 이번 검증에서 건드리지 않음.
+- 00:18:38 (+09:00) — 실제 Atlas를 읽기 전용 점검해 기존 `commands` 문서 중 `activePlantId: null` 62개를 확인함. 기존 sparse unique 인덱스는 이 데이터에서 startup 실패 가능성이 있어 partial unique `{activePlantId: {$type: 'objectId'}}`로 수정하고 회귀 테스트를 추가함. 활성 식물 아웃렛 중복 및 ObjectId active command 중복은 각각 0건, 새 인덱스는 아직 생성하지 않음. 백엔드 전체 직접 실행 테스트 42/42, 프론트 ESLint·TypeScript·Next production build 및 양 저장소 diff-check 통과. Render health 요청은 실행 환경 네트워크 제한으로 확인 불가; 아직 Git push/배포하지 않음.
+
+## 2026-10-15
+
+- 서버 상품 카탈로그에 신규 식물 6종을 추가하고, 수확 목표일·제안 가격을 프론트 데이터와 일치시킴. 기존 5종 중 수경재배 기준으로 갱신된 바질 목표일은 60일로 맞춤. 전체 11종의 ID·이름·가격·성장 목표일을 검증하는 commerce 회귀 테스트를 추가함.
+
 ## 2026-10-14
 
 - 2026-10-14 11:48:17 +09:00 — backend commit `a9645568984f1ee22e13bb793f6340e87ae378e6`를 Render `wave_root_backend`에 배포함. deploy `dep-db7eq8ijnfac73d7mtr0` 상태 `live`, `/health`와 `/health/ready` HTTP 200, 신규 보호 API 두 경로는 토큰 없이 401(인증 라우팅 확인), 배포 이후 오류 로그 없음.

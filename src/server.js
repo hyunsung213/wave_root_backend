@@ -4,13 +4,15 @@ const app = require('./app');
 const { connectDatabase } = require('./config/db');
 const { getEnv } = require('./config/env');
 const Order = require('./models/Order');
+const Plant = require('./models/Plant');
+const Command = require('./models/Command');
 const { cameraWatchdog } = require('./services/cameraWatchdog');
 
 async function start() {
   const { mongoUri, port } = getEnv();
   await connectDatabase(mongoUri);
-  // Ensure the one-use-per-user constraint exists before accepting orders.
-  await Order.init();
+  // Enforce order and irrigation uniqueness before accepting requests.
+  await Promise.all([Order.init(), Plant.init(), Command.init()]);
 
   cameraWatchdog.start();
   app.listen(port, () => {

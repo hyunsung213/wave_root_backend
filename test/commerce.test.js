@@ -11,6 +11,7 @@ const Coupon = require('../src/models/Coupon');
 const Order = require('../src/models/Order');
 const User = require('../src/models/User');
 const Notification = require('../src/models/Notification');
+const { PRODUCTS } = require('../src/config/catalog');
 
 test('coupon codes are normalized and reject unsupported characters', () => {
   assert.equal(normalizeCouponCode(' spring-2026 '), 'SPRING-2026');
@@ -39,6 +40,27 @@ test('admin coupon definitions and catalog IDs are validated on the server', () 
   assert.equal(getProduct('lettuce').price, 3000);
   assert.throws(() => getProduct('arbitrary'), /not available/);
   assert.match(makeOrderNumber(), /^WR-\d{6}-[A-F0-9]{16}$/);
+});
+
+test('plant catalog exposes all eleven products with the agreed prices and harvest targets', () => {
+  const expected = {
+    basil: ['바질', 5000, 60],
+    lettuce: ['상추', 3000, 45],
+    romaine: ['로메인', 4000, 68],
+    tomato: ['토마토', 6000, 80],
+    pepper: ['고추', 5000, 80],
+    arugula: ['루꼴라', 4000, 45],
+    green_oakleaf_lettuce: ['청오크 상추', 4000, 55],
+    marigold: ['메리골드', 6000, 70],
+    butterhead: ['버터헤드', 4000, 55],
+    nasturtium: ['한련화', 6000, 75],
+    tatsoi: ['다채', 4000, 55]
+  };
+  assert.deepEqual(Object.keys(PRODUCTS).sort(), Object.keys(expected).sort());
+  for (const [id, [name, price, growthTargetDays]] of Object.entries(expected)) {
+    assert.deepEqual(PRODUCTS[id], { id, name, price, growthTargetDays });
+    assert.equal(getProduct(id).price, price);
+  }
 });
 
 test('admin console inline JavaScript parses after commerce screens are added', () => {
