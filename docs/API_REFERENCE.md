@@ -730,11 +730,11 @@ Content-Type: application/json
 목록 조회:
 
 ```http
-GET /api/web/notifications?page=1&limit=30&unreadOnly=true
+GET /api/web/notifications?page=1&limit=30&unreadOnly=true&includeSensor=false
 Authorization: Bearer <accessToken>
 ```
 
-`unreadOnly=true`이면 읽지 않은 알림만 반환합니다. 응답의 `unreadCount`는 필터와 상관없이 전체 미읽음 개수이므로 알림 배지에 바로 사용할 수 있습니다.
+`unreadOnly=true`이면 읽지 않은 알림만 반환합니다. SENSOR 알림은 기본적으로 목록과 `unreadCount`에서 제외되며, `includeSensor=true`로 요청하면 SENSOR 알림을 포함합니다. `includeSensor`와 `unreadOnly`는 각각 `true` 또는 `false`만 허용합니다. `unreadCount`는 `includeSensor` 설정에 맞춰 계산됩니다.
 
 ```json
 {

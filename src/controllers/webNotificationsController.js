@@ -35,17 +35,30 @@ const getNotifications = asyncHandler(async (req, res) => {
   if (req.query.unreadOnly !== undefined && !['true', 'false'].includes(req.query.unreadOnly)) {
     throw new AppError('unreadOnly must be true or false.', 400);
   }
+  if (req.query.includeSensor !== undefined && !['true', 'false'].includes(req.query.includeSensor)) {
+    throw new AppError('includeSensor must be true or false.', 400);
+  }
   const { page, limit, skip } = getPagination(req.query);
   const filter = { userId: req.user._id };
+  const includeSensor = req.query.includeSensor === 'true';
+
+  if (!includeSensor) {
+    filter.type = { $ne: 'SENSOR' };
+  }
 
   if (req.query.unreadOnly === 'true') {
     filter.isRead = false;
   }
 
+  const unreadFilter = { userId: req.user._id, isRead: false };
+  if (!includeSensor) {
+    unreadFilter.type = { $ne: 'SENSOR' };
+  }
+
   const [notifications, total, unreadCount] = await Promise.all([
     Notification.find(filter).sort({ notifyAt: -1, createdAt: -1 }).skip(skip).limit(limit),
     Notification.countDocuments(filter),
-    Notification.countDocuments({ userId: req.user._id, isRead: false })
+    Notification.countDocuments(unreadFilter)
   ]);
 
   res.json({

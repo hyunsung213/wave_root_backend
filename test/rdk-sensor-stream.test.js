@@ -141,8 +141,9 @@ test('signed plant stream tickets are proxied by the backend and do not expose t
       zone: fixture.rdkZone, rdkToken: 'rdk-user-token'
     }, process.env.JWT_SECRET, { subject: '507f1f77bcf86cd799439012', expiresIn: '1m' });
     const url = `http://127.0.0.1:${backend.address().port}/api/web/plants/stream/${ticket}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: { Origin: 'https://wave-root-client.vercel.app' } });
     assert.equal(response.status, 200);
+    assert.equal(response.headers.get('access-control-allow-origin'), 'https://wave-root-client.vercel.app');
     assert.match(response.headers.get('content-type'), /multipart\/x-mixed-replace/);
     assert.match(await response.text(), /frame-bytes/);
     assert.match(response.headers.get('cache-control'), /no-store/);

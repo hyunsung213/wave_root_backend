@@ -53,6 +53,22 @@ test('production Vercel frontend origin passes CORS preflight', async () => {
   }
 });
 
+test('unapproved origins cannot read browser responses', async () => {
+  const server = app.listen(0);
+
+  try {
+    await new Promise((resolve) => server.once('listening', resolve));
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/health`, {
+      headers: { Origin: 'https://untrusted.example' }
+    });
+
+    assert.equal(response.status, 500);
+    assert.equal(response.headers.get('access-control-allow-origin'), null);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('commerce customer endpoints require a user token and admin mutations require an admin token', async () => {
   const server = app.listen(0);
 

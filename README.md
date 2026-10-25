@@ -45,7 +45,7 @@ Local account signup accepts `{ "email", "phone", "pwd" }`; `pwd` must be at lea
 | GET | `/api/web/activity` | Bearer | - |
 | POST | `/api/web/activity/harvest` | Bearer | `plantId` |
 | POST | `/api/web/notifications` | Bearer | `title`, `type`, `content`, `notifyAt?` |
-| GET | `/api/web/notifications?page=1&limit=30&unreadOnly=false` | Bearer | - |
+| GET | `/api/web/notifications?page=1&limit=30&unreadOnly=false&includeSensor=false` | Bearer | SENSOR 알림 기본 제외, `includeSensor=true`로 포함 |
 | PATCH | `/api/web/notifications/:notificationId/read` | Bearer | - |
 | GET | `/api/web/admin/cameras` | Admin Bearer | RDK 카메라 목록 |
 | GET | `/api/web/admin/cameras/:cameraId/raw` | Admin Bearer | 보정 전 원본 JPEG 1프레임 |

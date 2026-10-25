@@ -357,7 +357,7 @@ X-RDK-API-Key: <RDK_API_KEY>
 | `GET` | `/api/web/activity` | 성장·실시간 조회·급수·수확 카운터 |
 | `POST` | `/api/web/activity/harvest` | 소유 식물 수확 카운터 증가 |
 | `POST` | `/api/web/notifications` | `GROWTH/WATER/HARVEST/SENSOR/INFO`만 허용 |
-| `GET` | `/api/web/notifications?page=1&limit=30&unreadOnly=true` | `content`, `createdAt`, `isRead` 포함 |
+| `GET` | `/api/web/notifications?page=1&limit=30&unreadOnly=true&includeSensor=false` | SENSOR 알림 기본 제외, `includeSensor=true`로 포함; `content`, `createdAt`, `isRead` 포함 |
 | `PATCH` | `/api/web/notifications/:notificationId/read` | 이미 읽은 알림 재호출도 성공하는 멱등 처리 |
 
 `page=0`, `page=abc`, `limit=abc`, 음수·소수·`limit>100`, `recordLimit>100`은 모두 `400`입니다.

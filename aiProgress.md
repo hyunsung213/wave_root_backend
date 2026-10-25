@@ -1,10 +1,20 @@
 # AI 작업 진행 기록
 
+## 2026-10-26
+
+- 2026-10-26 01:16 +09:00 — 다른 AI 작업분 배포 전 검증: 백엔드 알림 SENSOR 기본 제외 및 허용 오리진 MJPEG CORS 변경에 회귀 테스트를 포함해 `npm test` 48/48 통과. 프론트 ESLint, TypeScript 검사, Next.js production build 통과. Render `wave_root_backend` 서비스가 `main` 자동 배포 설정이고 현재 운영 커밋은 `5959b26`; Vercel 운영 커밋은 `b91d8b0`임을 확인함. 배포 진행 중.
+
+## 2026-10-26
+
+- 알림 목록 API에서 SENSOR 알림을 기본으로 제외하고 `includeSensor=true`일 때 opt-in 포함하도록 변경함. 목록·총 건수·미읽음 건수 모두 같은 기준을 사용하고, 쿼리 값 검증과 API 문서를 갱신함. 회귀 테스트 3개 추가. 새 테스트 3/3, 백엔드 전체 `npm test` 48/48, Node 구문 검사 및 `git diff --check` 통과. 프론트에서 헤더/연락처/마켓/UI 변경도 API 기본값과 호환됨.
+- 서명된 MJPEG 스트림 응답이 허용된 Vercel 프론트엔드 오리진을 계속 노출하는지 통합 테스트를 추가하고, 비허용 오리진은 브라우저 접근 허용 헤더를 받지 않는지 확인하는 회귀 테스트를 추가함. CORS allowlist는 그대로 유지함. 변경 관련 `app.test.js` 및 `rdk-sensor-stream.test.js` 직접 실행은 8/8 통과, 백엔드 `git diff --check` 통과. 전체 `npm test`는 기존 사용자 작업의 catalog 테스트가 테스트 DB 연결 부재로 실패함. 기존 catalog 관련 사용자 수정은 보존함.
+
 ## 2026-10-16
 
 - 00:06:34 (+09:00) — 다른 AI의 백엔드 식물 카탈로그·Pi 급수 변경을 기존 작업 트리에서 확인하고, 프론트 카탈로그와 가격/수확 목표·이미지 매핑을 교차 점검함. 미배정 식물의 예전 대기 급수 명령이 폴링으로 전달되지 않도록 `getNextCommand`를 보강하고, 배정·중복 요청·기기 일치·불확실한 실패 잠금에 대한 회귀 테스트 3개를 추가함. 백엔드 `npm test` 41/41, 프론트 ESLint·TypeScript·프로덕션 빌드, 양쪽 `git diff --check` 통과. 실제 DB·하드웨어 명령은 실행하지 않았고 Git 푸시/운영 배포는 하지 않음. 신규 식물 가격과 Pi 급수 기능의 운영 반영 범위를 사용자에게 확인 요청함.
 - 00:10:37 (+09:00) — 배포 전 스트리밍 영향만 분리 재검증함. 백엔드 테스트 파일을 직접 실행해 RDK 센서 수집·웹 센서 조회·서명 MJPEG 프록시 통합 테스트 3/3 통과(모의 RDK HTTP 서버 사용); Node test-runner 기본 자식 프로세스 실행은 Windows sandbox `spawn EPERM`으로 막혀 동일 테스트를 직접 실행하는 방식으로 검증함. 확인 결과 프론트 변경은 기본값(0°/100%)에서 기존 영상과 동일하고 CSS 표시 변환만 추가되어 RDK/HTTP 스트림 요청·카메라 부하에는 영향 없음. 다만 백엔드 시작 시 Plant/Command 인덱스 초기화가 추가되어 Atlas 인덱스 생성 실패 시 서버 전체(스트림 프록시 포함)가 기동하지 않을 수 있음. 실제 카메라·Atlas·운영 배포는 이번 검증에서 건드리지 않음.
 - 00:18:38 (+09:00) — 실제 Atlas를 읽기 전용 점검해 기존 `commands` 문서 중 `activePlantId: null` 62개를 확인함. 기존 sparse unique 인덱스는 이 데이터에서 startup 실패 가능성이 있어 partial unique `{activePlantId: {$type: 'objectId'}}`로 수정하고 회귀 테스트를 추가함. 활성 식물 아웃렛 중복 및 ObjectId active command 중복은 각각 0건, 새 인덱스는 아직 생성하지 않음. 백엔드 전체 직접 실행 테스트 42/42, 프론트 ESLint·TypeScript·Next production build 및 양 저장소 diff-check 통과. Render health 요청은 실행 환경 네트워크 제한으로 확인 불가; 아직 Git push/배포하지 않음.
+- 00:23:47 (+09:00) — 백엔드 `f1557c6`을 `origin/main`에 푸시함. 푸시 후 Render `/health`와 `/health/ready`가 각각 HTTP 200임을 확인. Render MCP 상태 조회는 작업공간이 선택되지 않아 사용자 확인 대기 중이며, 현재까지 확인한 배포 ID/커밋은 없음. 테스트 과정 외에 RDK 하드웨어 명령은 보내지 않음.
 
 ## 2026-10-15
 
@@ -158,3 +168,6 @@
 - 2026-10-11 22:51:51 +09:00 — 분양 주문 페이지의 과도한 하단 여백을 공통 바텀시트 간격에 맞춰 `pb-24`에서 `pb-4`로 축소함. 프론트엔드 빌드와 `git diff --check` 통과, frontend commit `2978f00d6e4b93c1583b5f2a4f6b05344184a82b`가 Vercel production 배포 `dpl_HhMWsEEmmTQH2BPV1M7NaYZEAEBD`에 반영되어 `READY`임을 확인함.
 - 2026-10-12 12:28:03 +09:00 — 관리자 분양 주문의 입금 확인 모달에서 RDK의 미배정 카메라·영역을 조회하고 노드를 선택해 주문 확정과 식물 배정을 연속 처리하도록 구현함. 실입금 확인 체크, 노드 미배정으로 확정 후 주문 목록에서 재연결, 연결 충돌 시 노드 목록 재조회 흐름을 추가함. 관리자 주문 조회 응답에 연결 식물의 카메라·영역을 populate하고 API_PROC/API_REFERENCE를 갱신함. 백엔드 테스트 32/32 통과, 관리자 인라인 JavaScript 파싱 및 `git diff --check` 통과. 운영 반영은 아직 하지 않음.
 - 2026-10-12 13:02:21 +09:00 — backend commit `ce6ab51`을 `wave_root_backend` main에 푸시함. Render 운영 `/health/ready`가 200 `ready`, `/admin/`이 200이며 새 `orderNodeModal`과 입금 확인 체크 UI를 제공하는 것을 확인함. Render MCP/CLI가 연결되어 있지 않아 실제 deploy ID는 확인할 수 없었으나 운영 HTML에 최신 코드가 반영됨.
+- 2026-10-16 00:25:27 +09:00 — 사용자가 승인한 Render `My Workspace`에서 `wave_root_backend` 배포를 읽기 전용으로 교차확인함. 배포 `dep-db8euftg1s2s73fjk8mg`가 `live`, 커밋 `f1557c6acc2c267c12c9039aa535dc5ce083932e` (`feat: add guarded irrigation commands and plant catalog`)이며 2026-10-15 15:21:45 UTC에 완료됨. 배포 이후 현재까지 Render 오류/경고 로그 조회 결과는 0건. 자동 배포 서비스이므로 추가 배포 트리거는 하지 않음.
+- 2026-10-26 00:24 +09:00 — 제공된 작물 이미지의 7종 특징·계절 정보를 프론트 식물 자료와 PLANT_INFO.txt에 반영함. 백엔드에 상품 분양 상태(진행 중/예정/금지), 관리자 조회·수정 API, 사용자 공개 목록, 주문·쿠폰 검증 차단, 주문 당시 생장 목표일 보존을 구현함. 청경채·얼갈이 배추를 정보·가격 미정의 분양 예정 상품으로 추가하고 관리자가 가격·목표일 설정 후에만 판매 가능하도록 함. 관리자 화면의 상태·가격·목표일 편집과 API_PROC/API_REFERENCE 문서를 갱신함. 백엔드 테스트 11개 파일 모두 통과; 운영 DB·배포는 변경하지 않음.
+- 2026-10-26 00:33 +09:00 — 백엔드 커밋 `5959b2600dcae401af18e02c05d58d445e4e54ba`를 GitHub main에 푸시하고 Render 배포 `dep-dbf21ek9v7es73cvogo0`가 live 상태임을 확인함. 프론트 커밋 `b91d8b0fa599187362b04e78845d7ec419a59929`를 main에 푸시하고 Vercel production 배포 `dpl_FvqDGh9u6Cf8kNXttkKCeALGjDkS`가 READY 및 `wave-root-client.vercel.app` 별칭 연결됨을 확인함. 운영 `/health`, `/api/web/catalog`, `/market` 응답 모두 200이며 카탈로그에서 청경채·얼갈이 배추가 `upcoming`으로 반환됨. 스트리밍 관련 기존 미커밋 파일은 이번 배포 커밋에서 제외하고 유지함.
