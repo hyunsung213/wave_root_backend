@@ -4,6 +4,7 @@
 
 - 2026-10-26 01:16 +09:00 — 다른 AI 작업분 배포 전 검증: 백엔드 알림 SENSOR 기본 제외 및 허용 오리진 MJPEG CORS 변경에 회귀 테스트를 포함해 `npm test` 48/48 통과. 프론트 ESLint, TypeScript 검사, Next.js production build 통과. Render `wave_root_backend` 서비스가 `main` 자동 배포 설정이고 현재 운영 커밋은 `5959b26`; Vercel 운영 커밋은 `b91d8b0`임을 확인함. 배포 진행 중.
 - 2026-10-26 01:19 +09:00 — 백엔드 커밋 `92889159cbd485aba7766dedc010cfb46e0a2e02`가 Render 배포 `dep-dbf2msuq1p3s73eop1og`에서 `live`, 프론트 커밋 `54622c8e47b9f0a0ad0c23718d4d33d71b7c19b9`가 Vercel production 배포 `dpl_bJncEA9dF49sCnZxxBW1AuvPCawm`에서 `READY`이며 `wave-root-client.vercel.app` 별칭에 연결됨을 확인함. 운영 `/health`, `/api/web/catalog`, 프론트 `/home`, `/market`이 모두 HTTP 200이고 허용 프론트 오리진 알림 API preflight는 204. 배포 후 Render 오류 로그 0건 및 Vercel 최근 1시간 runtime error 없음. 카메라/GPU 실기기 화면 검증은 수행하지 않음.
+- 2026-10-26 01:36 +09:00 — 분양 목록 카드에서 식물 이름 옆 `분양 진행 중`·`분양 예정` 상태 배너만 제거하고 예정 상품의 본문 안내와 비활성화는 유지함. 프론트 ESLint·TypeScript·Next.js production build 및 `git diff --check` 통과. 커밋 `9322dde1d91102efeb4e3ad911ce78837b27be9e`의 Vercel 배포 `dpl_H43U2fGDGB1CChGWYCH5pf5MC3o8`가 `READY`, `wave-root-client.vercel.app`에 연결되고 `/market`이 HTTP 200임을 확인함. 최근 1시간 Vercel runtime error 없음.
 
 ## 2026-10-26
 
