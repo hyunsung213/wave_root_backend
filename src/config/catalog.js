@@ -1,4 +1,5 @@
 const PASS_PRICE = 3900;
+const AVAILABILITY = Object.freeze({ AVAILABLE: 'available', BLOCKED: 'blocked', UPCOMING: 'upcoming' });
 
 // Prices are deliberately owned by the server; never trust checkout totals from the browser.
 const PRODUCTS = Object.freeze({
@@ -12,7 +13,10 @@ const PRODUCTS = Object.freeze({
   marigold: Object.freeze({ id: 'marigold', name: '메리골드', price: 6000, growthTargetDays: 70 }),
   butterhead: Object.freeze({ id: 'butterhead', name: '버터헤드', price: 4000, growthTargetDays: 55 }),
   nasturtium: Object.freeze({ id: 'nasturtium', name: '한련화', price: 6000, growthTargetDays: 75 }),
-  tatsoi: Object.freeze({ id: 'tatsoi', name: '다채', price: 4000, growthTargetDays: 55 })
+  tatsoi: Object.freeze({ id: 'tatsoi', name: '다채', price: 4000, growthTargetDays: 55 }),
+  bok_choy: Object.freeze({ id: 'bok_choy', name: '청경채', price: null, growthTargetDays: null }),
+  young_napa_cabbage: Object.freeze({ id: 'young_napa_cabbage', name: '얼갈이 배추', price: null, growthTargetDays: null })
 });
+const DEFAULT_AVAILABILITY = Object.freeze({ bok_choy: AVAILABILITY.UPCOMING, young_napa_cabbage: AVAILABILITY.UPCOMING });
 
-module.exports = { PASS_PRICE, PRODUCTS };
+module.exports = { PASS_PRICE, PRODUCTS, AVAILABILITY, DEFAULT_AVAILABILITY };

@@ -27,7 +27,7 @@ export const api = axios.create({
 
 ### 웹 API
 
-로그인·회원가입을 제외한 `/api/web/*` API에는 JWT가 필요합니다.
+로그인·회원가입·공개 상품 목록(`GET /api/web/catalog`)을 제외한 `/api/web/*` API에는 JWT가 필요합니다.
 
 ```ts
 const headers = {
@@ -51,6 +51,9 @@ const response = await api.get("/api/web/plants", { headers });
 | 공통 | GET | `/health/ready` | 없음 | MongoDB readiness 확인 |
 | 인증 | POST | `/api/web/users/signup` | 없음 | 회원가입 및 JWT 발급 |
 | 인증 | POST | `/api/web/users/login` | 없음 | 로그인 및 JWT 발급 |
+| 분양 상품 | GET | `/api/web/catalog` | 없음 | 분양 가능·예정 상품 목록 (`blocked` 제외) |
+| 관리자 분양 상품 | GET | `/api/web/admin/catalog` | 관리자 Bearer JWT | 전체 상품·상태·가격 조회 |
+| 관리자 분양 상품 | PATCH | `/api/web/admin/catalog/:productId` | 관리자 Bearer JWT | 상태·가격·첫 수확 목표일 변경 |
 | 사용자 | GET | `/api/web/users/me` | Bearer JWT | 내 사용자 정보 조회 |
 | 사용자 | PATCH | `/api/web/users/me` | Bearer JWT | 이름·전화번호 수정 |
 | 사용자 | PATCH | `/api/web/users/password` | Bearer JWT | 현재 비밀번호 확인 후 변경 |
@@ -1048,7 +1051,20 @@ Content-Type: application/json
 
 RDK는 해당 카메라 영상 요청이 30초 동안 없으면 RTSP 캡처를 닫습니다. RDK의 `CAMERA_PRIVACY_COMMAND`를 설정하면 서비스 시작 시 프라이버시 모드를 켜고 시청 시작/유휴 종료에 맞춰 전환합니다. C110의 실제 전원은 유지됩니다. 제어 실패는 status API에 나타나며, RDK에 연결된 시청자만 감지합니다. 출력 영상은 `1280×720, 15 FPS`로 고정됩니다. C110 원본 RTSP 해상도는 Tapo 앱에서 별도로 설정하고 status API에서 확인해야 합니다. 출력 FPS 고정은 카메라→RDK 원본 RTSP 설정과 별개입니다.
 
-### 6.2 관리자 분양 주문의 노드 연결
+### 6.2 분양 상품 목록과 상태 관리
+
+프론트는 화면 진입 시 `GET /api/web/catalog`로 상품 목록을 가져옵니다. 응답의 `products`에 없는 상품은 표시하지 않습니다. `status: "upcoming"`은 표시하되 선택·주문 버튼을 비활성화하고, `status: "blocked"`는 사용자 응답에 포함되지 않습니다. 목록 조회는 인증이 필요 없으며 캐시하지 않습니다.
+
+```json
+{ "success": true, "products": [
+  { "id": "basil", "name": "바질", "price": 5000, "growthTargetDays": 60, "status": "available" },
+  { "id": "bok_choy", "name": "청경채", "price": null, "growthTargetDays": null, "status": "upcoming" }
+] }
+```
+
+관리자는 `GET /api/web/admin/catalog`에서 분양 금지 중 상품까지 조회하고, `PATCH /api/web/admin/catalog/:productId`에 `{ "status": "upcoming" }`, `{ "status": "blocked" }` 또는 `{ "status": "available", "price": 4500, "growthTargetDays": 50 }`를 보냅니다. `price`는 1~1,000,000원, `growthTargetDays`는 1~3,650일 정수이며, 이미 설정한 값은 생략하면 유지됩니다. 가격과 목표일이 없는 신규 상품은 분양 진행 중으로 바꿀 수 없습니다(`409`). 청경채·얼갈이 배추의 상세 정보와 이미지는 아직 준비 중입니다. 사용자 주문·쿠폰 검증 API도 분양 예정/금지 상품은 `409`로 거부합니다.
+
+### 6.3 관리자 분양 주문의 노드 연결
 
 관리자 페이지의 `분양 주문`에서 `입금 확인`을 누르면 주문 확인 모달이 열리고, 가용 노드인 카메라 ID와 영역 번호를 고를 수 있습니다. `GET /api/web/admin/cameras`가 RDK 기준 미배정 영역을 반환하고, UI는 `GET /api/web/admin/plants`의 DB 점유 현황과 대조해 이미 연결된 노드를 제외합니다.
 

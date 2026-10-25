@@ -132,7 +132,9 @@ Authorization: Bearer <token>
 
 ## 10. 분양 계좌이체·쿠폰 API
 
-분양 상품과 가격은 `src/config/catalog.js`의 서버 카탈로그를 기준으로 계산합니다. 프론트에서 전달한 가격/할인액은 신뢰하지 않습니다. 주문 접수 단계에서는 식물을 만들지 않습니다. 관리자 주문 화면에서 입금 확인을 시작하면 RDK에서 현재 미배정인 카메라 영역 목록을 불러오고, 관리자가 하나를 선택해 주문 확정과 동시에 식물에 연결할 수 있습니다. 노드를 건너뛰거나 가용 노드가 없으면 주문만 확정할 수 있으며, 주문 목록의 `노드 연결` 동작으로 나중에 배정할 수 있습니다. 연결은 기존 관리자 식물 카메라 API로 RDK와 DB에 반영합니다.
+분양 상품의 ID·기본 가격은 `src/config/catalog.js`에 정의되고, 관리자 상태·가격·첫 수확 목표일 변경은 MongoDB `ProductAvailability`에 저장합니다. 서버에서 최종 가격을 계산하며 프론트에서 전달한 가격/할인액은 신뢰하지 않습니다. 주문 접수 단계에서는 식물을 만들지 않습니다. 관리자 주문 화면에서 입금 확인을 시작하면 RDK에서 현재 미배정인 카메라 영역 목록을 불러오고, 관리자가 하나를 선택해 주문 확정과 동시에 식물에 연결할 수 있습니다. 노드를 건너뛰거나 가용 노드가 없으면 주문만 확정할 수 있으며, 주문 목록의 `노드 연결` 동작으로 나중에 배정할 수 있습니다. 연결은 기존 관리자 식물 카메라 API로 RDK와 DB에 반영합니다.
+
+분양 상태는 `available`(분양 진행 중), `upcoming`(분양 예정), `blocked`(분양 금지 중)입니다. 사용자용 목록은 `blocked`를 숨기고 `upcoming`을 비활성으로 표시합니다. 쿠폰 검증·주문 생성 API는 `upcoming`·`blocked`를 `409`로 거부합니다. 청경채(`bok_choy`)·얼갈이 배추(`young_napa_cabbage`)는 처음에는 `upcoming`이며 가격과 첫 수확 목표일이 미정입니다. 관리자가 두 값을 입력해야 `available`로 변경할 수 있습니다. 기존 주문은 상태·가격 변경 뒤에도 주문 당시 값으로 확정됩니다.
 
 일반 사용자 `POST /api/web/plants`는 주문 우회 생성을 막기 위해 `403`을 반환합니다. 사용자 `PATCH /api/web/plants/:plantId`는 이름·종류·성장 목표일만 허용하고 카메라 ID/구역 수정은 관리자 엔드포인트로 제한합니다.
 
@@ -146,6 +148,9 @@ DEPOSIT_ACCOUNT_HOLDER=<실제 예금주>
 
 | 메서드 | 경로 | 인증 | 설명 |
 | --- | --- | --- | --- |
+| `GET` | `/api/web/catalog` | 없음 | 사용자에게 표시할 상품; 분양 금지 중 제외, 응답 `products: [{ id, name, price, growthTargetDays, status }]` |
+| `GET` | `/api/web/admin/catalog` | 관리자 | 금지 중 포함 전체 상품 목록 |
+| `PATCH` | `/api/web/admin/catalog/:productId` | 관리자 | `{ status, price?, growthTargetDays? }`; 가격 1~1,000,000원, 목표일 1~3,650일 정수 |
 | `GET` | `/api/web/coupons` | 사용자 | 공개/내 계정에 발급된 사용 가능한 쿠폰 |
 | `POST` | `/api/web/coupons/validate` | 사용자 | `{ productId, code }`; 서버 가격 기준 할인액·결제액 미리보기 |
 | `POST` | `/api/web/orders` | 사용자 | `{ productId, plantName, depositorName, couponCode? }`; 계좌이체 주문 생성 |

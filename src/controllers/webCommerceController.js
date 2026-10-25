@@ -5,6 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { requireNonEmptyString, requireObjectId } = require('../utils/validation');
 const { getEnv } = require('../config/env');
 const { PASS_PRICE, PRODUCTS } = require('../config/catalog');
+const { getProduct, requireOrderableProduct } = require('../services/catalogService');
 const Coupon = require('../models/Coupon');
 const Order = require('../models/Order');
 const Plant = require('../models/Plant');
@@ -18,12 +19,6 @@ function makeOrderNumber() {
   return `WR-${date}-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
 }
 
-function getProduct(productId) {
-  const product = PRODUCTS[productId];
-  if (!product) throw new AppError('Selected plant is not available for adoption.', 400);
-  return product;
-}
-
 async function findApplicableCoupon(codeValue, userId) {
   const code = normalizeCouponCode(codeValue);
   const coupon = await Coupon.findOne({ code });
@@ -35,7 +30,7 @@ async function findApplicableCoupon(codeValue, userId) {
 }
 
 const validateCoupon = asyncHandler(async (req, res) => {
-  const product = getProduct(requireNonEmptyString(req.body.productId, 'productId', 40));
+  const product = await requireOrderableProduct(requireNonEmptyString(req.body.productId, 'productId', 40));
   const coupon = await findApplicableCoupon(req.body.code, req.user._id);
   const subtotal = product.price + PASS_PRICE;
   const discountAmount = calculateDiscount(subtotal, coupon);
@@ -56,7 +51,7 @@ const listMyCoupons = asyncHandler(async (req, res) => {
 });
 
 const createOrder = asyncHandler(async (req, res) => {
-  const product = getProduct(requireNonEmptyString(req.body.productId, 'productId', 40));
+  const product = await requireOrderableProduct(requireNonEmptyString(req.body.productId, 'productId', 40));
   const plantName = requireNonEmptyString(req.body.plantName, 'plantName', 60);
   const depositorName = requireNonEmptyString(req.body.depositorName, 'depositorName', 80);
   const subtotal = product.price + PASS_PRICE;
@@ -88,7 +83,7 @@ const createOrder = asyncHandler(async (req, res) => {
     const order = await Order.create({
       orderNumber, userId: req.user._id,
       productId: product.id, productName: product.name, plantName,
-      productPrice: product.price, passPrice: PASS_PRICE, subtotal,
+      productPrice: product.price, productGrowthTargetDays: product.growthTargetDays, passPrice: PASS_PRICE, subtotal,
       couponId: coupon?._id || null, couponCode: coupon?.code || null,
       couponName: coupon?.name || null,
       discountAmount, amountDue, depositorName,
@@ -161,7 +156,7 @@ const confirmAdminOrder = asyncHandler(async (req, res) => {
   try {
     plant = await Plant.findOneAndUpdate({ orderId: order._id }, { $setOnInsert: {
       userId: order.userId, name: order.plantName, type: order.productName,
-      growthTargetDays: PRODUCTS[order.productId].growthTargetDays,
+      growthTargetDays: order.productGrowthTargetDays || PRODUCTS[order.productId].growthTargetDays,
       rdkCameraId: null, rdkZone: null, orderId: order._id
     } }, { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true });
   } catch (error) {

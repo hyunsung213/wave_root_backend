@@ -27,10 +27,13 @@ const { requireAdmin } = require('../../middlewares/auth');
 const { updatePlantIrrigationAssignment, acknowledgeUncertainCommand } =
   require('../../controllers/irrigationAdminController');
 const { getAdminAlertSettings, updateAdminAlertSettings, sendAdminTestAlert } = require('../../controllers/webAdminAlertsController');
+const { listAdminCatalog, updateAdminCatalogStatus } = require('../../controllers/webCatalogController');
 
 const router = express.Router();
 
 router.post('/login', adminLogin);
+router.get('/catalog', requireAdmin, listAdminCatalog);
+router.patch('/catalog/:productId', requireAdmin, updateAdminCatalogStatus);
 router.get('/users', requireAdmin, listAllUsers);
 router.get('/plants', requireAdmin, listAllPlants);
 router.patch('/plants/:plantId/camera', requireAdmin, updatePlantCameraAssignment);
