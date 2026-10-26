@@ -2,7 +2,7 @@
 
 ## 2026-10-27
 
-- 2026-10-27 00:14:31 +09:00 — 다른 AI의 식물 할당 재매칭·주문 노드 UI 변경을 검토·검증함. 백엔드 전체 Node 테스트 73/73, RDK unittest 37/37 통과. apply 경로에서 target이 null인 식물의 MongoDB 할당은 지워지지 않아 RDK와 불일치할 수 있는 버그를 확인해 수정하고 회귀 테스트를 추가함. RDK `main_service.py`와 `features/streaming/assignments.py`를 `/home/sunrise/smartfarm`에 배포 전 백업한 뒤 staging 해시/문법 확인 후 반영하고 `smartfarm-main.service`만 재시작함. 서비스 active, `/api/availability` HTTP 200, 새 `/api/assignments` 비인증 요청 HTTP 401을 확인함. 실기기 프레임 API는 인증을 우회하거나 비밀값을 추출하지 않는 범위에서 검증하지 않음. MongoDB/SQLite 할당 재매칭은 dry-run 및 apply 모두 실행하지 않음. 백엔드 Render 배포는 이어서 진행 예정.
+- 2026-10-27 00:20:30 +09:00 — 다른 AI의 식물 할당 재매칭·주문 노드 UI 변경을 검토·검증하고 배포함. 백엔드 전체 Node 테스트 73/73, RDK unittest 37/37 통과. apply 경로에서 target이 null인 식물의 MongoDB 할당은 지워지지 않아 RDK와 불일치할 수 있는 버그를 확인해 수정하고 회귀 테스트를 추가함. RDK `main_service.py`와 `features/streaming/assignments.py`를 `/home/sunrise/smartfarm`에 배포 전 백업한 뒤 staging 해시/문법 확인 후 반영하고 `smartfarm-main.service`만 재시작함. 서비스 active, `/api/availability` HTTP 200, 새 `/api/assignments` 비인증 요청 HTTP 401을 확인함. 실기기 원본 프레임 API는 인증키를 별도로 조회·사용하지 않아 HTTP 200 영상 응답까지 재검증하지 않음. MongoDB/SQLite 할당 재매칭은 dry-run 및 apply 모두 실행하지 않음. 백엔드 커밋 `3210b48eed7d3bee0f917f5ecad39d456e025c82` Render 배포 `dep-dbfmui49v7es73dn4ljg`가 live임. `/health/ready`·`/admin/` HTTP 200, 비인증 `/api/web/admin/bed-layout` HTTP 401, Render app error 로그 0건. 프론트 코드 변경은 없고 Vercel 최신 Production 커밋 `d3a1112261bd28af93b755ace93edc2171704686`은 READY임.
 
 ## 2026-10-26
 
