@@ -874,7 +874,7 @@ RDK X5에서는 카메라 할당/스트림 서버(`:5001`)와 ESP32 수집 프�
 | --- | --- | --- |
 | `POST /api/rdk/current` (백엔드) | 최신 센서값 업로드 | RDK가 인증키와 함께 호출 |
 | `GET /api/availability` (`:5001`) | 카메라·Zone 가용 목록 | 아니오. 백엔드가 할당 처리 |
-| `GET /api/stream/<user-token>?mode=crop` (`:5001`) | 배정된 영역 MJPEG 스트림 | 아니오. 백엔드 스트림 프록시가 호출; 생략 기본값은 `crop` |
+| `GET /api/stream/<user-token>?mode=crop|full` (`:5001`) | 배정된 영역 또는 보정된 전체 프레임 MJPEG 스트림 | 아니오. 백엔드 스트림 프록시가 호출; 생략 기본값은 `crop` |
 | `GET /api/cameras/<camera_id>/raw` (`:5001`) | 보정·크롭 전 원본 JPEG 1프레임 | 아니오. 관리자 백엔드가 프록시 |
 | `POST /api/rdk/pump` | 수동 펌프 ON/OFF | 아니오. RDK 명령 폴링이 처리 |
 
@@ -883,7 +883,7 @@ RDK 내부 동작:
 1. ESP32 시리얼 값을 약 2초마다 읽고 최신값을 메모리에 보관합니다.
 2. 활성 식물 카메라 할당을 따라 최신 스냅샷을 60초마다 백엔드 `POST /api/rdk/current`로 보냅니다.
 3. 최근 센서 이력의 평균 로그는 10분마다 백엔드 `POST /api/rdk/logs`로 보냅니다.
-4. `GET /api/stream/<user-token>`는 배정된 카메라 Zone의 1280×720·15 FPS MJPEG 영상을 제공합니다. 일반 사용자용 서명 스트림은 `mode=crop`만 허용하며, `mode=full` 요청은 백엔드에서 `403`으로 거부합니다. 관리자 전용 원본·보정 프레임 API는 관리자 JWT로 별도 보호합니다. Render 백엔드는 Tailscale HTTP 프록시로 이 스트림을 중계합니다.
+4. `GET /api/stream/<user-token>`는 배정된 카메라 영상의 MJPEG를 제공합니다. `mode`는 `crop` 또는 `full`이며 생략하면 `crop`입니다. Crop은 배정 Zone만 1280×720·15 FPS로, full은 보정된 카메라 전체 프레임을 1920×1080·10 FPS로 전송합니다. 일반 사용자 티켓도 full 모드를 사용할 수 있지만, 전체 프레임에는 배정되지 않은 다른 Zone과 주변 공간이 보일 수 있으므로 프라이버시 범위를 고려해야 합니다. 백엔드는 카메라·Zone 소유권을 계속 검증하며, 허용되지 않은 mode는 `400`으로 거부합니다. 관리자 전용 원본·보정 프레임 API는 관리자 JWT로 별도 보호합니다. Render 백엔드는 Tailscale HTTP 프록시로 이 스트림을 중계합니다.
 
 백엔드는 아래 환경변수로 RDK 주소를 알아야 합니다.
 

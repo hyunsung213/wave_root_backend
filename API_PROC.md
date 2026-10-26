@@ -251,7 +251,7 @@ Content-Type: application/json
 
 센서 이력의 10분 평균 로그는 기존처럼 RDK가 `POST /api/rdk/logs`로 별도 전송합니다. 실시간 화면 스냅샷과 평균 로그는 서로 다른 용도입니다.
 
-단일 식물 조회의 `plant.streamingUrl`은 브라우저에서 Render 백엔드의 스트림 프록시를 가리킵니다. 백엔드는 RDK에 카메라·Zone을 배정하고 1시간짜리 서명 티켓을 발급합니다. 요청은 검증된 `mode=crop`으로 Tailscale HTTP 프록시를 거쳐 RDK `GET /api/stream/:token`에 전달하며, 기존 1280×720·15 FPS 배정 영역 스트림만 제공합니다. 일반 사용자 식물 스트림의 `mode=full`은 백엔드가 `403`으로 거부해 다른 Zone 영상에 접근할 수 없습니다. 확대 화면은 배정된 영역 스트림 안에서 확대·이동합니다. 브라우저는 RDK Tailnet IP/포트에 직접 접근하지 않습니다. 카메라 설정 또는 할당이 없으면 `streamingUrl`은 `null`입니다.
+단일 식물 조회의 `plant.streamingUrl`은 브라우저에서 Render 백엔드의 스트림 프록시를 가리킵니다. 백엔드는 RDK에 카메라·Zone을 배정하고 1시간짜리 서명 티켓을 발급합니다. 요청의 `mode`는 `crop` 또는 `full`만 허용하며 Tailscale HTTP 프록시를 거쳐 RDK `GET /api/stream/:token`에 전달합니다. 생략하거나 `crop`이면 기존 1280×720·15 FPS 배정 영역만 제공하고, `full`이면 RDK가 보정한 1920×1080·10 FPS 전체 카메라 프레임을 제공합니다. 전체 화면에는 할당 Zone 밖의 공간과 다른 Zone이 포함될 수 있으므로 이용자에게 이를 안내해야 합니다. 라이브 축소/확장 화면은 모두 full 모드를 요청하며, full 연결 실패 시 프론트가 기존 crop 화면으로 폴백합니다. 브라우저는 RDK Tailnet IP/포트에 직접 접근하지 않습니다. 카메라 설정 또는 할당이 없으면 `streamingUrl`은 `null`입니다.
 
 관리자 스트리밍 목록은 식물마다 MJPEG를 자동 연결하지 않습니다. 보이는 카드에 한해 서명된 `GET /api/web/plants/preview/:ticket`으로 첫 JPEG 프레임을 하나씩 가져와 정지 이미지로 보관합니다. 백엔드는 첫 프레임 반환 직후 RDK 연결을 종료합니다. 관리자가 식물 하나를 선택할 때만 기존 `streamingUrl` 라이브 연결을 열며, 모달 닫기·탭 이동·페이지 숨김 때 연결을 해제합니다.
 

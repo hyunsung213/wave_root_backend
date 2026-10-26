@@ -156,8 +156,12 @@ test('signed plant stream tickets are proxied by the backend and do not expose t
     const fullResponse = await fetch(`${url}?mode=full`, {
       headers: { Origin: 'https://wave-root-client.vercel.app' }
     });
-    assert.equal(fullResponse.status, 403);
-    assert.deepEqual(requestedModes, ['crop']);
+    assert.equal(fullResponse.status, 200);
+    assert.equal(fullResponse.headers.get('x-stream-width'), '1920');
+    assert.equal(fullResponse.headers.get('x-stream-height'), '1080');
+    assert.equal(fullResponse.headers.get('x-stream-fps'), '10');
+    assert.match(fullResponse.headers.get('content-type'), /multipart\/x-mixed-replace/);
+    assert.deepEqual(requestedModes, ['crop', 'full']);
 
     const invalidMode = await fetch(`${url}?mode=original`);
     assert.equal(invalidMode.status, 400);

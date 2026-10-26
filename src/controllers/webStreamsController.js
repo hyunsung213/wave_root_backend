@@ -26,11 +26,8 @@ const proxyPlantStream = asyncHandler(async (req, res) => {
   }
 
   const mode = req.query.mode === undefined ? 'crop' : req.query.mode;
-  if (mode === 'full') {
-    throw new AppError('Full camera streams are not available through plant stream tickets.', 403);
-  }
-  if (typeof mode !== 'string' || mode !== 'crop') {
-    throw new AppError('Stream mode must be crop.', 400);
+  if (typeof mode !== 'string' || !['crop', 'full'].includes(mode)) {
+    throw new AppError('Stream mode must be crop or full.', 400);
   }
 
   const plant = await Plant.findOne({ _id: ticket.plantId, userId: ticket.sub }).select(
