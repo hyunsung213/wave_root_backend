@@ -5,6 +5,7 @@ const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { getEnv } = require('../config/env');
 const { fetchRdk } = require('../utils/rdkFetch');
+const { invalidateStreamUrlCache } = require('../utils/plant');
 
 const proxyPlantStream = asyncHandler(async (req, res) => {
   const { jwtSecret, rdkStreamBaseUrl, rdkCameraTimeoutMs } = getEnv();
@@ -61,6 +62,7 @@ const proxyPlantStream = asyncHandler(async (req, res) => {
 
   if (!upstream.ok || !upstream.body) {
     await upstream.body?.cancel().catch(() => {});
+    if (upstream.status === 401) invalidateStreamUrlCache(ticket.plantId);
     throw new AppError('The RDK camera stream is unavailable.', 503);
   }
 

@@ -60,7 +60,7 @@ const response = await api.get("/api/web/plants", { headers });
 | 식물 | POST | `/api/web/plants` | Bearer JWT | 식물 생성·스트리밍 포트 저장 |
 | 식물 | GET | `/api/web/plants` | Bearer JWT | 내 식물 목록 |
 | 식물 | GET | `/api/web/plants/with-records` | Bearer JWT | 식물·급수·성장 기록 통합 조회 |
-| 식물 | GET | `/api/web/plants/:plantId` | Bearer JWT | 단일 식물·스트리밍 URL 조회 |
+| 식물 | GET | `/api/web/plants/:plantId` | Bearer JWT | 단일 식물·스트리밍 URL 및 배정/발급 상태 조회 |
 | 식물 | PATCH | `/api/web/plants/:plantId` | Bearer JWT | 식물 정보·스트리밍 포트 수정 |
 | 식물 | DELETE | `/api/web/plants/:plantId` | Bearer JWT | 식물 및 연결 기록 cascade 삭제 |
 | 센서 | GET | `/api/web/plants/:plantId/current` | Bearer JWT | RDK 최신 센서값 조회 |
@@ -897,7 +897,7 @@ EVENT_UPLOAD_DIR=./uploads/events
 RDK 최신 센서값은 RDK → Render의 `POST /api/rdk/current`로 전송됩니다. 카메라 프레임은 브라우저 → Render의 단기 티켓 URL → Render 내부 Tailscale HTTP 프록시 → RDK `:5001` 순서로 흐릅니다. RDK의 `:5000` 또는 `:5001`을 인터넷에 공개하지 않습니다.
 
 - 최신 센서: `GET /api/web/plants/:plantId/current`
-- 영상 주소: `GET /api/web/plants/:plantId`의 `plant.streamingUrl`
+- 영상 주소 및 발급 상태: `GET /api/web/plants/:plantId`의 `plant.streamingUrl` / `plant.streamingStatus` (`unassigned`, `ready`, `unavailable`)
 - 물 주기: `POST /api/web/control/water`
 
 ### 6.1 관리자 카메라 작업 화면

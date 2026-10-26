@@ -5,7 +5,7 @@ const Plant = require('../models/Plant');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { getEnv } = require('../config/env');
-const { getStreamUrl } = require('../utils/plant');
+const { getStreamUrl, invalidateStreamUrlCache } = require('../utils/plant');
 const { fetchRdk } = require('../utils/rdkFetch');
 const SensorSnapshot = require('../models/SensorSnapshot');
 const { requireNonEmptyString, requireObjectId } = require('../utils/validation');
@@ -122,6 +122,7 @@ const updatePlantCameraAssignment = asyncHandler(async (req, res) => {
     }
     throw error;
   }
+  if (changed) invalidateStreamUrlCache(assignmentId);
   res.json({ success: true, plant: {
     _id: plant._id, rdkCameraId: plant.rdkCameraId, rdkZone: plant.rdkZone,
     streamingUrl: clear ? null : await getStreamUrl(plant, plant.userId)

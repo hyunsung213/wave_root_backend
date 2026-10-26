@@ -23,6 +23,8 @@ function getEnv() {
     rdkApiKey: process.env.RDK_API_KEY,
     rdkSensorStaleMs: Number(process.env.RDK_SENSOR_STALE_MS) || 180000,
     rdkCameraTimeoutMs: Number(process.env.RDK_CAMERA_TIMEOUT_MS) || 12000,
+    rdkAssignmentTimeoutMs: Number(process.env.RDK_ASSIGNMENT_TIMEOUT_MS) || 30000,
+    rdkStreamTokenCacheMs: Number(process.env.RDK_STREAM_TOKEN_CACHE_MS) || 300000,
     publicBaseUrl: (process.env.PUBLIC_BASE_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5000')
       .replace(/\/+$/, ''),
     eventUploadDir: process.env.EVENT_UPLOAD_DIR,

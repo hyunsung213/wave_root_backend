@@ -89,11 +89,15 @@ const listPlants = asyncHandler(async (req, res) => {
 
 const getPlantDetail = asyncHandler(async (req, res) => {
   const plant = await findOwnedPlant(req.params.plantId, req.user._id);
+  const streamingUrl = await getStreamUrl(plant, req.user._id);
   res.json({
     success: true,
     plant: {
       ...withGrowthData(plant),
-      streamingUrl: await getStreamUrl(plant, req.user._id)
+      streamingUrl,
+      streamingStatus: !plant.rdkCameraId || plant.rdkZone == null
+        ? 'unassigned'
+        : streamingUrl ? 'ready' : 'unavailable'
     }
   });
 });

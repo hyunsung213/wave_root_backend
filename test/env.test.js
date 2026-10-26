@@ -36,3 +36,24 @@ test('production requires administrator credentials and accepts a shorter passwo
     }
   }
 });
+
+test('RDK assignment timeout and stream token cache have safe defaults and accept overrides', () => {
+  const keys = ['RDK_ASSIGNMENT_TIMEOUT_MS', 'RDK_STREAM_TOKEN_CACHE_MS'];
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  try {
+    delete process.env.RDK_ASSIGNMENT_TIMEOUT_MS;
+    delete process.env.RDK_STREAM_TOKEN_CACHE_MS;
+    assert.equal(getEnv().rdkAssignmentTimeoutMs, 30000);
+    assert.equal(getEnv().rdkStreamTokenCacheMs, 300000);
+
+    process.env.RDK_ASSIGNMENT_TIMEOUT_MS = '45000';
+    process.env.RDK_STREAM_TOKEN_CACHE_MS = '60000';
+    assert.equal(getEnv().rdkAssignmentTimeoutMs, 45000);
+    assert.equal(getEnv().rdkStreamTokenCacheMs, 60000);
+  } finally {
+    for (const key of keys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
+});

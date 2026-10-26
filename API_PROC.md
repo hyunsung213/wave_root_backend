@@ -32,6 +32,9 @@ PUBLIC_BASE_URL=http://100.71.47.115:5000
 # RDK X5 (Tailscale 주소; LAN 주소는 현장 네트워크 기준)
 RDK_STREAM_BASE_URL=http://100.90.42.36:5001
 RDK_STREAM_ADMIN_KEY=<스트림 할당 관리자 키>
+RDK_CAMERA_TIMEOUT_MS=12000
+RDK_ASSIGNMENT_TIMEOUT_MS=30000
+RDK_STREAM_TOKEN_CACHE_MS=300000
 RDK_API_KEY=<운영에서 RDK와 공유할 16자 이상 비밀키>
 RDK_SENSOR_STALE_MS=180000
 # Render 내부 Tailscale HTTP proxy의 host:port. 로컬에서 직접 Tailnet 접근 시 생략 가능
@@ -114,12 +117,14 @@ Authorization: Bearer <token>
 | --- | --- | --- |
 | `POST` | `/api/web/plants` | 기존 일반 식물 생성 차단(`403`); 분양 식물은 관리자 주문 확인에서만 생성 |
 | `GET` | `/api/web/plants` | 소유 식물 목록과 성장 계산값 반환 |
-| `GET` | `/api/web/plants/:plantId` | 소유권 확인 후 상세 정보와 (카메라 할당 시) `streamingUrl` 반환 |
+| `GET` | `/api/web/plants/:plantId` | 소유권 확인 후 상세 정보와 `streamingUrl`, `streamingStatus`(`unassigned` / `ready` / `unavailable`) 반환 |
 | `PATCH` | `/api/web/plants/:plantId` | 이름·품종·카메라/Zone·성장 목표일 수정 |
 | `DELETE` | `/api/web/plants/:plantId` | Event/Log/Water/Command와 이벤트 이미지 파일을 cascade 삭제 |
 | `GET` | `/api/web/plants/with-records?recordLimit=30` | 식물별 최근 급수·이벤트를 한 번에 반환 (`1~100`) |
 
 식물 응답에는 다음 성장 필드가 포함됩니다.
+
+라이브 화면은 `streamingStatus=unassigned`일 때만 미배정으로 표시합니다. 카메라/Zone 배정이 존재하지만 RDK 토큰 발급에 실패하면 `streamingStatus=unavailable`, `streamingUrl=null`로 반환하며 잠시 후 재시도할 수 있습니다. `RDK_ASSIGNMENT_TIMEOUT_MS`는 URL 발급 요청 제한(기본 30초), `RDK_STREAM_TOKEN_CACHE_MS`는 RDK 토큰 캐시 시간(기본 5분)입니다. 관리자 배정 변경은 해당 캐시를 무효화합니다.
 
 ```json
 {
