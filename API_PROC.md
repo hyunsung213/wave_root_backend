@@ -267,6 +267,10 @@ GET /api/web/admin/bed-layout
 
 카메라 목록 API는 RDK 영상 영역 전체 `zoneIds`, 현재 가용 `zones`, 재배 배치의 셀별 `cropHints`를 포함합니다. RDK 가용 목록이 실패해도 재배 배치 저장/조회에는 영향이 없습니다.
 
+엄격 식물 할당 재매칭은 `node scripts/reconcilePlantAssignments.js`로 MongoDB와 RDK 할당을 읽기 전용 대조하고 dry-run합니다. `BedLayout`의 동일 `productId` 셀만 대상으로 삼으며 주문 식물은 연결된 `Order.productId`, 데모 식물은 카탈로그 작물명과 정확히 일치할 때만 연결합니다. 이름 유사성/작물 계열은 사용하지 않습니다. RDK `zoneIds`에 없는 칸과 정확한 관리자 작물 배치가 없는 식물은 미배정으로 계획합니다. dry-run의 모든 결과를 검토한 뒤에만 `--apply --confirm-plan <planHash>`로 해당 계획을 적용합니다. 적용 전 MongoDB/RDK의 기존 식물 ID·카메라·영역 집합은 같아야 하며, 불일치·계획 hash 변경·RDK CAS 충돌 시 작업을 거부합니다. 적용은 0600 백업 파일을 먼저 남기며 실패 시 양쪽 저장소 롤백을 시도합니다. RDK `GET /api/assignments` 및 `PUT /api/assignments/reconcile`는 `X-Admin-Key`로 보호됩니다. RDK 코드는 2026-10-27 `100.90.42.36:5001`의 `smartfarm-main.service`에 배포했으며, 서비스 active·`/api/availability` HTTP 200·비인증 `/api/assignments` HTTP 401을 확인했습니다. 실제 MongoDB/SQLite 식물 할당 변경이나 실데이터 reconciliation은 수행하지 않았습니다.
+
+주문 확인 모달은 BedLayout에서 주문 `productId`와 정확히 같은 노드를 맨 위에 표시합니다. 일치 칸이 없거나 다른 작물 칸을 선택하면 명시 경고를 표시하고, 관련 작물로 자동 대체하지 않습니다.
+
 ```http
 GET /api/web/admin/cameras
 Authorization: Bearer <관리자 JWT>

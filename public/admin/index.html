@@ -144,6 +144,10 @@
   .order-node-option span{min-width:0;flex:1}
   .order-node-option strong{display:block;color:var(--txt);font-size:12px}
   .order-node-option small{display:block;margin-top:2px;color:var(--sub);font-size:11px;line-height:1.4}
+  .order-node-match{display:inline-flex;align-items:center;gap:5px;margin:0 0 5px;padding:3px 7px;border-radius:999px;background:#e8f6ed;color:#286b43;font-size:9px;font-weight:900;letter-spacing:.04em}
+  .order-node-option.is-match{border-color:#b9dcc7;background:#f7fcf8}
+  .order-node-warning{margin:2px 0 8px;padding:10px 12px;border:1px solid #efd49a;border-radius:9px;background:#fff8e8;color:#76530e;font-size:11px;line-height:1.5}
+  .order-node-warning[hidden]{display:none}
   .order-node-empty{padding:16px;border:1px dashed #cdd7dd;border-radius:10px;background:#f8fafc;color:var(--sub);font-size:12px;line-height:1.55}
   .order-payment-ack{display:flex;align-items:center;gap:9px;margin:12px 0 0;padding:11px 12px;border:1px solid #f0d8a2;border-radius:9px;background:#fff9eb;color:#6f5721;font-size:12px;font-weight:700;cursor:pointer}
   .order-payment-ack[hidden]{display:none}
@@ -658,6 +662,7 @@
       <div class="order-node-body">
         <fieldset style="margin:0;padding:0;border:0">
           <legend class="order-node-legend">연결할 미배정 노드</legend>
+          <div class="order-node-warning" id="orderNodeCropWarning" role="status" hidden></div>
           <div class="order-node-options" id="orderNodeOptions" aria-live="polite"><div class="order-node-empty">사용 가능한 노드를 불러오는 중…</div></div>
         </fieldset>
         <button class="order-node-refresh" id="orderNodeRefresh" type="button">노드 목록 새로고침</button>
@@ -995,8 +1000,41 @@ function availableOrderNodes(cameraList,plantList){
       .map(zone=>({cameraId,zone,cropName:cropHints.get(zone)||''}));
   }).sort((a,b)=>a.cameraId.localeCompare(b.cameraId)||a.zone-b.zone);
 }
+function prioritizeOrderNodes(nodes,cameraList,productId){
+  return nodes.map(node=>{
+    const hint=cameraList.find(camera=>camera.cameraId===node.cameraId)?.cropHints?.find(item=>item.zone===node.zone);
+    return {...node,productId:hint?.productId||null,
+      productMatchesOrder:Boolean(productId&&hint?.productId===productId)};
+  }).sort((first,second)=>Number(second.productMatchesOrder)-Number(first.productMatchesOrder)||
+    first.cameraId.localeCompare(second.cameraId)||first.zone-second.zone);
+}
 function orderNodeOption(value,title,description,checked=false){
-  return `<label class="order-node-option"><input type="radio" name="orderNodeSelection" value="${esc(value)}" ${checked?'checked':''} required><span><strong>${esc(title)}</strong><small>${esc(description)}</small></span></label>`;
+  const node=orderNodeAction?.nodes.find(item=>`${item.cameraId}:${item.zone}`===value);
+  const isMatch=Boolean(node&&node.productMatchesOrder);
+  const warning=Boolean(node&&orderNodeAction?.mode==='confirm'&&!isMatch);
+  const warningText=node?.cropName?' · 주문 상품과 다른 작물':' · 작물 배치 미지정';
+  return `<label class="order-node-option ${isMatch?'is-match':''}"><input type="radio" name="orderNodeSelection" value="${esc(value)}" ${checked?'checked':''} required><span>${isMatch?'<b class="order-node-match">주문 작물과 정확히 일치</b>':''}<strong>${esc(title)}</strong><small>${esc(description)}${warning?warningText:''}</small></span></label>`;
+}
+function updateOrderNodeCropWarning(){
+  const action=orderNodeAction;
+  const warning=$('orderNodeCropWarning');
+  if(!action||action.mode!=='confirm'){
+    warning.hidden=true;warning.textContent='';return;
+  }
+  const matches=action.nodes.filter(node=>node.productMatchesOrder);
+  const selected=$('orderNodeOptions').querySelector('input[name="orderNodeSelection"]:checked')?.value;
+  const selectedNode=action.nodes.find(node=>`${node.cameraId}:${node.zone}`===selected);
+  if(!matches.length){
+    warning.textContent='관리자 배치에서 주문 상품과 정확히 일치하는 작물 영역을 찾지 못했습니다. 다른 작물 영역은 자동 선택하지 않았으며, 주문을 미배정 상태로 확정하거나 직접 확인 후 선택하세요.';
+    warning.hidden=false;
+  }else if(selectedNode&&!selectedNode.productMatchesOrder){
+    warning.textContent=selectedNode.cropName
+      ?`선택한 영역은 “${selectedNode.cropName}”으로 표시되어 주문 상품과 다릅니다. 정확히 일치하는 영역이 위에 표시되어 있습니다. 이 배정이 맞는지 확인하세요.`
+      :'선택한 영역에 재배 작물이 지정되지 않았습니다. 정확히 일치하는 영역이 위에 표시되어 있습니다. 이 배정이 맞는지 확인하세요.';
+    warning.hidden=false;
+  }else{
+    warning.hidden=true;warning.textContent='';
+  }
 }
 function updateOrderNodeSubmit(){
   const action=orderNodeAction;
@@ -1016,9 +1054,12 @@ function renderOrderNodeOptions(action){
   else if(!action.nodes.length)messages.push('현재 배정 가능한 카메라 영역이 없습니다. 주문은 노드 미배정 상태로 확정한 뒤 나중에 연결할 수 있습니다.');
   $('orderNodeOptions').innerHTML=(messages.length?`<div class="order-node-empty">${messages.map(esc).join('<br>')}</div>`:'')+
     action.nodes.map(node=>orderNodeOption(`${node.cameraId}:${node.zone}`,`${node.cameraId} · 영역 ${node.zone}`,
-      `현재 다른 식물에 연결되지 않은 노드 · ${BED_CAMERA_POSITIONS[node.cameraId]||'물리 위치 미등록'} · ${node.cropName?'예정 작물 · '+node.cropName:'재배 배치 미지정'}`)).join('')+
+      `현재 다른 식물에 연결되지 않은 노드 · ${BED_CAMERA_POSITIONS[node.cameraId]||'물리 위치 미등록'} · ${node.cropName?'예정 작물 · '+node.cropName:'재배 배치 미지정'}`,
+      action.mode==='confirm'&&node.productMatchesOrder&&action.nodes.find(candidate=>candidate.productMatchesOrder)===node)).join('')+
     (action.mode==='confirm'?orderNodeOption('skip','지금 연결하지 않고 나중에 배정',
-      action.nodes.length?'주문을 먼저 확정하고 주문 목록에서 나중에 연결할 수 있습니다.':'노드가 없는 상태로 주문을 확정합니다.',!action.nodes.length):'');
+      action.nodes.length?'주문을 먼저 확정하고 주문 목록에서 나중에 연결할 수 있습니다.':'노드가 없는 상태로 주문을 확정합니다.',
+      !action.nodes.some(node=>node.productMatchesOrder)):'');
+  updateOrderNodeCropWarning();
   updateOrderNodeSubmit();
 }
 async function refreshOrderNodeOptions(){
@@ -1034,6 +1075,10 @@ async function refreshOrderNodeOptions(){
     cameras=cameraData.cameras||[];
     plants=plantData.plants||[];
     action.nodes=availableOrderNodes(cameras,plants);
+    if(action.mode==='confirm'){
+      const expectedProductId=action.order.productId;
+      action.nodes=prioritizeOrderNodes(action.nodes,cameras,expectedProductId);
+    }
   }catch(error){
     if(orderNodeAction!==action)return;
     if(error.message==='unauthorized'){closeOrderNodeModal();return;}
@@ -1137,7 +1182,7 @@ async function submitOrderNodeAction(event){
   }
 }
 $('orderNodeForm').addEventListener('submit',submitOrderNodeAction);
-$('orderNodeOptions').addEventListener('change',updateOrderNodeSubmit);
+$('orderNodeOptions').addEventListener('change',()=>{updateOrderNodeCropWarning();updateOrderNodeSubmit();});
 $('orderPaymentAck').addEventListener('change',updateOrderNodeSubmit);
 $('orderNodeRefresh').addEventListener('click',()=>void refreshOrderNodeOptions());
 $('orderNodeCancel').addEventListener('click',()=>closeOrderNodeModal());

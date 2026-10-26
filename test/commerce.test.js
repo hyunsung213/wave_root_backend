@@ -75,6 +75,8 @@ test('admin console inline JavaScript parses after commerce screens are added', 
   assert.match(html, /사용자당 1회/);
   assert.doesNotMatch(html, /couponMaxUses/);
   assert.match(html, /id="orderNodeModal"/);
+  assert.match(html, /주문 작물과 정확히 일치/);
+  assert.match(html, /관리자 배치에서 주문 상품과 정확히 일치하는 작물 영역을 찾지 못했습니다/);
   assert.match(html, /미배정 노드/);
   assert.match(html, /실제 입금 내역을 확인했습니다/);
   assert.match(html, /api\('\/cameras'\)/);
@@ -82,6 +84,54 @@ test('admin console inline JavaScript parses after commerce screens are added', 
   assert.match(html, /\/camera'.*method:'PATCH'/);
   assert.match(html, /data-assign-order/);
   assert.doesNotMatch(html, /\+\s*\+\(action\.mode==='confirm'/);
+});
+
+test('order-node picker prioritizes exact catalog matches and warns about conflicting crop hints', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../public/admin/index.html'), 'utf8');
+  const script = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
+    .map((match) => match[1]).find((value) => value.includes('function prioritizeOrderNodes'));
+  const context = {
+    BED_CAMERA_POSITIONS: {},
+    orderNodeAction: null,
+    cameras: [],
+    plants: [],
+    $: () => ({
+      classList: { add() {}, remove() {}, toggle() {} },
+      querySelector: () => null,
+      querySelectorAll: () => [],
+      innerHTML: '', textContent: '', hidden: false, disabled: false
+    }),
+    esc: (value) => String(value ?? ''),
+    updateOrderNodeCropWarning() {},
+    updateOrderNodeSubmit() {}
+  };
+  vm.runInNewContext(`${script.slice(script.indexOf('function availableOrderNodes'), script.indexOf('async function refreshOrderNodeOptions'))};globalThis.testApi={availableOrderNodes,prioritizeOrderNodes};`, context);
+  const nodes = context.testApi.availableOrderNodes([
+    { cameraId: 'c110-2', zones: [1, 2, 3], cropHints: [
+      { zone: 1, productId: 'tomato', productName: '토마토' },
+      { zone: 2, productId: 'green_oakleaf_lettuce', productName: '청오크 상추' }
+    ] }
+  ], []);
+  const ordered = context.testApi.prioritizeOrderNodes(nodes, [
+    { cameraId: 'c110-2', cropHints: [
+      { zone: 1, productId: 'tomato', productName: '토마토' },
+      { zone: 2, productId: 'green_oakleaf_lettuce', productName: '청오크 상추' }
+    ] }
+  ], 'tomato');
+  assert.deepEqual(ordered.map((node) => node.zone), [1, 2, 3]);
+  assert.equal(ordered[0].productMatchesOrder, true);
+  assert.equal(ordered[1].productMatchesOrder, false);
+  assert.equal(ordered[2].productId, null);
+
+  context.orderNodeAction = { mode: 'confirm', order: { productId: 'tomato' }, nodes: ordered };
+  vm.runInNewContext(`${script.slice(script.indexOf('function orderNodeOption'), script.indexOf('function updateOrderNodeCropWarning'))};globalThis.renderOption=orderNodeOption;`, context);
+  const matchingHtml = context.renderOption('c110-2:1', 'c110-2 · 영역 1', '예정 작물 · 토마토');
+  const mismatchHtml = context.renderOption('c110-2:2', 'c110-2 · 영역 2', '예정 작물 · 청오크 상추');
+  const emptyHtml = context.renderOption('c110-2:3', 'c110-2 · 영역 3', '재배 배치 미지정');
+  assert.match(matchingHtml, /is-match/);
+  assert.match(matchingHtml, /주문 작물과 정확히 일치/);
+  assert.match(mismatchHtml, /주문 상품과 다른 작물/);
+  assert.match(emptyHtml, /작물 배치 미지정/);
 });
 
 test('admin order list includes the plant camera node assignment for retries', async () => {

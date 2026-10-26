@@ -1,6 +1,12 @@
 # AI 작업 진행 기록
 
+## 2026-10-27
+
+- 2026-10-27 00:14:31 +09:00 — 다른 AI의 식물 할당 재매칭·주문 노드 UI 변경을 검토·검증함. 백엔드 전체 Node 테스트 73/73, RDK unittest 37/37 통과. apply 경로에서 target이 null인 식물의 MongoDB 할당은 지워지지 않아 RDK와 불일치할 수 있는 버그를 확인해 수정하고 회귀 테스트를 추가함. RDK `main_service.py`와 `features/streaming/assignments.py`를 `/home/sunrise/smartfarm`에 배포 전 백업한 뒤 staging 해시/문법 확인 후 반영하고 `smartfarm-main.service`만 재시작함. 서비스 active, `/api/availability` HTTP 200, 새 `/api/assignments` 비인증 요청 HTTP 401을 확인함. 실기기 프레임 API는 인증을 우회하거나 비밀값을 추출하지 않는 범위에서 검증하지 않음. MongoDB/SQLite 할당 재매칭은 dry-run 및 apply 모두 실행하지 않음. 백엔드 Render 배포는 이어서 진행 예정.
+
 ## 2026-10-26
+
+- 2026-10-26 — 엄격 식물 할당 재매칭 planner/CLI를 추가함. 주문 식물은 연결 `Order.productId`, 데모 식물은 카탈로그 정식 작물명 완전 일치로만 매칭하며, BedLayout 작물 ID와 RDK 영상·배정 가능 영역이 정확히 맞지 않으면 미배정 계획을 만듦. RDK/MongoDB 현재 할당 스냅샷 불일치, 잘못된/중복 zone, 오래된 dry-run hash는 적용 전에 중단함. RDK에는 관리자 전용 현재 할당 조회 및 기대 전체 할당 비교 후 원자적으로 SQLite를 재매칭하는 API를 추가하고, 실행 전 백업 및 실패 시 MongoDB/RDK 롤백을 구현함. 실행 기본은 읽기 전용 dry-run이고 `--apply --confirm-plan <sha256>`가 필요함. 주문 확인 UI는 주문 productId와 정확히 일치하는 노드를 우선 표시하고 다른 작물/미배정 칸 선택 경고 및 정확한 배치 없음 경고를 표시함. 백엔드 Node 테스트 73/73, planner/UI/관리자 대상 31/31, RDK pytest 37/37, Python/Node 문법 검사 및 `git diff --check` 통과. 실데이터 dry-run은 읽기 전용으로 시도했으며 MongoDB 연결은 성공했지만 현장 RDK의 `/api/assignments`가 HTTP 405여서 사전 스냅샷 단계에서 안전하게 중단됨; MongoDB/RDK 변경과 서비스 배포는 없었음. RDK 새 API 배포 후 실데이터 15건 dry-run 결과를 재검토해야 함.
 
 - 2026-10-26 23:05:50 +09:00 — 백엔드 커밋 `9fa63036461e4f82675a93bf90f6738a7076fcad` Render 배포 `dep-dbflrv15efls73c62mv0`가 `live`임을 확인함. 배포 후 `/health/ready`와 `/admin/`은 HTTP 200, 보호된 `/api/web/admin/bed-layout`은 비인증 요청에 예상대로 401; Render error-level 로그는 0건. 프론트 변경이 없어 Vercel 재배포하지 않음. Render 빌드에서 npm 의존성 3건의 high severity audit 경고를 확인해 별도 검토 필요. 카메라 watchdog의 RDK HTTP 404 info 로그는 지속되며 이번 작업에서는 RDK/하드웨어/DB 변경 없음.
 
