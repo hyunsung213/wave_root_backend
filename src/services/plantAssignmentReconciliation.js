@@ -1,6 +1,7 @@
 const { PRODUCTS } = require('../config/catalog');
+const { PHYSICAL_CAMERAS } = require('../config/physicalFarmLayout');
 
-const CAMERA_IDS = Object.freeze(['c110-1', 'c110-2', 'c110-3', 'c110-4']);
+const CAMERA_IDS = Object.freeze(PHYSICAL_CAMERAS.map(({ id }) => id));
 
 function idOf(value) {
   if (value === null || value === undefined) return null;

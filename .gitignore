@@ -6,4 +6,5 @@ npm-debug.log*
 
 uploads/
 stream-debug/
+migration-backups/
 __pycache__/

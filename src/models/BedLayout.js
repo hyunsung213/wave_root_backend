@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 const { PRODUCTS } = require('../config/catalog');
+const { PHYSICAL_CAMERAS } = require('../config/physicalFarmLayout');
+
+const CAMERA_IDS = PHYSICAL_CAMERAS.map(({ id }) => id);
 
 const cellSchema = new mongoose.Schema({
   zone: { type: Number, required: true, min: 1, max: 18 },
@@ -7,7 +10,7 @@ const cellSchema = new mongoose.Schema({
 }, { _id: false });
 
 const cameraSchema = new mongoose.Schema({
-  cameraId: { type: String, required: true, enum: ['c110-1', 'c110-2', 'c110-3', 'c110-4'] },
+  cameraId: { type: String, required: true, enum: CAMERA_IDS },
   cells: {
     type: [cellSchema],
     required: true,
@@ -27,7 +30,7 @@ const bedLayoutSchema = new mongoose.Schema({
     validate: {
       validator: (cameras) => Array.isArray(cameras) && cameras.length === 4 &&
         new Set(cameras.map((camera) => camera.cameraId)).size === 4 &&
-        ['c110-1', 'c110-2', 'c110-3', 'c110-4'].every((cameraId) =>
+        CAMERA_IDS.every((cameraId) =>
           cameras.some((camera) => camera.cameraId === cameraId)),
       message: 'A bed layout must include all four cameras exactly once.'
     }

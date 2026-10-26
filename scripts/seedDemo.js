@@ -108,37 +108,30 @@ async function seedDemoData() {
   const [lettuce, tomato, strawberry, basil] = await Promise.all([
     Plant.findOneAndUpdate(
       { userId: user._id, name: '상추' },
-      { $set: { type: '청상추', rdkCameraId: 'c110-1', rdkZone: 1 } },
+      { $set: { type: '청상추', rdkCameraId: null, rdkZone: null } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ),
     Plant.findOneAndUpdate(
       { userId: user._id, name: '토마토' },
-      { $set: { type: '방울토마토', rdkCameraId: 'c110-1', rdkZone: 2 } },
+      { $set: { type: '방울토마토', rdkCameraId: null, rdkZone: null } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ),
     Plant.findOneAndUpdate(
       { userId: user._id, name: '딸기' },
-      { $set: { type: '설향딸기', rdkCameraId: 'c110-3', rdkZone: 1 } },
+      { $set: { type: '설향딸기', rdkCameraId: null, rdkZone: null } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     ),
     Plant.findOneAndUpdate(
       { userId: user._id, name: '바질' },
-      { $set: { type: '스위트바질', rdkCameraId: 'c110-4', rdkZone: 1 } },
+      { $set: { type: '스위트바질', rdkCameraId: null, rdkZone: null } },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     )
   ]);
 
   const plantIds = [lettuce._id, tomato._id, strawberry._id, basil._id];
 
-  // Give any older demo plants that predate camera assignment a deterministic
-  // spare camera/zone so the admin streaming view can render every plant.
-  const unassignedPlants = await Plant.find({ userId: user._id, rdkCameraId: null })
-    .sort({ createdAt: 1, _id: 1 });
-  await Promise.all(unassignedPlants.map((plant, index) => {
-    plant.rdkCameraId = 'c110-2';
-    plant.rdkZone = (index % 18) + 1;
-    return plant.save();
-  }));
+  // Demo crops are not proof of a physical planting. Never attach a demo
+  // subscription to an arbitrary camera cell; an operator must verify it.
 
   // Re-running the seed refreshes only this dedicated demo user's four plants.
   await Promise.all([

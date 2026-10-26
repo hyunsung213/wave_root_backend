@@ -11,7 +11,8 @@ const vm = require('node:vm');
 const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 const BedLayout = require('../src/models/BedLayout');
-const { emptyBedLayout, validateBedLayout } = require('../src/services/bedLayout');
+const { emptyBedLayout, physicalBedLayout, validateBedLayout } = require('../src/services/bedLayout');
+const { PHYSICAL_CAMERAS, CROP_ROWS } = require('../src/config/physicalFarmLayout');
 const { loadSeedLayout, parseArgs, seedBedLayout } = require('../scripts/seedBedLayout');
 
 test('bed-layout seed validates all 72 cells and requires explicit write and overwrite flags', async () => {
@@ -96,16 +97,17 @@ test('bed-layout seed validates all 72 cells and requires explicit write and ove
   }
 });
 
-test('administrator camera display maps real labels to existing camera IDs and bed positions', () => {
+test('administrator camera display uses the physical camera numbers and positions', () => {
   const html = fs.readFileSync(path.join(__dirname, '../public/admin/index.html'), 'utf8');
-  assert.match(html, /'c110-4':1[\s\S]*'c110-1':2[\s\S]*'c110-3':3[\s\S]*'c110-2':4/);
-  assert.match(html, /캠 4 · c110-2[\s\S]*캠 2 · c110-1[\s\S]*캠 3 · c110-3[\s\S]*캠 1 · c110-4/);
+  assert.match(html, /'c110-1':1[\s\S]*'c110-2':2[\s\S]*'c110-3':3[\s\S]*'c110-4':4/);
+  assert.match(html, /캠 2 · c110-2[\s\S]*캠 1 · c110-1[\s\S]*캠 3 · c110-3[\s\S]*캠 4 · c110-4/);
   assert.match(html, /const BED_CAMERA_ORDER=\['c110-2','c110-1','c110-3','c110-4'\]/);
+  assert.match(html, /grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
   assert.equal(require('../src/config/catalog').PRODUCTS.nasturtium.name, '한련화');
   assert.doesNotMatch(html, /한선화/);
 });
 
-test('bed layout bulk editor parses six rows of three values in row-major zone order', () => {
+test('bed layout bulk editor parses three rows of six values in row-major zone order', () => {
   const html = fs.readFileSync(path.join(__dirname, '../public/admin/index.html'), 'utf8');
   const applyFunction = html.match(/function applyBedBulk\(\)\s*\{[\s\S]*?\n\}/)?.[0];
   assert.ok(applyFunction, 'bulk apply handler exists');
@@ -114,8 +116,8 @@ test('bed layout bulk editor parses six rows of three values in row-major zone o
   const feedback = { textContent: '', classList: { add() {}, remove() {} } };
   const input = { value: cameraIds.map((cameraId, index) => [
     cameraId,
-    ...(index === 0 ? ['nasturtium basil kale'] : []),
-    ...Array(6 - (index === 0 ? 1 : 0)).fill('- - -')
+    ...(index === 0 ? ['nasturtium basil kale arugula tatsoi marigold'] : []),
+    ...Array(3 - (index === 0 ? 1 : 0)).fill('- - - - - -')
   ].join('\n')).join('\n\n') };
   const state = { cameras: [], dirty: false };
   const context = {
@@ -133,21 +135,21 @@ test('bed layout bulk editor parses six rows of three values in row-major zone o
     { zone: 1, productId: 'nasturtium' },
     { zone: 2, productId: 'basil' },
     { zone: 3, productId: 'kale' },
-    { zone: 4, productId: null }
+    { zone: 4, productId: 'arugula' }
   ]);
   assert.equal(firstCameraCells[17].zone, 18);
 
   const unchanged = JSON.stringify(state.cameras);
-  input.value = cameraIds.map((cameraId) => `${cameraId}\n${Array(5).fill('- - -').join('\n')}`).join('\n\n');
+  input.value = cameraIds.map((cameraId) => `${cameraId}\n${Array(2).fill('- - - - - -').join('\n')}`).join('\n\n');
   vm.runInNewContext(`${applyFunction}\napplyBedBulk();`, context);
-  assert.match(feedback.textContent, /6행×3열/);
+  assert.match(feedback.textContent, /3행×6열/);
   assert.equal(JSON.stringify(state.cameras), unchanged);
 
   input.value = cameraIds.map((cameraId, index) => `${cameraId}\n${[
-    index === 0 ? 'nasturtium basil' : '- - -', ...Array(5).fill('- - -')
+    index === 0 ? 'nasturtium basil' : '- - - - - -', ...Array(2).fill('- - - - - -')
   ].join('\n')}`).join('\n\n');
   vm.runInNewContext(`${applyFunction}\napplyBedBulk();`, context);
-  assert.match(feedback.textContent, /1행에 3개 값이 필요합니다/);
+  assert.match(feedback.textContent, /1행에 6개 값이 필요합니다/);
   assert.equal(JSON.stringify(state.cameras), unchanged);
 });
 
@@ -159,7 +161,7 @@ function close(server) {
   return new Promise((resolve) => server.close(resolve));
 }
 
-test('bed layout defaults are four 3x6 row-major camera layouts without guessed crops', () => {
+test('bed layout empty template is four 6x3 row-major camera layouts', () => {
   const cameras = emptyBedLayout();
   assert.deepEqual(cameras.map((camera) => camera.cameraId), ['c110-1', 'c110-2', 'c110-3', 'c110-4']);
   for (const camera of cameras) {
@@ -167,6 +169,29 @@ test('bed layout defaults are four 3x6 row-major camera layouts without guessed 
     assert.ok(camera.cells.every((cell) => cell.productId === null));
   }
   assert.equal(validateBedLayout(cameras), true);
+});
+
+test('physical camera identities, positions, and all 72 crop zones match the farm map', () => {
+  assert.deepEqual(PHYSICAL_CAMERAS.map(({ id, number, position, previousId, host }) =>
+    ({ id, number, position, previousId, host })), [
+    { id: 'c110-1', number: 1, position: '오른쪽 위', previousId: 'c110-4', host: '192.168.1.104' },
+    { id: 'c110-2', number: 2, position: '왼쪽 위', previousId: 'c110-1', host: '192.168.1.101' },
+    { id: 'c110-3', number: 3, position: '왼쪽 아래', previousId: 'c110-3', host: '192.168.1.103' },
+    { id: 'c110-4', number: 4, position: '오른쪽 아래', previousId: 'c110-2', host: '192.168.1.102' }
+  ]);
+  const expected = {
+    'c110-1': ['arugula', 'arugula', 'basil', 'basil', 'basil', 'basil'],
+    'c110-2': ['tatsoi', 'nasturtium', 'nasturtium', 'marigold', 'marigold', 'marigold'],
+    'c110-3': ['marigold', 'butterhead', 'butterhead', 'tatsoi', 'tatsoi', 'tatsoi'],
+    'c110-4': Array(6).fill('green_oakleaf_lettuce')
+  };
+  const cameras = physicalBedLayout();
+  assert.equal(validateBedLayout(cameras), true);
+  for (const camera of cameras) {
+    assert.deepEqual(CROP_ROWS[camera.cameraId], [expected[camera.cameraId], expected[camera.cameraId], expected[camera.cameraId]]);
+    assert.deepEqual(camera.cells.map(({ productId }) => productId),
+      Array(3).fill(expected[camera.cameraId]).flat());
+  }
 });
 
 test('bed layout validation rejects incomplete, reordered, duplicated and unknown crop cells', () => {
@@ -241,8 +266,7 @@ test('administrator bed layout API protects, validates, saves and resets the com
   const initialData = await initial.json();
   assert.equal(initialData.cameras.length, 4);
   assert.equal(initialData.products.find((product) => product.id === 'nasturtium').name, '한련화');
-  assert.ok(initialData.cameras.every((camera) => camera.cells.length === 18 &&
-    camera.cells.every((cell) => cell.productId === null)));
+  assert.deepEqual(initialData.cameras, physicalBedLayout());
 
   const invalid = emptyBedLayout();
   invalid[0].cells.pop();
@@ -282,5 +306,5 @@ test('administrator bed layout API protects, validates, saves and resets the com
   const reset = await fetch(url, { method: 'DELETE', headers });
   assert.equal(reset.status, 200);
   const resetData = await reset.json();
-  assert.ok(resetData.cameras.every((camera) => camera.cells.every((cell) => cell.productId === null)));
+  assert.deepEqual(resetData.cameras, physicalBedLayout());
 });

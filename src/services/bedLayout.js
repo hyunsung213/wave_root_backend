@@ -1,8 +1,9 @@
 const BedLayout = require('../models/BedLayout');
 const { PRODUCTS } = require('../config/catalog');
+const { PHYSICAL_CAMERAS, physicalBedLayout } = require('../config/physicalFarmLayout');
 const AppError = require('../utils/AppError');
 
-const CAMERA_IDS = Object.freeze(['c110-1', 'c110-2', 'c110-3', 'c110-4']);
+const CAMERA_IDS = Object.freeze(PHYSICAL_CAMERAS.map(({ id }) => id));
 const ZONES_PER_CAMERA = 18;
 
 function emptyBedLayout() {
@@ -42,14 +43,14 @@ async function getBedLayout() {
   const saved = await BedLayout.findOne({ key: 'main-farm' }).lean();
   const storedById = new Map((saved?.cameras || []).map((camera) => [camera.cameraId, camera]));
   return {
-    cameras: emptyBedLayout().map(({ cameraId, cells }) => {
+    cameras: physicalBedLayout().map(({ cameraId, cells }) => {
       const stored = storedById.get(cameraId);
       const storedCells = new Map((stored?.cells || []).map((cell) => [cell.zone, cell.productId]));
       return {
         cameraId,
         cells: cells.map((cell) => ({
           ...cell,
-          productId: storedCells.get(cell.zone) ?? null
+          productId: storedCells.has(cell.zone) ? storedCells.get(cell.zone) : cell.productId
         }))
       };
     }),
@@ -71,13 +72,14 @@ async function saveBedLayout(cameras) {
 
 async function resetBedLayout() {
   await BedLayout.deleteOne({ key: 'main-farm' });
-  return { cameras: emptyBedLayout(), updatedAt: null };
+  return { cameras: physicalBedLayout(), updatedAt: null };
 }
 
 module.exports = {
   CAMERA_IDS,
   ZONES_PER_CAMERA,
   emptyBedLayout,
+  physicalBedLayout,
   validateBedLayout,
   getBedLayout,
   saveBedLayout,
