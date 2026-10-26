@@ -2,12 +2,107 @@ process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'bed-layout-admin-test-secret-at-least-32-characters';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const http = require('node:http');
+const os = require('node:os');
+const path = require('node:path');
 const test = require('node:test');
 const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 const BedLayout = require('../src/models/BedLayout');
 const { emptyBedLayout, validateBedLayout } = require('../src/services/bedLayout');
+const { loadSeedLayout, parseArgs, seedBedLayout } = require('../scripts/seedBedLayout');
+
+test('bed-layout seed validates all 72 cells and requires explicit write and overwrite flags', async () => {
+  const cameras = emptyBedLayout();
+  cameras[0].cells[0].productId = 'nasturtium';
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'root-bed-layout-'));
+  const file = path.join(directory, 'layout.json');
+  fs.writeFileSync(file, JSON.stringify({ cameras }));
+  const calls = [];
+  const model = {
+    findOne: () => ({ lean: async () => null }),
+    create: async (document) => {
+      calls.push({ created: document });
+      return document;
+    },
+    findOneAndUpdate: (filter, update, options) => ({ lean: async () => {
+      calls.push({ filter, update, options });
+      return { key: 'main-farm', cameras: update.$set.cameras };
+    } })
+  };
+  try {
+    assert.deepEqual(parseArgs(['--file', file]), {
+      file, apply: false, force: false, help: false
+    });
+    assert.throws(() => parseArgs(['--force', '--file', file]), /requires --apply/);
+    assert.throws(() => parseArgs([]), /--file is required/);
+    assert.equal(loadSeedLayout(file).cameras.flatMap((camera) => camera.cells).length, 72);
+
+    const dryRun = await seedBedLayout({ cameras, apply: false }, {
+      model,
+      connect: async () => { throw new Error('dry run must not connect'); }
+    });
+    assert.deepEqual(dryRun, { applied: false, assignedCells: 1, totalCells: 72 });
+    assert.equal(calls.length, 0);
+
+    const invalid = structuredClone(cameras);
+    invalid[0].cells.pop();
+    fs.writeFileSync(file, JSON.stringify({ cameras: invalid }));
+    assert.throws(() => loadSeedLayout(file), /all four cameras and 18 ordered/);
+
+    const result = await seedBedLayout({ cameras, apply: true, force: false }, {
+      model,
+      connect: async (uri) => calls.push({ connected: uri }),
+      getMongoUri: () => 'mongodb://seed-test',
+      disconnect: async () => calls.push({ disconnected: true })
+    });
+    assert.deepEqual(result, { applied: true, assignedCells: 1, totalCells: 72 });
+    assert.deepEqual(calls[0], { connected: 'mongodb://seed-test' });
+    assert.deepEqual(calls[1].created, { key: 'main-farm', cameras });
+    assert.deepEqual(calls.at(-1), { disconnected: true });
+
+    const existingModel = {
+      findOne: () => ({ lean: async () => ({ key: 'main-farm' }) }),
+      create: () => { throw new Error('existing layout must not be overwritten'); },
+      findOneAndUpdate: () => { throw new Error('existing layout must not be overwritten'); }
+    };
+    await assert.rejects(seedBedLayout({ cameras, apply: true, force: false }, {
+      model: existingModel,
+      connect: async () => {},
+      getMongoUri: () => 'mongodb://seed-test',
+      disconnect: async () => {}
+    }), /Refusing to overwrite/);
+
+    const forcedModel = {
+      findOne: () => ({ lean: async () => ({ key: 'main-farm' }) }),
+      findOneAndUpdate: (filter, update, options) => ({ lean: async () => {
+        calls.push({ filter, update, options });
+        return { key: 'main-farm', cameras: update.$set.cameras };
+      } })
+    };
+    await seedBedLayout({ cameras, apply: true, force: true }, {
+      model: forcedModel,
+      connect: async () => {},
+      getMongoUri: () => 'mongodb://seed-test',
+      disconnect: async () => {}
+    });
+    assert.deepEqual(calls.at(-1).options, {
+      new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true
+    });
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('administrator camera display maps real labels to existing camera IDs and bed positions', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../public/admin/index.html'), 'utf8');
+  assert.match(html, /'c110-4':1[\s\S]*'c110-1':2[\s\S]*'c110-3':3[\s\S]*'c110-2':4/);
+  assert.match(html, /캠 4 · c110-2[\s\S]*캠 2 · c110-1[\s\S]*캠 3 · c110-3[\s\S]*캠 1 · c110-4/);
+  assert.match(html, /const BED_CAMERA_ORDER=\['c110-2','c110-1','c110-3','c110-4'\]/);
+  assert.equal(require('../src/config/catalog').PRODUCTS.nasturtium.name, '한련화');
+  assert.doesNotMatch(html, /한선화/);
+});
 
 function listen(server) {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

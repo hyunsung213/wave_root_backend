@@ -511,11 +511,11 @@
               <button type="button" id="bedLayoutReset" disabled>기본 배치로 초기화</button>
             </div>
             <div class="bed-layout-location-grid" aria-label="카메라 물리 배치">
-              <div class="bed-layout-location-title">CAMERA POSITION · 2 × 2 · 2 1 / 3 4</div>
-              <div class="bed-layout-location"><strong>2 · c110-2</strong><small>왼쪽 위</small></div>
-              <div class="bed-layout-location"><strong>1 · c110-1</strong><small>오른쪽 위</small></div>
-              <div class="bed-layout-location"><strong>3 · c110-3</strong><small>왼쪽 아래</small></div>
-              <div class="bed-layout-location"><strong>4 · c110-4</strong><small>오른쪽 아래</small></div>
+              <div class="bed-layout-location-title">실제 캠 번호 · 물리 위치 · 4 2 / 3 1</div>
+              <div class="bed-layout-location"><strong>캠 4 · c110-2</strong><small>왼쪽 위</small></div>
+              <div class="bed-layout-location"><strong>캠 2 · c110-1</strong><small>오른쪽 위</small></div>
+              <div class="bed-layout-location"><strong>캠 3 · c110-3</strong><small>왼쪽 아래</small></div>
+              <div class="bed-layout-location"><strong>캠 1 · c110-4</strong><small>오른쪽 아래</small></div>
             </div>
             <div class="bed-layout-map" id="bedLayoutMap" aria-label="네 카메라의 3행 6열 재배 배치"></div>
             <div class="bed-editor" id="bedEditor" hidden>
@@ -530,7 +530,7 @@
               <p class="bed-bulk-feedback" id="bedBulkFeedback" role="status">각 카메라 이름 뒤에 3행을 입력하세요. 각 행은 6개 값입니다.</p>
             </div>
             <div class="bed-mismatch" id="bedMismatch" hidden></div>
-            <p class="bed-layout-foot">물리 위치는 `2 1 / 3 4` 지도 기준이며 좌상·우상·좌하·우하 순서입니다. 셀 번호는 각 카메라 영상의 RDK 영역 번호입니다. 설정되지 않은 작물은 미지정으로 표시됩니다.</p>
+            <p class="bed-layout-foot">실제 캠 번호와 내부 ID: 캠1=c110-4, 캠2=c110-1, 캠3=c110-3, 캠4=c110-2. 지도는 좌상·우상 / 좌하·우하 순서로 `4 2 / 3 1`입니다. 셀 번호는 각 카메라 영상의 RDK 영역 번호이며, 설정되지 않은 작물은 미지정으로 표시됩니다.</p>
           </section>
           <div class="camera-console">
             <div class="camera-head">
@@ -677,12 +677,19 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const T={teal:'#1bb0a6',coral:'#ef6b6b',yellow:'#f2c14e',sub:'#8a94a6',line:'#e4e8ee'};
 
 let users=[], plants=[], cameras=[], couponUsers=[], catalogProducts=[];
-const BED_CAMERA_POSITIONS={
-  'c110-1':'위치 1 · 오른쪽 위',
-  'c110-2':'위치 2 · 왼쪽 위',
-  'c110-3':'위치 3 · 왼쪽 아래',
-  'c110-4':'위치 4 · 오른쪽 아래'
+const BED_CAMERA_NUMBERS={
+  'c110-4':1,
+  'c110-1':2,
+  'c110-3':3,
+  'c110-2':4
 };
+const BED_CAMERA_POSITIONS={
+  'c110-2':'왼쪽 위',
+  'c110-1':'오른쪽 위',
+  'c110-3':'왼쪽 아래',
+  'c110-4':'오른쪽 아래'
+};
+const BED_CAMERA_ORDER=['c110-2','c110-1','c110-3','c110-4'];
 let bedLayoutState={cameras:[],savedCameras:[],products:[],selectedCameraId:'c110-1',selectedZone:1,
   editing:false,dirty:false,loaded:false,updatedAt:null};
 let orderNodeAction=null;
@@ -713,8 +720,9 @@ function bedSelectedCellLabel(){
 }
 function renderBedLayout(){
   const selectedCamera=bedLayoutState.selectedCameraId;
-  $('bedLayoutMap').innerHTML=bedLayoutState.cameras.map(camera=>`<section class="bed-camera" aria-label="${esc(camera.cameraId)} 재배 배치">
-    <div class="bed-camera-title"><span>${esc(camera.cameraId)}</span><small>${esc(BED_CAMERA_POSITIONS[camera.cameraId]||'')}</small></div>
+  const cameraOrder=new Map(BED_CAMERA_ORDER.map((cameraId,index)=>[cameraId,index]));
+  $('bedLayoutMap').innerHTML=[...bedLayoutState.cameras].sort((a,b)=>cameraOrder.get(a.cameraId)-cameraOrder.get(b.cameraId)).map(camera=>`<section class="bed-camera" aria-label="캠 ${BED_CAMERA_NUMBERS[camera.cameraId]} ${esc(camera.cameraId)} 재배 배치">
+    <div class="bed-camera-title"><span>캠 ${BED_CAMERA_NUMBERS[camera.cameraId]} · ${esc(camera.cameraId)}</span><small>${esc(BED_CAMERA_POSITIONS[camera.cameraId]||'')}</small></div>
     <div class="bed-camera-grid">${camera.cells.map(cell=>{
       const name=bedProductName(cell.productId);const selected=camera.cameraId===selectedCamera&&cell.zone===bedLayoutState.selectedZone;
       return `<button type="button" class="bed-cell ${cell.productId?'occupied':''} ${selected?'selected':''}" data-bed-camera="${esc(camera.cameraId)}" data-bed-zone="${cell.zone}" aria-label="${esc(camera.cameraId)} 영역 ${cell.zone}: ${esc(name||'미지정')}">
@@ -1766,13 +1774,13 @@ function cameraHealth(message,error=false){
   $('cameraHealth').classList.toggle('error',error);
 }
 function renderCameras(){
-  const list=cameraList();
+  const list=cameraList().sort((a,b)=>(BED_CAMERA_NUMBERS[a.cameraId]||99)-(BED_CAMERA_NUMBERS[b.cameraId]||99));
   $('cameraChoices').innerHTML=list.length?list.map(c=>{
     const id=esc(c.cameraId);
     const count=Array.isArray(c.zones)?c.zones.length:0;
     const hints=c.cropHints||[];
     return `<button class="camera-choice" type="button" data-camera-choice="${id}">
-      <strong>${id}</strong><small>${count}개 빈 영역 · ${esc(BED_CAMERA_POSITIONS[c.cameraId]||'위치 미등록')}</small>
+      <strong>캠 ${BED_CAMERA_NUMBERS[c.cameraId]||'—'} · ${id}</strong><small>${count}개 빈 영역 · ${esc(BED_CAMERA_POSITIONS[c.cameraId]||'위치 미등록')}</small>
       ${hints.length?`<small class="bed-hint">작물: ${esc(hints.slice(0,3).map(item=>`${item.zone} ${item.productName}`).join(' · '))}${hints.length>3?' …':''}</small>`:''}</button>`;
   }).join(''):'<div class="empty">등록된 카메라가 없습니다.</div>';
   const next=list.some(c=>c.cameraId===cameraState.id)?cameraState.id:list[0]?.cameraId;

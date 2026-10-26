@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed:demo": "node scripts/seedDemo.js",
+    "seed:bed-layout": "node scripts/seedBedLayout.js",
     "test": "node --test"
   },
   "engines": {

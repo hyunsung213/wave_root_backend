@@ -261,7 +261,9 @@ Content-Type: application/json
 GET /api/web/admin/bed-layout
 ```
 
-`GET /api/web/admin/bed-layout`은 제품 카탈로그와 네 카메라의 재배 배치(`c110-1`~`c110-4`, 카메라당 행 우선 1~18 셀)를 반환합니다. `productId`는 서버 카탈로그 ID 또는 `null`입니다. `PUT`은 네 카메라의 18칸을 모두 포함해야 하며 전체 유효성 검사 후 단일 `BedLayout` 문서로 저장합니다. 한 카메라만 부분 업데이트하거나 임의 작물 ID를 저장할 수 없습니다. `DELETE`는 저장 문서를 제거해 네 카메라를 모두 미지정 기본 배치로 되돌립니다. 이 정보는 실제 재배 현황/예정 작물 참고용이며 구독 식물, MongoDB `Plant`, RDK 식물 ID/Zone을 변경하지 않습니다.
+`GET /api/web/admin/bed-layout`은 제품 카탈로그와 네 카메라의 재배 배치(`c110-1`~`c110-4`, 카메라당 행 우선 1~18 셀)를 반환합니다. 관리자 화면의 실제 번호 대응은 캠1=`c110-4`, 캠2=`c110-1`, 캠3=`c110-3`, 캠4=`c110-2`이며, 물리 지도는 `4 2 / 3 1`입니다. API·DB에는 기존 `c110-*` ID를 그대로 사용합니다. `productId`는 서버 카탈로그 ID 또는 `null`입니다. `PUT`은 네 카메라의 18칸을 모두 포함해야 하며 전체 유효성 검사 후 단일 `BedLayout` 문서로 저장합니다. 한 카메라만 부분 업데이트하거나 임의 작물 ID를 저장할 수 없습니다. `DELETE`는 저장 문서를 제거해 네 카메라를 모두 미지정 기본 배치로 되돌립니다. 이 정보는 실제 재배 현황/예정 작물 참고용이며 구독 식물, MongoDB `Plant`, RDK 식물 ID/Zone을 변경하지 않습니다.
+
+검토 완료된 전체 72셀 배치 JSON은 백엔드 디렉터리에서 `npm run seed:bed-layout -- --file <layout.json>`으로 먼저 dry-run 검증합니다. 실제 저장에는 `--apply`가 필요하며 기존 `main-farm` 문서가 있으면 교체를 거부합니다. 기존 배치 교체는 별도 백업·검토 후에만 `--apply --force`를 사용합니다. 입력 JSON은 `{ "cameras": [...] }` 형식으로 카메라 4대와 각 18개 순서 셀을 모두 포함해야 하며, 각 `productId`는 서버 카탈로그 ID 또는 `null`이어야 합니다. seed는 `BedLayout`만 변경하고 실제 식물/구독/RDK 할당은 변경하지 않습니다.
 
 카메라 목록 API는 RDK 영상 영역 전체 `zoneIds`, 현재 가용 `zones`, 재배 배치의 셀별 `cropHints`를 포함합니다. RDK 가용 목록이 실패해도 재배 배치 저장/조회에는 영향이 없습니다.
 
