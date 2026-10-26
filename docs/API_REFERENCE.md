@@ -280,8 +280,8 @@ Content-Type: application/json
 
 ```json
 {
-  "name": "상추",
-  "type": "청상추",
+  "name": "루꼴라",
+  "type": "루꼴라",
   "rdkCameraId": "c110-1",
   "rdkZone": 1,
   "growthTargetDays": 60
@@ -296,8 +296,8 @@ Content-Type: application/json
   "plant": {
     "_id": "plantId",
     "userId": "사용자 ObjectId",
-    "name": "상추",
-    "type": "청상추",
+    "name": "루꼴라",
+    "type": "루꼴라",
     "rdkCameraId": "c110-1",
     "rdkZone": 1,
     "createdAt": "2026-07-25T00:00:00.000Z",
@@ -322,8 +322,8 @@ Authorization: Bearer <accessToken>
   "success": true,
   "plant": {
     "_id": "plantId",
-    "name": "상추",
-    "type": "청상추",
+    "name": "루꼴라",
+    "type": "루꼴라",
     "rdkCameraId": "c110-1",
     "rdkZone": 1,
     "streamingUrl": "https://<backend-host>/api/web/plants/stream/<short-lived-ticket>"
@@ -365,8 +365,8 @@ Authorization: Bearer <accessToken>
   "plants": [
     {
       "_id": "plantId",
-      "name": "상추",
-      "type": "청상추",
+      "name": "루꼴라",
+      "type": "루꼴라",
       "rdkCameraId": "c110-1",
       "rdkZone": 1,
       "createdAt": "...",
@@ -391,8 +391,8 @@ Authorization: Bearer <accessToken>
   "plants": [
     {
       "_id": "plantId",
-      "name": "상추",
-      "type": "청상추",
+      "name": "루꼴라",
+      "type": "루꼴라",
       "rdkCameraId": "c110-1",
       "rdkZone": 1,
       "growthTargetDays": 60,
