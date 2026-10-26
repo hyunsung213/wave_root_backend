@@ -2,6 +2,8 @@
 
 ## 2026-10-26
 
+- 2026-10-26 23:05:50 +09:00 — 백엔드 커밋 `9fa63036461e4f82675a93bf90f6738a7076fcad` Render 배포 `dep-dbflrv15efls73c62mv0`가 `live`임을 확인함. 배포 후 `/health/ready`와 `/admin/`은 HTTP 200, 보호된 `/api/web/admin/bed-layout`은 비인증 요청에 예상대로 401; Render error-level 로그는 0건. 프론트 변경이 없어 Vercel 재배포하지 않음. Render 빌드에서 npm 의존성 3건의 high severity audit 경고를 확인해 별도 검토 필요. 카메라 watchdog의 RDK HTTP 404 info 로그는 지속되며 이번 작업에서는 RDK/하드웨어/DB 변경 없음.
+
 - 2026-10-26 23:04:19 +09:00 — 다른 AI의 백엔드 변경을 검토함: 관리자 실제 재배 배치를 3열×6행 셀 아코디언으로 바꾸고, 셀별 작물 지정/해제 및 벌크 입력을 6행×3열로 조정함. 저장 API·BedLayout 18셀·zone 1~18 순서는 유지하며 RDK/하드웨어 코드는 이번 변경에 포함되지 않음. 백엔드 `npm test` 62/62, 관리자 HTML의 인라인 스크립트 2개 구문 검사, `git diff --check` 통과. 프론트 저장소에는 미커밋 변경 없음. 배포 전 기록.
 
 - 2026-10-26 — 관리자 실제 재배 배치 UI를 카메라별 3열×6행으로 재배치하고 각 셀에 카탈로그 작물 13종/미지정 선택 아코디언을 추가함. 기존 `BedLayout.productId`, API 및 zone 1~18 행 우선 매핑은 유지하고 단일 하단 셀 select를 제거함. 일괄 입력을 카메라당 6행×3열로 변경하고 행별 3값 검증, 접힌 셀 작물 표시, RDK에 존재하지 않는 zone 경고를 유지함. README/API 문서와 벌크 행 순서 회귀 테스트를 갱신함. 전체 Node 테스트 62/62, 관리자 배치/카메라 8/8, RDK pytest 36/36, Python `py_compile`, `git diff --check` 통과. 실기기 RDK 배포는 관리자 권한 재시작 단계에서 `Interactive authentication required`로 중단하고 파일을 백업 상태로 복구함; 서비스는 기존 프로세스/MainPID로 active이며 실제 운영 모드/해상도 변경은 없음. 임시 RDK 통합 테스트는 legacy config + 읽기 전용 운영 DB(할당 15건, 변경 없음)에서 synthetic frame으로 full 1920×1080·10FPS와 crop 1280×720·15FPS 응답을 검증함. RDK 운영 `.env` 비밀값이 도구 출력에 노출되어 즉시 인증값 교체 필요.
