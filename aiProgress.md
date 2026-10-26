@@ -2,6 +2,8 @@
 
 ## 2026-10-26
 
+- 2026-10-26 21:34 +09:00 — 백엔드 커밋 `b1ba48ca0dfdd8844eb37bc720ff2978a2783784` Render 배포 `dep-dbfkgip5efls73c3v0s0`가 `live`; 시작 로그에서 MongoDB 연결을 확인하고 `/health/ready`가 HTTP 200임을 확인함. 프론트 커밋 `d3a1112261bd28af93b755ace93edc2171704686` Vercel production 배포 `dpl_8fJiVKr1W7gwbcf4YFkwB77B7y8L`가 `READY`이며 `wave-root-client.vercel.app` 별칭과 홈페이지 HTTP 200을 확인함. Vercel runtime 로그는 비어 있음. Render에는 기존 Camera watchdog의 RDK HTTP 404가 계속 기록되므로 watchdog 연동은 별도 확인 필요. 전체 프레임 실기기 송출은 검증하지 않음.
+
 - 2026-10-26 21:30:50 +09:00 — 사용자 승인에 따라 일반 식물 스트림 티켓에서 `mode=full`을 허용하고, 잘못된 모드는 400으로 거부하도록 백엔드·프론트 계약을 갱신함. 전체 프레임은 1920×1080·10 FPS이며 배정 Zone 밖의 주변/다른 Zone이 노출되고 대역폭 사용이 증가할 수 있음을 문서화함. 백엔드 테스트 파일 15개(총 61개 테스트) 순차 통과, 프론트 ESLint·TypeScript·Next.js 프로덕션 빌드 통과, 양 저장소 diff 검사를 통과함. 실제 RDK 카메라 스트림 연결은 아직 검증하지 않음. 배포 전 기록.
 
 - 2026-10-26 — 관리자 카메라 UI의 실제 번호↔기존 ID 대응을 캠1=`c110-4`, 캠2=`c110-1`, 캠3=`c110-3`, 캠4=`c110-2`로 바로잡고 카메라 목록·베드 카드·물리 지도를 `4 2 / 3 1` 순서로 통일함. 전체 72셀과 카탈로그 ID를 검증하는 BedLayout seed 스크립트를 추가함. 기본은 MongoDB 미접속 dry-run, `--apply`는 기존 문서 생성만 허용하며 명시적 `--force`에서만 덮어씀. 개별 작물 72셀 원본 값이 작업 요약/저장소에 없어 허위 배치를 만들지 않았고 실제 DB 저장은 보류함. seed 안전성/입력 및 UI 매핑 회귀 테스트 추가, README/API 문서 갱신. bed-layout 대상 테스트 5/5, 전체 `npm test` 61/61, seed/서비스 Node 구문 검사, seed help 실행 및 `git diff --check` 통과. MongoDB seed 적용과 RDK·운영 화면 검증은 수행하지 않음.
