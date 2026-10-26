@@ -317,24 +317,30 @@
   .bed-camera{padding:13px;border:1px solid #e0e7dd;border-radius:12px;background:rgba(255,255,255,.8)}
   .bed-camera-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;color:#294631;font-size:12px;font-weight:900}
   .bed-camera-title small{color:#819083;font-size:10px;font-weight:700}
-  .bed-layout-map{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:16px 20px 20px}
   .bed-layout-location-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:12px 20px 0;padding:10px;border:1px solid #dce6d8;border-radius:10px;background:#f8faf5}
   .bed-layout-location-title{grid-column:1/-1;margin-bottom:2px;color:#778975;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
   .bed-layout-location{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:7px 8px;border:1px solid #e0e7dd;border-radius:7px;background:white;color:#39513d;font-size:10px}
   .bed-layout-location small{color:#91a08e;font-size:9px;font-weight:700}
-  .bed-cell{position:relative;display:flex;min-width:0;min-height:57px;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:3px;padding:6px;border:1px solid #dce6d8;border-radius:8px;background:#fbfdf8;color:#344837;text-align:left;transition:border-color .15s,background .15s,transform .15s}
-  .bed-cell:hover{transform:translateY(-1px);border-color:#86a88a;background:#f4f8ef}
-  .bed-cell.selected{border-color:#5d9467;background:#edf6e9;box-shadow:0 0 0 2px rgba(93,148,103,.13)}
+  .bed-camera-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .bed-cell{min-width:0;min-height:51px;border:1px solid #dce6d8;border-radius:8px;background:#fbfdf8;color:#344837;transition:border-color .15s,background .15s,box-shadow .15s}
   .bed-cell.occupied{border-color:#c5d6ba;background:linear-gradient(140deg,#f0f6e8,#e5efdd)}
   .bed-cell.unsupported{border-style:dashed;opacity:.58}
+  .bed-cell-accordion{overflow:hidden}
+  .bed-cell-accordion[open]{border-color:#79a47b;background:#fff;box-shadow:0 3px 10px rgba(55,77,49,.1)}
+  .bed-cell-summary{display:flex;min-height:49px;flex-direction:column;justify-content:space-between;gap:3px;padding:6px;cursor:pointer;list-style:none}
+  .bed-cell-summary::-webkit-details-marker{display:none}
+  .bed-cell-summary:focus-visible{outline:2px solid #517b5b;outline-offset:-2px;border-radius:7px}
   .bed-cell-number{color:#82907d;font-size:9px;font-variant-numeric:tabular-nums;font-weight:800}
   .bed-cell-name{display:-webkit-box;width:100%;overflow:hidden;color:#36543a;font-size:10px;font-weight:800;line-height:1.25;-webkit-box-orient:vertical;-webkit-line-clamp:2}
   .bed-cell-name.empty{color:#b0b9aa;font-weight:600}
-  .bed-editor{display:grid;grid-template-columns:minmax(170px,.65fr) minmax(220px,1fr) auto;align-items:end;gap:10px;padding:13px 20px 17px;border-top:1px solid #e4ebe1;background:#f8faf6}
-  .bed-editor label{display:block;color:#617765;font-size:10px;font-weight:800}
-  .bed-editor select{display:block;width:100%;min-height:38px;margin-top:5px;padding:8px 10px;border:1px solid #cfd9cb;border-radius:8px;background:white;color:#2d4531;font-size:12px}
-  .bed-editor button{min-height:38px;padding:8px 12px;border:1px solid #cad5c7;border-radius:8px;background:#fff;color:#536651;font-size:11px;font-weight:800}
-  .bed-editor[hidden]{display:none}
+  .bed-crop-options{display:grid;gap:3px;max-height:210px;overflow:auto;padding:5px;border-top:1px solid #e4ebe1;background:#f8faf6}
+  .bed-crop-option{display:flex;min-width:0;flex-direction:column;gap:2px;padding:5px 6px;border:1px solid transparent;border-radius:6px;background:transparent;color:#425a45;text-align:left}
+  .bed-crop-option:hover,.bed-crop-option:focus-visible{border-color:#b8cfb6;background:#edf6e9;outline:none}
+  .bed-crop-option.selected{border-color:#7eaa7c;background:#e8f3e3;color:#285331}
+  .bed-crop-option strong{overflow:hidden;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+  .bed-crop-option small{overflow:hidden;color:#82907d;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+  .bed-crop-option:disabled{cursor:default;opacity:.68}
+  .bed-camera-grid .unsupported-note{grid-column:1/-1;margin:0;padding:4px 2px;color:#98713a;font-size:9px;line-height:1.35}
   .bed-bulk{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;padding:0 20px 14px;background:#f8faf6}
   .bed-bulk label{display:block;color:#617765;font-size:10px;font-weight:800}
   .bed-bulk textarea{display:block;width:100%;min-height:75px;margin-top:5px;padding:9px;border:1px solid #cfd9cb;border-radius:8px;background:white;color:#2d4531;font:11px/1.55 ui-monospace,Consolas,monospace;resize:vertical}
@@ -345,8 +351,8 @@
   .bed-mismatch[hidden]{display:none}
   .bed-layout-foot{margin:0;padding:0 20px 15px;color:#758477;font-size:10px;line-height:1.5}
   .camera-choice small .bed-hint{color:#d1e4a7}
-  @media(max-width:760px){.bed-layout-map{grid-template-columns:1fr}.bed-editor{grid-template-columns:1fr 1fr}.bed-editor button{grid-column:1/-1}}
-  @media(max-width:420px){.bed-layout-head{padding:15px;flex-direction:column}.bed-layout-map{padding:12px}.bed-layout-location-grid{margin:10px 12px 0}.bed-layout-location{align-items:flex-start;flex-direction:column;gap:3px}.bed-camera{padding:9px}.bed-cell{min-height:49px;padding:5px}.bed-cell-name{font-size:9px}.bed-editor{padding:12px;grid-template-columns:1fr}.bed-editor button{grid-column:auto}.bed-bulk{padding:0 12px 12px;grid-template-columns:1fr}.bed-layout-foot{padding:0 12px 13px}.bed-mismatch{margin:0 12px 12px}}
+  @media(max-width:760px){.bed-layout-map{grid-template-columns:1fr}}
+  @media(max-width:420px){.bed-layout-head{padding:15px;flex-direction:column}.bed-layout-map{padding:12px}.bed-layout-location-grid{margin:10px 12px 0}.bed-layout-location{align-items:flex-start;flex-direction:column;gap:3px}.bed-camera{padding:9px}.bed-cell{min-height:47px}.bed-cell-summary{min-height:45px;padding:5px}.bed-cell-name{font-size:9px}.bed-bulk{padding:0 12px 12px;grid-template-columns:1fr}.bed-layout-foot{padding:0 12px 13px}.bed-mismatch{margin:0 12px 12px}}
 </style>
 </head>
 <body>
@@ -501,7 +507,7 @@
         <section class="view" id="view-camera">
           <section class="bed-layout" aria-labelledby="bedLayoutTitle">
             <div class="bed-layout-head">
-              <div><h3 id="bedLayoutTitle">실제 재배 배치</h3><p>카메라 원본을 구독 식물 정보와 분리해 관리합니다. 번호는 좌상단에서 시작해 행 우선으로 RDK 영역 1–18에 대응합니다.</p></div>
+              <div><h3 id="bedLayoutTitle">실제 재배 배치</h3><p>카메라 원본을 구독 식물 정보와 분리해 관리합니다. 번호는 좌상단에서 시작해 3열×6행, 가로 우선으로 RDK 영역 1–18에 대응합니다. 편집 중 칸을 펼쳐 카탈로그 작물을 선택하세요.</p></div>
               <span class="bed-layout-status" id="bedLayoutStatus" role="status">불러오는 중</span>
             </div>
             <div class="bed-layout-toolbar">
@@ -517,17 +523,12 @@
               <div class="bed-layout-location"><strong>캠 3 · c110-3</strong><small>왼쪽 아래</small></div>
               <div class="bed-layout-location"><strong>캠 1 · c110-4</strong><small>오른쪽 아래</small></div>
             </div>
-            <div class="bed-layout-map" id="bedLayoutMap" aria-label="네 카메라의 3행 6열 재배 배치"></div>
-            <div class="bed-editor" id="bedEditor" hidden>
-              <label>선택 셀<select id="bedSelectedCell" disabled></select></label>
-              <label>작물<select id="bedProductSelect"></select></label>
-              <button type="button" id="bedCellClear">이 칸 비우기</button>
-            </div>
+            <div class="bed-layout-map" id="bedLayoutMap" aria-label="카메라별 3열 6행 재배 배치"></div>
             <div class="bed-bulk" id="bedBulk" hidden>
-              <label for="bedBulkInput">카메라별 3행×6열 일괄 입력 · 작물 ID 또는 표시 이름, 빈칸은 `-`</label>
-              <textarea id="bedBulkInput" spellcheck="false" aria-describedby="bedBulkFeedback" placeholder="c110-1\nnasturtium basil - - - -\n- - - - - -\n- - - - - -\n\nc110-2\n..."></textarea>
+              <label for="bedBulkInput">카메라별 6행×3열 일괄 입력 · 작물 ID 또는 표시 이름, 빈칸은 `-`</label>
+              <textarea id="bedBulkInput" spellcheck="false" aria-describedby="bedBulkFeedback" placeholder="c110-1\nnasturtium basil -\n- - -\n- - -\n- - -\n- - -\n- - -\n\nc110-2\n..."></textarea>
               <button type="button" id="bedBulkApply">전체 미리보기 적용</button>
-              <p class="bed-bulk-feedback" id="bedBulkFeedback" role="status">각 카메라 이름 뒤에 3행을 입력하세요. 각 행은 6개 값입니다.</p>
+              <p class="bed-bulk-feedback" id="bedBulkFeedback" role="status">각 카메라 이름 뒤에 6행을 입력하세요. 각 행은 3개 값입니다.</p>
             </div>
             <div class="bed-mismatch" id="bedMismatch" hidden></div>
             <p class="bed-layout-foot">실제 캠 번호와 내부 ID: 캠1=c110-4, 캠2=c110-1, 캠3=c110-3, 캠4=c110-2. 지도는 좌상·우상 / 좌하·우하 순서로 `4 2 / 3 1`입니다. 셀 번호는 각 카메라 영상의 RDK 영역 번호이며, 설정되지 않은 작물은 미지정으로 표시됩니다.</p>
@@ -690,7 +691,7 @@ const BED_CAMERA_POSITIONS={
   'c110-4':'오른쪽 아래'
 };
 const BED_CAMERA_ORDER=['c110-2','c110-1','c110-3','c110-4'];
-let bedLayoutState={cameras:[],savedCameras:[],products:[],selectedCameraId:'c110-1',selectedZone:1,
+let bedLayoutState={cameras:[],savedCameras:[],products:[],
   editing:false,dirty:false,loaded:false,updatedAt:null};
 let orderNodeAction=null;
 let uState={q:'',type:'',plant:'',sort:'createdAt',dir:'desc'};
@@ -709,33 +710,31 @@ function findBedCell(cameraId,zone){
 function bedProductName(productId){
   return bedLayoutState.products.find(product=>product.id===productId)?.name||productId||'';
 }
-function selectedBedCamera(){return bedLayoutState.cameras.find(camera=>camera.cameraId===bedLayoutState.selectedCameraId)||null;}
 function setBedStatus(message,state=''){
   const status=$('bedLayoutStatus');status.textContent=message;status.classList.toggle('dirty',state==='dirty');status.classList.toggle('error',state==='error');
 }
-function bedSelectedCellLabel(){
-  const camera=selectedBedCamera();
-  const cell=camera?.cells.find(item=>item.zone===bedLayoutState.selectedZone);
-  return camera&&cell?`${camera.cameraId} · 영역 ${cell.zone}`:'셀을 선택하세요';
-}
 function renderBedLayout(){
-  const selectedCamera=bedLayoutState.selectedCameraId;
   const cameraOrder=new Map(BED_CAMERA_ORDER.map((cameraId,index)=>[cameraId,index]));
   $('bedLayoutMap').innerHTML=[...bedLayoutState.cameras].sort((a,b)=>cameraOrder.get(a.cameraId)-cameraOrder.get(b.cameraId)).map(camera=>`<section class="bed-camera" aria-label="캠 ${BED_CAMERA_NUMBERS[camera.cameraId]} ${esc(camera.cameraId)} 재배 배치">
     <div class="bed-camera-title"><span>캠 ${BED_CAMERA_NUMBERS[camera.cameraId]} · ${esc(camera.cameraId)}</span><small>${esc(BED_CAMERA_POSITIONS[camera.cameraId]||'')}</small></div>
     <div class="bed-camera-grid">${camera.cells.map(cell=>{
-      const name=bedProductName(cell.productId);const selected=camera.cameraId===selectedCamera&&cell.zone===bedLayoutState.selectedZone;
-      return `<button type="button" class="bed-cell ${cell.productId?'occupied':''} ${selected?'selected':''}" data-bed-camera="${esc(camera.cameraId)}" data-bed-zone="${cell.zone}" aria-label="${esc(camera.cameraId)} 영역 ${cell.zone}: ${esc(name||'미지정')}">
-        <span class="bed-cell-number">${cell.zone.toString().padStart(2,'0')} · RDK ${cell.zone}</span><span class="bed-cell-name ${name?'':'empty'}">${esc(name||'미지정')}</span></button>`;
+      const name=bedProductName(cell.productId);
+      const cameraState=cameras.find(item=>item.cameraId===camera.cameraId);
+      const zoneSupported=!cameraState||!Array.isArray(cameraState.zoneIds)||cameraState.zoneIds.includes(cell.zone);
+      const options=bedLayoutState.products.map(product=>`<button type="button" class="bed-crop-option ${product.id===cell.productId?'selected':''}" data-bed-crop="${esc(product.id)}" data-bed-camera="${esc(camera.cameraId)}" data-bed-zone="${cell.zone}" ${!bedLayoutState.editing?'disabled':''}>
+        <strong>${esc(product.name)}</strong><small>${esc(product.id)}</small></button>`).join('');
+      return `<div class="bed-cell ${cell.productId?'occupied':''} ${!zoneSupported?'unsupported':''}" data-bed-cell="${esc(camera.cameraId)}:${cell.zone}">
+        <details class="bed-cell-accordion" data-bed-accordion="${esc(camera.cameraId)}:${cell.zone}">
+          <summary class="bed-cell-summary"><span class="bed-cell-number">${cell.zone.toString().padStart(2,'0')} · RDK ${cell.zone}</span><span class="bed-cell-name ${name?'':'empty'}">${esc(name||'미지정')}</span></summary>
+          <div class="bed-crop-options" role="group" aria-label="${esc(camera.cameraId)} 영역 ${cell.zone} 작물 선택">
+            <button type="button" class="bed-crop-option ${cell.productId?'':'selected'}" data-bed-crop="" data-bed-camera="${esc(camera.cameraId)}" data-bed-zone="${cell.zone}" ${!bedLayoutState.editing?'disabled':''}><strong>미지정 / 비우기</strong><small>이 칸의 작물 연결 해제</small></button>${options}
+          </div>
+        </details>
+        ${!zoneSupported?'<p class="unsupported-note">RDK 영상 영역에 없습니다. 번호 설정을 확인하세요.</p>':''}
+      </div>`;
     }).join('')}</div>
   </section>`).join('');
   const editing=bedLayoutState.editing;
-  const availableZones=new Map(cameras.map(camera=>[camera.cameraId,new Set(camera.zoneIds||[])]));
-  $('bedLayoutMap').querySelectorAll('.bed-cell').forEach(button=>{
-    button.disabled=!editing;
-    button.classList.toggle('unsupported',availableZones.has(button.dataset.bedCamera)&&
-      !availableZones.get(button.dataset.bedCamera).has(Number(button.dataset.bedZone)));
-  });
   $('bedLayoutStatus').textContent=bedLayoutState.loaded
     ?bedLayoutState.dirty?'저장되지 않은 변경':'저장된 배치'
     :'불러오는 중';
@@ -745,14 +744,16 @@ function renderBedLayout(){
   $('bedLayoutSave').disabled=!editing||!bedLayoutState.dirty;
   $('bedLayoutCancel').disabled=!editing;
   $('bedLayoutReset').disabled=!editing;
-  $('bedEditor').hidden=!editing;
   $('bedBulk').hidden=!editing;
   if(editing){
-    $('bedSelectedCell').innerHTML=`<option>${esc(bedSelectedCellLabel())}</option>`;
-    const current=findBedCell(selectedCamera,bedLayoutState.selectedZone)?.productId||'';
-    $('bedProductSelect').innerHTML='<option value="">미지정 / 비우기</option>'+bedLayoutState.products.map(product=>
-      `<option value="${esc(product.id)}" ${product.id===current?'selected':''}>${esc(product.name)} · ${esc(product.id)}</option>`).join('');
-    $('bedProductSelect').value=current;
+    $('bedLayoutMap').querySelectorAll('[data-bed-accordion]').forEach(accordion=>{
+      accordion.addEventListener('toggle',()=>{
+        if(!accordion.open)return;
+        $('bedLayoutMap').querySelectorAll('[data-bed-accordion]').forEach(other=>{
+          if(other!==accordion)other.open=false;
+        });
+      });
+    });
   }
   renderBedMismatches();
 }
@@ -783,8 +784,8 @@ async function loadBedLayout(){
     bedLayoutState.loaded=false;setBedStatus('배치 조회 실패 · '+error.message,'error');
   }
 }
-function updateBedCell(productId){
-  const cell=findBedCell(bedLayoutState.selectedCameraId,bedLayoutState.selectedZone);
+function updateBedCell(cameraId,zone,productId){
+  const cell=findBedCell(cameraId,zone);
   if(!cell||!bedLayoutState.editing)return;
   cell.productId=productId||null;bedLayoutState.dirty=true;renderBedLayout();
 }
@@ -823,8 +824,8 @@ function normalizeBulkProduct(value){
   return product.id;
 }
 function serializeBedBulk(){
-  return bedLayoutState.cameras.map(camera=>`${camera.cameraId}\n${[0,1,2].map(row=>
-    camera.cells.slice(row*6,row*6+6).map(cell=>cell.productId||'-').join(' ')).join('\n')}`).join('\n\n');
+  return bedLayoutState.cameras.map(camera=>`${camera.cameraId}\n${[0,1,2,3,4,5].map(row=>
+    camera.cells.slice(row*3,row*3+3).map(cell=>cell.productId||'-').join(' ')).join('\n')}`).join('\n\n');
 }
 function applyBedBulk(){
   const feedback=$('bedBulkFeedback');feedback.classList.remove('error');
@@ -833,12 +834,16 @@ function applyBedBulk(){
     if(blocks.length!==4)throw new Error('카메라 4개 블록을 모두 입력하세요.');
     const seen=new Set();
     const preview=blocks.map(block=>{
-      const lines=block.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+      const lines=block.split(/\r?\n/).map(line=>line.trim());
+      while(lines.length&&lines.at(-1)==='')lines.pop();
       const cameraId=lines.shift();
       if(!BED_CAMERA_POSITIONS[cameraId]||seen.has(cameraId))throw new Error(`중복이거나 잘못된 카메라 ID: ${cameraId||'(빈 값)'}`);
       seen.add(cameraId);
-      const tokens=lines.flatMap(line=>line.split(/[\s,，;；|\t]+/).filter(Boolean));
-      if(tokens.length!==18)throw new Error(`${cameraId}: 3행×6열, 총 18개 값이 필요합니다 (현재 ${tokens.length}개).`);
+      if(lines.length!==6)throw new Error(`${cameraId}: 6행×3열 입력이 필요합니다 (현재 ${lines.length}행).`);
+      const rows=lines.map(line=>line.trim()===''?[]:line.trim().split(/[\s,，;；|\t]+/).filter(Boolean));
+      const invalidRow=rows.findIndex(row=>row.length!==3);
+      if(invalidRow!==-1)throw new Error(`${cameraId}: ${invalidRow+1}행에 3개 값이 필요합니다 (현재 ${rows[invalidRow].length}개).`);
+      const tokens=rows.flat();
       return {cameraId,cells:tokens.map((value,index)=>({zone:index+1,productId:normalizeBulkProduct(value)}))};
     });
     if(seen.size!==4)throw new Error('4대의 카메라를 모두 지정해야 합니다.');
@@ -855,11 +860,11 @@ $('bedLayoutReset').addEventListener('click',()=>{
   bedLayoutState.dirty=true;renderBedLayout();$('bedBulkInput').value=serializeBedBulk();
 });
 $('bedLayoutMap').addEventListener('click',event=>{
-  const cell=event.target.closest('[data-bed-camera]');if(!cell||!bedLayoutState.editing)return;
-  bedLayoutState.selectedCameraId=cell.dataset.bedCamera;bedLayoutState.selectedZone=Number(cell.dataset.bedZone);renderBedLayout();
+  const summary=event.target.closest('.bed-cell-summary');
+  if(summary&&!bedLayoutState.editing){event.preventDefault();return;}
+  const option=event.target.closest('[data-bed-crop]');if(!option||!bedLayoutState.editing)return;
+  updateBedCell(option.dataset.bedCamera,Number(option.dataset.bedZone),option.dataset.bedCrop);
 });
-$('bedProductSelect').addEventListener('change',event=>updateBedCell(event.target.value));
-$('bedCellClear').addEventListener('click',()=>{updateBedCell(null);$('bedProductSelect').value='';});
 $('bedBulkApply').addEventListener('click',applyBedBulk);
 
 function token(){ try{return sessionStorage.getItem(KEY)}catch{return null} }

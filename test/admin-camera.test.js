@@ -139,7 +139,14 @@ test('administrator camera proxy validates identity and relays preview and grid 
     assert.match(adminHtml, /id="cameraDrawZone"/);
     assert.match(adminHtml, /id="bedLayoutMap"/);
     assert.match(adminHtml, /id="bedBulkApply"/);
-    assert.match(adminHtml, /3행×6열/);
+    assert.match(adminHtml, /3열×6행/);
+    assert.match(adminHtml, /bed-camera-grid\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+    assert.match(adminHtml, /bed-cell-accordion/);
+    assert.match(adminHtml, /카메라별 6행×3열 일괄 입력/);
+    assert.match(adminHtml, /미리보기 적용 후 전체 저장을 눌러야 서버에 반영됩니다/);
+    assert.doesNotMatch(adminHtml, /bedSelectedCell|bedProductSelect|bedCellClear/);
+    assert.match(adminHtml, /lines\.length!==6/);
+    assert.match(adminHtml, /row\.length!==3/);
     assert.match(adminHtml, /function validateBedLayoutDraft/);
     assert.match(adminHtml, /data-coupon-preset="welcome"/);
     assert.match(adminHtml, /DISCORD_WEBHOOK_URL/);

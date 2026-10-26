@@ -7,6 +7,7 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 const BedLayout = require('../src/models/BedLayout');
@@ -102,6 +103,52 @@ test('administrator camera display maps real labels to existing camera IDs and b
   assert.match(html, /const BED_CAMERA_ORDER=\['c110-2','c110-1','c110-3','c110-4'\]/);
   assert.equal(require('../src/config/catalog').PRODUCTS.nasturtium.name, '한련화');
   assert.doesNotMatch(html, /한선화/);
+});
+
+test('bed layout bulk editor parses six rows of three values in row-major zone order', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../public/admin/index.html'), 'utf8');
+  const applyFunction = html.match(/function applyBedBulk\(\)\s*\{[\s\S]*?\n\}/)?.[0];
+  assert.ok(applyFunction, 'bulk apply handler exists');
+
+  const cameraIds = ['c110-1', 'c110-2', 'c110-3', 'c110-4'];
+  const feedback = { textContent: '', classList: { add() {}, remove() {} } };
+  const input = { value: cameraIds.map((cameraId, index) => [
+    cameraId,
+    ...(index === 0 ? ['nasturtium basil kale'] : []),
+    ...Array(6 - (index === 0 ? 1 : 0)).fill('- - -')
+  ].join('\n')).join('\n\n') };
+  const state = { cameras: [], dirty: false };
+  const context = {
+    BED_CAMERA_POSITIONS: Object.fromEntries(cameraIds.map((cameraId) => [cameraId, 'test'])),
+    bedLayoutState: state,
+    normalizeBulkProduct: (value) => value === '-' ? null : value,
+    renderBedLayout() {},
+    $: (id) => id === 'bedBulkInput' ? input : feedback
+  };
+
+  vm.runInNewContext(`${applyFunction}\napplyBedBulk();`, context);
+  assert.equal(state.dirty, true);
+  const firstCameraCells = JSON.parse(JSON.stringify(state.cameras[0].cells));
+  assert.deepEqual(firstCameraCells.slice(0, 4), [
+    { zone: 1, productId: 'nasturtium' },
+    { zone: 2, productId: 'basil' },
+    { zone: 3, productId: 'kale' },
+    { zone: 4, productId: null }
+  ]);
+  assert.equal(firstCameraCells[17].zone, 18);
+
+  const unchanged = JSON.stringify(state.cameras);
+  input.value = cameraIds.map((cameraId) => `${cameraId}\n${Array(5).fill('- - -').join('\n')}`).join('\n\n');
+  vm.runInNewContext(`${applyFunction}\napplyBedBulk();`, context);
+  assert.match(feedback.textContent, /6행×3열/);
+  assert.equal(JSON.stringify(state.cameras), unchanged);
+
+  input.value = cameraIds.map((cameraId, index) => `${cameraId}\n${[
+    index === 0 ? 'nasturtium basil' : '- - -', ...Array(5).fill('- - -')
+  ].join('\n')}`).join('\n\n');
+  vm.runInNewContext(`${applyFunction}\napplyBedBulk();`, context);
+  assert.match(feedback.textContent, /1행에 3개 값이 필요합니다/);
+  assert.equal(JSON.stringify(state.cameras), unchanged);
 });
 
 function listen(server) {

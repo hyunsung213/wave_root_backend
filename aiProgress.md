@@ -2,6 +2,12 @@
 
 ## 2026-10-26
 
+- 2026-10-26 23:04:19 +09:00 — 다른 AI의 백엔드 변경을 검토함: 관리자 실제 재배 배치를 3열×6행 셀 아코디언으로 바꾸고, 셀별 작물 지정/해제 및 벌크 입력을 6행×3열로 조정함. 저장 API·BedLayout 18셀·zone 1~18 순서는 유지하며 RDK/하드웨어 코드는 이번 변경에 포함되지 않음. 백엔드 `npm test` 62/62, 관리자 HTML의 인라인 스크립트 2개 구문 검사, `git diff --check` 통과. 프론트 저장소에는 미커밋 변경 없음. 배포 전 기록.
+
+- 2026-10-26 — 관리자 실제 재배 배치 UI를 카메라별 3열×6행으로 재배치하고 각 셀에 카탈로그 작물 13종/미지정 선택 아코디언을 추가함. 기존 `BedLayout.productId`, API 및 zone 1~18 행 우선 매핑은 유지하고 단일 하단 셀 select를 제거함. 일괄 입력을 카메라당 6행×3열로 변경하고 행별 3값 검증, 접힌 셀 작물 표시, RDK에 존재하지 않는 zone 경고를 유지함. README/API 문서와 벌크 행 순서 회귀 테스트를 갱신함. 전체 Node 테스트 62/62, 관리자 배치/카메라 8/8, RDK pytest 36/36, Python `py_compile`, `git diff --check` 통과. 실기기 RDK 배포는 관리자 권한 재시작 단계에서 `Interactive authentication required`로 중단하고 파일을 백업 상태로 복구함; 서비스는 기존 프로세스/MainPID로 active이며 실제 운영 모드/해상도 변경은 없음. 임시 RDK 통합 테스트는 legacy config + 읽기 전용 운영 DB(할당 15건, 변경 없음)에서 synthetic frame으로 full 1920×1080·10FPS와 crop 1280×720·15FPS 응답을 검증함. RDK 운영 `.env` 비밀값이 도구 출력에 노출되어 즉시 인증값 교체 필요.
+
+- 2026-10-26 — RDK 로컬 테스트에서 기존 `validate_cameras` 반복문이 `raw_cameras` 대신 미정의 `cameras`를 순회하는 결함을 발견해 바로잡음. Python 3.10.12를 포함한 운영 의존 파일과 보정/그리드 설정 호환을 읽기 전용 점검함. RDK 운영 DB의 15개 활성 할당은 그대로 보존했으며 현재 서비스는 active. 다만 RDK 배포는 수행하지 않음: 운영 config에 `full_output`이 빠져 있어 저장소의 full 런타임 코드를 임시 시험할 때 full stream이 500(`KeyError`)였고, 이어 staging 검증본 업로드도 완료되지 않음. 기존 서비스 파일/config/DB에는 쓰지 않았으며 현장 배포는 이 호환 문제와 검증을 먼저 해결해야 함. RDK `.env` 비밀값이 작업 도구 출력에 노출됐으므로 해당 인증키와 카메라 자격 증명을 교체할 것.
+
 - 2026-10-26 21:34 +09:00 — 백엔드 커밋 `b1ba48ca0dfdd8844eb37bc720ff2978a2783784` Render 배포 `dep-dbfkgip5efls73c3v0s0`가 `live`; 시작 로그에서 MongoDB 연결을 확인하고 `/health/ready`가 HTTP 200임을 확인함. 프론트 커밋 `d3a1112261bd28af93b755ace93edc2171704686` Vercel production 배포 `dpl_8fJiVKr1W7gwbcf4YFkwB77B7y8L`가 `READY`이며 `wave-root-client.vercel.app` 별칭과 홈페이지 HTTP 200을 확인함. Vercel runtime 로그는 비어 있음. Render에는 기존 Camera watchdog의 RDK HTTP 404가 계속 기록되므로 watchdog 연동은 별도 확인 필요. 전체 프레임 실기기 송출은 검증하지 않음.
 
 - 2026-10-26 21:30:50 +09:00 — 사용자 승인에 따라 일반 식물 스트림 티켓에서 `mode=full`을 허용하고, 잘못된 모드는 400으로 거부하도록 백엔드·프론트 계약을 갱신함. 전체 프레임은 1920×1080·10 FPS이며 배정 Zone 밖의 주변/다른 Zone이 노출되고 대역폭 사용이 증가할 수 있음을 문서화함. 백엔드 테스트 파일 15개(총 61개 테스트) 순차 통과, 프론트 ESLint·TypeScript·Next.js 프로덕션 빌드 통과, 양 저장소 diff 검사를 통과함. 실제 RDK 카메라 스트림 연결은 아직 검증하지 않음. 배포 전 기록.
