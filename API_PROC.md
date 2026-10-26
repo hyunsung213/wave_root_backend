@@ -251,11 +251,35 @@ Content-Type: application/json
 
 센서 이력의 10분 평균 로그는 기존처럼 RDK가 `POST /api/rdk/logs`로 별도 전송합니다. 실시간 화면 스냅샷과 평균 로그는 서로 다른 용도입니다.
 
-단일 식물 조회의 `plant.streamingUrl`은 브라우저에서 Render 백엔드의 스트림 프록시를 가리킵니다. 백엔드는 RDK에 카메라·Zone을 배정하고 1시간짜리 서명 티켓을 발급합니다. 이미지 요청은 이 티켓으로 백엔드에 도착하고, 백엔드가 Tailscale HTTP 프록시를 통해 RDK의 `GET /api/stream/:token`을 연결합니다. 따라서 브라우저가 `100.x` Tailnet IP나 RDK 포트에 직접 접근하지 않습니다. 카메라 설정 또는 할당이 없으면 `streamingUrl`은 `null`입니다. 사용자 지정 영역은 각 사각 영역마다 하나의 식물 영상을 생성합니다(카메라당 최대 144개).
+단일 식물 조회의 `plant.streamingUrl`은 브라우저에서 Render 백엔드의 스트림 프록시를 가리킵니다. 백엔드는 RDK에 카메라·Zone을 배정하고 1시간짜리 서명 티켓을 발급합니다. 요청은 검증된 `mode=crop`으로 Tailscale HTTP 프록시를 거쳐 RDK `GET /api/stream/:token`에 전달하며, 기존 1280×720·15 FPS 배정 영역 스트림만 제공합니다. 일반 사용자 식물 스트림의 `mode=full`은 백엔드가 `403`으로 거부해 다른 Zone 영상에 접근할 수 없습니다. 확대 화면은 배정된 영역 스트림 안에서 확대·이동합니다. 브라우저는 RDK Tailnet IP/포트에 직접 접근하지 않습니다. 카메라 설정 또는 할당이 없으면 `streamingUrl`은 `null`입니다.
+
+관리자 스트리밍 목록은 식물마다 MJPEG를 자동 연결하지 않습니다. 보이는 카드에 한해 서명된 `GET /api/web/plants/preview/:ticket`으로 첫 JPEG 프레임을 하나씩 가져와 정지 이미지로 보관합니다. 백엔드는 첫 프레임 반환 직후 RDK 연결을 종료합니다. 관리자가 식물 하나를 선택할 때만 기존 `streamingUrl` 라이브 연결을 열며, 모달 닫기·탭 이동·페이지 숨김 때 연결을 해제합니다.
 
 관리자 페이지의 `카메라 설정` 화면은 다음 백엔드 API를 사용합니다.
 
 ```http
+GET /api/web/admin/bed-layout
+```
+
+`GET /api/web/admin/bed-layout`은 제품 카탈로그와 네 카메라의 재배 배치(`c110-1`~`c110-4`, 카메라당 행 우선 1~18 셀)를 반환합니다. `productId`는 서버 카탈로그 ID 또는 `null`입니다. `PUT`은 네 카메라의 18칸을 모두 포함해야 하며 전체 유효성 검사 후 단일 `BedLayout` 문서로 저장합니다. 한 카메라만 부분 업데이트하거나 임의 작물 ID를 저장할 수 없습니다. `DELETE`는 저장 문서를 제거해 네 카메라를 모두 미지정 기본 배치로 되돌립니다. 이 정보는 실제 재배 현황/예정 작물 참고용이며 구독 식물, MongoDB `Plant`, RDK 식물 ID/Zone을 변경하지 않습니다.
+
+카메라 목록 API는 RDK 영상 영역 전체 `zoneIds`, 현재 가용 `zones`, 재배 배치의 셀별 `cropHints`를 포함합니다. RDK 가용 목록이 실패해도 재배 배치 저장/조회에는 영향이 없습니다.
+
+```http
+GET /api/web/admin/cameras
+Authorization: Bearer <관리자 JWT>
+Authorization: Bearer <관리자 JWT>
+
+PUT /api/web/admin/bed-layout
+Authorization: Bearer <관리자 JWT>
+Content-Type: application/json
+{ "cameras": [
+  { "cameraId": "c110-1", "cells": [{ "zone": 1, "productId": "nasturtium" }] }
+] }
+
+DELETE /api/web/admin/bed-layout
+Authorization: Bearer <관리자 JWT>
+
 GET /api/web/admin/cameras
 Authorization: Bearer <관리자 JWT>
 

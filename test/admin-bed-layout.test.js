@@ -1,0 +1,144 @@
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'bed-layout-admin-test-secret-at-least-32-characters';
+
+const assert = require('node:assert/strict');
+const http = require('node:http');
+const test = require('node:test');
+const jwt = require('jsonwebtoken');
+const app = require('../src/app');
+const BedLayout = require('../src/models/BedLayout');
+const { emptyBedLayout, validateBedLayout } = require('../src/services/bedLayout');
+
+function listen(server) {
+  return new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+}
+
+function close(server) {
+  return new Promise((resolve) => server.close(resolve));
+}
+
+test('bed layout defaults are four 3x6 row-major camera layouts without guessed crops', () => {
+  const cameras = emptyBedLayout();
+  assert.deepEqual(cameras.map((camera) => camera.cameraId), ['c110-1', 'c110-2', 'c110-3', 'c110-4']);
+  for (const camera of cameras) {
+    assert.deepEqual(camera.cells.map((cell) => cell.zone), Array.from({ length: 18 }, (_, i) => i + 1));
+    assert.ok(camera.cells.every((cell) => cell.productId === null));
+  }
+  assert.equal(validateBedLayout(cameras), true);
+});
+
+test('bed layout validation rejects incomplete, reordered, duplicated and unknown crop cells', () => {
+  const valid = emptyBedLayout();
+  const incomplete = structuredClone(valid);
+  incomplete.pop();
+  assert.equal(validateBedLayout(incomplete), false);
+  const reordered = structuredClone(valid);
+  [reordered[0].cells[0], reordered[0].cells[1]] = [reordered[0].cells[1], reordered[0].cells[0]];
+  assert.equal(validateBedLayout(reordered), false);
+  const duplicateCamera = structuredClone(valid);
+  duplicateCamera[1].cameraId = duplicateCamera[0].cameraId;
+  assert.equal(validateBedLayout(duplicateCamera), false);
+  const invalidCrop = structuredClone(valid);
+  invalidCrop[0].cells[0].productId = 'not-in-catalog';
+  assert.equal(validateBedLayout(invalidCrop), false);
+});
+
+test('administrator bed layout API protects, validates, saves and resets the complete layout', async (t) => {
+  const originalFindOne = BedLayout.findOne;
+  const originalFindOneAndUpdate = BedLayout.findOneAndUpdate;
+  const originalDeleteOne = BedLayout.deleteOne;
+  const originalStreamBaseUrl = process.env.RDK_STREAM_BASE_URL;
+  const originalAdminKey = process.env.RDK_STREAM_ADMIN_KEY;
+  const mongoose = require('mongoose');
+  const originalReadyState = mongoose.connection.readyState;
+  let stored;
+  let writeCount = 0;
+  BedLayout.findOne = () => ({ lean: async () => stored ? structuredClone(stored) : null });
+  BedLayout.findOneAndUpdate = (_filter, update) => ({ lean: async () => {
+    writeCount += 1;
+    stored = { key: 'main-farm', cameras: structuredClone(update.$set.cameras), updatedAt: new Date('2026-10-26T00:00:00.000Z') };
+    return structuredClone(stored);
+  } });
+  BedLayout.deleteOne = async () => {
+    stored = null;
+    return { deletedCount: 1 };
+  };
+  t.after(() => {
+    BedLayout.findOne = originalFindOne;
+    BedLayout.findOneAndUpdate = originalFindOneAndUpdate;
+    BedLayout.deleteOne = originalDeleteOne;
+    if (originalStreamBaseUrl === undefined) delete process.env.RDK_STREAM_BASE_URL;
+    else process.env.RDK_STREAM_BASE_URL = originalStreamBaseUrl;
+    if (originalAdminKey === undefined) delete process.env.RDK_STREAM_ADMIN_KEY;
+    else process.env.RDK_STREAM_ADMIN_KEY = originalAdminKey;
+    mongoose.connection.readyState = originalReadyState;
+  });
+
+  const rdk = http.createServer((req, res) => {
+    assert.equal(req.headers['x-admin-key'], 'bed-layout-rdk-key');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ cameras: [{ camera_id: 'c110-1', zones: [2], zone_ids: [1, 2, 3] }] }));
+  });
+  await listen(rdk);
+  process.env.RDK_STREAM_BASE_URL = `http://127.0.0.1:${rdk.address().port}`;
+  process.env.RDK_STREAM_ADMIN_KEY = 'bed-layout-rdk-key';
+  t.after(() => close(rdk));
+
+  const server = app.listen(0, '127.0.0.1');
+  t.after(() => close(server));
+  await listen(server);
+  const url = `http://127.0.0.1:${server.address().port}/api/web/admin/bed-layout`;
+  const headers = {
+    Authorization: `Bearer ${jwt.sign({ sub: 'admin', role: 'admin' }, process.env.JWT_SECRET)}`,
+    'Content-Type': 'application/json'
+  };
+
+  assert.equal((await fetch(url)).status, 401);
+  const initial = await fetch(url, { headers });
+  assert.equal(initial.status, 200);
+  const initialData = await initial.json();
+  assert.equal(initialData.cameras.length, 4);
+  assert.equal(initialData.products.find((product) => product.id === 'nasturtium').name, '한련화');
+  assert.ok(initialData.cameras.every((camera) => camera.cells.length === 18 &&
+    camera.cells.every((cell) => cell.productId === null)));
+
+  const invalid = emptyBedLayout();
+  invalid[0].cells.pop();
+  const invalidResponse = await fetch(url, { method: 'PUT', headers, body: JSON.stringify({ cameras: invalid }) });
+  assert.equal(invalidResponse.status, 400);
+  assert.equal(writeCount, 0);
+
+  const invalidProduct = emptyBedLayout();
+  invalidProduct[0].cells[0].productId = 'unlisted-crop';
+  const invalidProductResponse = await fetch(url, {
+    method: 'PUT', headers, body: JSON.stringify({ cameras: invalidProduct })
+  });
+  assert.equal(invalidProductResponse.status, 400);
+  assert.equal(writeCount, 0);
+
+  const layout = emptyBedLayout();
+  layout[0].cells[0].productId = 'nasturtium';
+  layout[1].cells[17].productId = 'green_oakleaf_lettuce';
+  const saved = await fetch(url, { method: 'PUT', headers, body: JSON.stringify({ cameras: layout }) });
+  assert.equal(saved.status, 200);
+  assert.deepEqual((await saved.json()).cameras, layout);
+  assert.equal(writeCount, 1);
+  const reloaded = await (await fetch(url, { headers })).json();
+  assert.deepEqual(reloaded.cameras, layout);
+  mongoose.connection.readyState = 1;
+  const camerasResponse = await fetch(`http://127.0.0.1:${server.address().port}/api/web/admin/cameras`, { headers });
+  assert.equal(camerasResponse.status, 200);
+  const cameraHints = (await camerasResponse.json()).cameras[0];
+  assert.deepEqual(cameraHints.zoneIds, [1, 2, 3]);
+  assert.deepEqual(cameraHints.cropHints, [{ zone: 1, productId: 'nasturtium', productName: '한련화' }]);
+
+  mongoose.connection.readyState = 0;
+  const withoutMongo = await fetch(`http://127.0.0.1:${server.address().port}/api/web/admin/cameras`, { headers });
+  assert.equal(withoutMongo.status, 200);
+  assert.deepEqual((await withoutMongo.json()).cameras[0].cropHints, []);
+
+  const reset = await fetch(url, { method: 'DELETE', headers });
+  assert.equal(reset.status, 200);
+  const resetData = await reset.json();
+  assert.ok(resetData.cameras.every((camera) => camera.cells.every((cell) => cell.productId === null)));
+});

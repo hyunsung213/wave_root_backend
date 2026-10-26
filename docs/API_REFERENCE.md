@@ -333,6 +333,8 @@ Authorization: Bearer <accessToken>
 
 `streamingUrl`은 `<img src={streamingUrl}>`로 표시하는 식물별 MJPEG 주소입니다. URL은 백엔드 프록시를 가리키며 1시간짜리 서명 티켓을 사용합니다. 브라우저는 RDK의 Tailnet 주소를 직접 호출하지 않습니다. `rdkCameraId`와 `rdkZone`(1~144)은 카메라/영역을 지정합니다.
 
+관리자 식물 목록의 정지 미리보기는 같은 서명 티켓으로 `GET /api/web/plants/preview/:ticket`을 호출합니다. 응답은 첫 프레임만 담은 `image/jpeg`이며 백엔드는 즉시 RDK MJPEG 연결을 닫습니다. 별도 Bearer 헤더는 없고 티켓의 소유자·식물·카메라 배정을 검증합니다. 관리자 목록은 화면에 보이는 미리보기만 순차 조회하고, `streamingUrl`은 관리자가 식물 하나의 **실시간 보기**를 누를 때만 연결합니다. 탭 이동·닫기 시 라이브 연결을 종료합니다.
+
 식물 생성·수정 시 카메라·Zone 설정:
 
 ```http
@@ -872,7 +874,7 @@ RDK X5에서는 카메라 할당/스트림 서버(`:5001`)와 ESP32 수집 프�
 | --- | --- | --- |
 | `POST /api/rdk/current` (백엔드) | 최신 센서값 업로드 | RDK가 인증키와 함께 호출 |
 | `GET /api/availability` (`:5001`) | 카메라·Zone 가용 목록 | 아니오. 백엔드가 할당 처리 |
-| `GET /api/stream/<user-token>` (`:5001`) | 사용자별 MJPEG 스트림 | 아니오. 백엔드 스트림 프록시가 호출 |
+| `GET /api/stream/<user-token>?mode=crop` (`:5001`) | 배정된 영역 MJPEG 스트림 | 아니오. 백엔드 스트림 프록시가 호출; 생략 기본값은 `crop` |
 | `GET /api/cameras/<camera_id>/raw` (`:5001`) | 보정·크롭 전 원본 JPEG 1프레임 | 아니오. 관리자 백엔드가 프록시 |
 | `POST /api/rdk/pump` | 수동 펌프 ON/OFF | 아니오. RDK 명령 폴링이 처리 |
 
@@ -881,7 +883,7 @@ RDK 내부 동작:
 1. ESP32 시리얼 값을 약 2초마다 읽고 최신값을 메모리에 보관합니다.
 2. 활성 식물 카메라 할당을 따라 최신 스냅샷을 60초마다 백엔드 `POST /api/rdk/current`로 보냅니다.
 3. 최근 센서 이력의 평균 로그는 10분마다 백엔드 `POST /api/rdk/logs`로 보냅니다.
-4. `GET /api/stream/<user-token>`는 배정된 카메라 Zone의 MJPEG 영상을 제공합니다. Render 백엔드는 Tailscale HTTP 프록시로 이 스트림을 중계합니다.
+4. `GET /api/stream/<user-token>`는 배정된 카메라 Zone의 1280×720·15 FPS MJPEG 영상을 제공합니다. 일반 사용자용 서명 스트림은 `mode=crop`만 허용하며, `mode=full` 요청은 백엔드에서 `403`으로 거부합니다. 관리자 전용 원본·보정 프레임 API는 관리자 JWT로 별도 보호합니다. Render 백엔드는 Tailscale HTTP 프록시로 이 스트림을 중계합니다.
 
 백엔드는 아래 환경변수로 RDK 주소를 알아야 합니다.
 
@@ -915,10 +917,33 @@ Authorization: Bearer <관리자 JWT>
 {
   "success": true,
   "cameras": [
-    { "cameraId": "c110-1", "zones": [1, 2, 3] }
+    { "cameraId": "c110-1", "zones": [1, 2, 3], "zoneIds": [1, 2, 3, 4, 5, 6] }
   ]
 }
 ```
+
+`zones`는 현재 다른 식물에 할당되지 않은 번호이고 `zoneIds`는 카메라 영상의 실제 설정 영역 전체입니다. `cropHints`는 저장된 재배 배치에서 작물 ID가 지정된 셀에 한해 `{ zone, productId, productName }` 배열로 제공됩니다. 예시에서 zone 1~6만 있는 것은 응답 형식 설명용 일부 예시입니다.
+
+### 6.1.1 실제 재배 배치
+
+실제 재배 위치를 구독 식물/주문과 분리해 MongoDB의 `BedLayout` 단일 문서에 저장합니다. 네 카메라 각각 18셀을 좌상단부터 행 우선으로 기록하며 영역 1~18은 기존 3행×6열 RDK 번호와 일치합니다. 기본 GET은 빈 작물 배치를 반환합니다. 물리 위치 지도는 `2 1 / 3 4` 순서로 좌상·우상·좌하·우하에 각 `c110-2`, `c110-1`, `c110-3`, `c110-4`를 표시합니다.
+
+```http
+GET /api/web/admin/bed-layout
+Authorization: Bearer <관리자 JWT>
+```
+
+응답에는 `cameras`와 읽기 전용 `products` 카탈로그가 포함됩니다. `PUT`은 네 카메라 모두에 정확히 18셀을 지정하고 `zone` 1~18 순서를 유지해야 합니다. 각 `productId`는 `src/config/catalog.js`의 ID 또는 `null`입니다. 전체 요청을 검증한 뒤 한 번에 저장하므로 잘못된 셀 하나라도 있으면 어떤 변경도 반영하지 않습니다.
+
+```http
+PUT /api/web/admin/bed-layout
+Authorization: Bearer <관리자 JWT>
+Content-Type: application/json
+```
+
+요청 본문 예시는 `{ "cameras": [{ "cameraId": "c110-1", "cells": [{ "zone": 1, "productId": "nasturtium" }, ... 18개] }, ... c110-2~c110-4도 같은 형식] }`입니다.
+
+위 JSON은 형식을 보여주는 일부 예시입니다. 실제 PUT에서는 `c110-1`~`c110-4` 모두와 각 카메라 18셀을 전부 보내야 합니다. `DELETE /api/web/admin/bed-layout`은 저장 설정을 지우고 모두 미지정 상태로 초기화합니다. 재배 배치 저장은 `Plant`, 주문, RDK 카메라/Zone 식물 배정을 변경하지 않으며 실제 현재 식재 데이터가 아닌 관리자가 입력한 운영 참고 정보입니다.
 
 ```http
 GET /api/web/admin/cameras/c110-1/frame/raw

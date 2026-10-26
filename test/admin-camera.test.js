@@ -47,6 +47,11 @@ test('administrator camera proxy validates identity and relays preview and grid 
       return res.end(JSON.stringify({ privacy_state: 'off', source_width: 1920,
         source_height: 1080, output_width: 1280, output_height: 720, output_fps: streamFps }));
     }
+    if (req.url === '/api/availability') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ cameras: [{ camera_id: 'c110-1', zones: [1, 2, 3],
+        zone_ids: [1, 2, 3] }] }));
+    }
     if (req.url.endsWith('/profile') && req.method === 'PUT') {
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
@@ -107,9 +112,21 @@ test('administrator camera proxy validates identity and relays preview and grid 
     const token = jwt.sign({ sub: 'admin', role: 'admin' }, process.env.JWT_SECRET);
     const headers = { Authorization: `Bearer ${token}` };
 
+    const cameraAvailability = await fetch(`http://127.0.0.1:${backend.address().port}/api/web/admin/cameras`, { headers });
+    assert.equal(cameraAvailability.status, 200);
+    const cameraAvailabilityData = await cameraAvailability.json();
+    assert.deepEqual(cameraAvailabilityData.cameras[0].zoneIds, [1, 2, 3]);
+    assert.deepEqual(cameraAvailabilityData.cameras[0].cropHints, []);
+
     const adminPage = await fetch(`http://127.0.0.1:${backend.address().port}/admin/`);
     assert.equal(adminPage.status, 200);
     const adminHtml = await adminPage.text();
+    const inlineScripts = [...adminHtml.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)]
+      .map((match) => match[1]).filter((script) => script.trim());
+    for (const script of inlineScripts) {
+      assert.doesNotThrow(() => new Function(script));
+    }
+    assert.ok(inlineScripts.length > 0);
     assert.match(adminHtml, /베드 평면화/);
     assert.match(adminHtml, /perspectiveOverlay/);
     assert.match(adminHtml, /perspectiveGuide/);
@@ -120,6 +137,10 @@ test('administrator camera proxy validates identity and relays preview and grid 
     assert.match(adminHtml, /data-grid-tool="1"/);
     assert.match(adminHtml, /id="gridLayoutAdd"/);
     assert.match(adminHtml, /id="cameraDrawZone"/);
+    assert.match(adminHtml, /id="bedLayoutMap"/);
+    assert.match(adminHtml, /id="bedBulkApply"/);
+    assert.match(adminHtml, /3행×6열/);
+    assert.match(adminHtml, /function validateBedLayoutDraft/);
     assert.match(adminHtml, /data-coupon-preset="welcome"/);
     assert.match(adminHtml, /DISCORD_WEBHOOK_URL/);
     assert.match(adminHtml, /setPointerCapture\(event\.pointerId\)/);

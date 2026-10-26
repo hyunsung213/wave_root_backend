@@ -9,6 +9,27 @@ const { getStreamUrl, invalidateStreamUrlCache } = require('../utils/plant');
 const { fetchRdk } = require('../utils/rdkFetch');
 const SensorSnapshot = require('../models/SensorSnapshot');
 const { requireNonEmptyString, requireObjectId } = require('../utils/validation');
+const { getBedLayout, saveBedLayout, resetBedLayout } = require('../services/bedLayout');
+const { PRODUCTS } = require('../config/catalog');
+
+const getAdminBedLayout = asyncHandler(async (_req, res) => {
+  const layout = await getBedLayout();
+  res.json({ success: true, ...layout,
+    products: Object.values(PRODUCTS).map(({ id, name }) => ({ id, name })) });
+});
+
+const updateAdminBedLayout = asyncHandler(async (req, res) => {
+  if (Object.keys(req.body || {}).length !== 1 || !Object.hasOwn(req.body, 'cameras')) {
+    throw new AppError('cameras is the only supported field.', 400);
+  }
+  const layout = await saveBedLayout(req.body.cameras);
+  res.json({ success: true, ...layout });
+});
+
+const resetAdminBedLayout = asyncHandler(async (_req, res) => {
+  const layout = await resetBedLayout();
+  res.json({ success: true, ...layout });
+});
 
 const adminLogin = asyncHandler(async (req, res) => {
   const id = requireNonEmptyString(req.body.id, 'id', 80);
@@ -156,11 +177,27 @@ const listRdkCameras = asyncHandler(async (_req, res) => {
   }
 
   const cameras = Array.isArray(body?.cameras) ? body.cameras : [];
+  let cropHintsByCamera = new Map();
+  if (mongoose.connection.readyState === 1) {
+    try {
+      const layout = await getBedLayout();
+      cropHintsByCamera = new Map(layout.cameras.map((camera) => [camera.cameraId,
+        camera.cells.filter((cell) => cell.productId).map((cell) => ({
+          zone: cell.zone,
+          productId: cell.productId,
+          productName: PRODUCTS[cell.productId]?.name || cell.productId
+        }))]));
+    } catch (_error) {
+      // Keep camera assignments available when the optional crop hints cannot load.
+    }
+  }
   res.json({
     success: true,
     cameras: cameras
       .filter((camera) => typeof camera?.camera_id === 'string' && camera.camera_id)
-      .map((camera) => ({ cameraId: camera.camera_id, zones: camera.zones || [] }))
+      .map((camera) => ({ cameraId: camera.camera_id, zones: camera.zones || [],
+        zoneIds: Array.isArray(camera.zone_ids) ? camera.zone_ids : [],
+        cropHints: cropHintsByCamera.get(camera.camera_id) || [] }))
   });
 });
 
@@ -573,7 +610,10 @@ module.exports = {
   getRdkCameraProfile,
   updateRdkCameraProfile,
   updateRdkCameraCalibration,
+  getGlobalSensor,
   getRdkCameraStatusList,
   getAllRdkCameraStatuses,
-  getGlobalSensor
+  getAdminBedLayout,
+  updateAdminBedLayout,
+  resetAdminBedLayout
 };

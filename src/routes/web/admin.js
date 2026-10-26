@@ -17,7 +17,10 @@ const {
   updateRdkCameraProfile,
   updateRdkCameraCalibration,
   getRdkCameraStatusList,
-  getGlobalSensor
+  getGlobalSensor,
+  getAdminBedLayout,
+  updateAdminBedLayout,
+  resetAdminBedLayout
 } = require('../../controllers/webAdminController');
 const {
   listAdminOrders, confirmAdminOrder, listAdminCoupons, createAdminCoupon,
@@ -40,6 +43,9 @@ router.patch('/plants/:plantId/camera', requireAdmin, updatePlantCameraAssignmen
 router.patch('/plants/:plantId/irrigation', requireAdmin, updatePlantIrrigationAssignment);
 router.post('/irrigation/commands/:commandId/acknowledge', requireAdmin, acknowledgeUncertainCommand);
 router.get('/cameras', requireAdmin, listRdkCameras);
+router.get('/bed-layout', requireAdmin, getAdminBedLayout);
+router.put('/bed-layout', requireAdmin, updateAdminBedLayout);
+router.delete('/bed-layout', requireAdmin, resetAdminBedLayout);
 router.get('/cameras/status', requireAdmin, getRdkCameraStatusList);
 router.get('/cameras/:cameraId/raw', requireAdmin, getRdkCameraFrame);
 router.get('/cameras/:cameraId/frame/:mode', requireAdmin, getRdkCameraFrame);

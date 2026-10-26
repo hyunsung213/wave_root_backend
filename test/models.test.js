@@ -12,9 +12,10 @@ const UserActivity = require('../src/models/UserActivity');
 const Order = require('../src/models/Order');
 const Coupon = require('../src/models/Coupon');
 const AlertSettings = require('../src/models/AlertSettings');
+const BedLayout = require('../src/models/BedLayout');
 
 test('every persistent schema enables Mongoose timestamps', () => {
-  for (const model of [User, Plant, Log, SensorSnapshot, Water, Command, Event, Notification, UserActivity, Order, Coupon, AlertSettings]) {
+  for (const model of [User, Plant, Log, SensorSnapshot, Water, Command, Event, Notification, UserActivity, Order, Coupon, AlertSettings, BedLayout]) {
     assert.equal(model.schema.options.timestamps, true, `${model.modelName} must use timestamps`);
   }
 });
@@ -60,6 +61,20 @@ test('Discord alert settings are global and enabled by default', () => {
   for (const field of ['signupAlerts', 'orderAlerts', 'cameraAlerts']) {
     assert.equal(AlertSettings.schema.path(field).defaultValue, true);
   }
+});
+
+test('bed layout is one independent four-camera document with 18 row-major cells each', () => {
+  const layout = new BedLayout();
+  assert.equal(BedLayout.schema.path('key').defaultValue, 'main-farm');
+  assert.equal(layout.cameras.length, 0);
+  assert.equal(BedLayout.schema.options.timestamps, true);
+  assert.deepEqual(BedLayout.schema.path('cameras').schema.path('cameraId').enumValues,
+    ['c110-1', 'c110-2', 'c110-3', 'c110-4']);
+  const zoneOptions = BedLayout.schema.path('cameras').schema.path('cells').schema.path('zone').options;
+  assert.equal(zoneOptions.type, Number);
+  assert.equal(zoneOptions.required, true);
+  assert.equal(zoneOptions.min, 1);
+  assert.equal(zoneOptions.max, 18);
 });
 
 test('notification type is restricted to the documented enum', () => {

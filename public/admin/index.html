@@ -96,8 +96,13 @@
   /* streaming grid */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
   .plant{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-  .plant .cam{aspect-ratio:4/3;background:#0c1116;display:flex;align-items:center;justify-content:center;color:#6b7686;font-size:13px}
-  .plant .cam img{width:100%;height:100%;object-fit:contain;cursor:zoom-in}
+  .plant .cam{position:relative;aspect-ratio:4/3;background:#0c1116;display:flex;align-items:center;justify-content:center;color:#a8b7bd;font-size:13px}
+  .plant .cam .plant-preview{width:100%;height:100%;display:grid;place-items:center;text-align:center;padding:24px;background:radial-gradient(circle at 50% 45%,#1c3334,#0c1116 68%)}
+  .plant .cam .plant-preview img{width:100%;height:100%;object-fit:contain}
+  .plant .cam .plant-preview-status{line-height:1.5}
+  .plant .cam .plant-live-button{position:absolute;right:12px;bottom:12px;border:1px solid #98d9c8;border-radius:7px;background:#143d36;color:#e7fff7;padding:8px 12px;font-size:12px;font-weight:700;box-shadow:0 3px 12px #0008}
+  .plant .cam .plant-live-button:hover,.plant .cam .plant-live-button:focus-visible{background:#1c6658;outline:2px solid #b5f4dc;outline-offset:2px}
+  .plant .cam .plant-preview-retry{border:1px solid #597879;border-radius:7px;background:#1d3438;color:#d7eeea;padding:7px 10px}
   .plant .body{padding:12px 14px}
   .plant .body .nm{font-weight:600}
   .plant .body .meta{color:var(--sub);font-size:12px;margin-top:4px;line-height:1.5}
@@ -219,7 +224,7 @@
   .camera-choice:hover{background:#20383a;color:#fff}
   .camera-choice.active{background:#20473f;border-color:#3f8878;color:#fff}
   .camera-choice strong{display:block;font-size:13px}
-  .camera-choice small{display:block;font-size:11px;color:#81a6a0;margin-top:4px}
+  .camera-choice small{display:block;font-size:11px;color:#81a6a0;margin-top:4px;line-height:1.4}
   .camera-main{min-width:0;padding:18px 20px 20px}
   .camera-modes{display:flex;gap:5px;padding:4px;background:#1d3034;border-radius:10px;width:max-content;max-width:100%;margin-bottom:16px}
   .camera-modes button{padding:8px 15px;border:0;background:transparent;color:#9db9b5;border-radius:7px;font-size:12px}
@@ -294,6 +299,54 @@
   .camera-perspective-feedback.error{color:#ffb9ad}
   @media(max-width:1100px){.camera-workspace{grid-template-columns:148px minmax(0,1fr)}.camera-editor{grid-column:1/-1;border-left:0;border-top:1px solid #284044}.camera-coords{grid-template-columns:repeat(4,1fr)}}
   @media(max-width:680px){.camera-workspace{display:block}.camera-rail{display:flex;gap:6px;overflow:auto;border-right:0;border-bottom:1px solid #284044}.camera-rail-title{display:none}.camera-choice{min-width:118px}.camera-main{padding:14px}.camera-coords{grid-template-columns:repeat(2,1fr)}.camera-head{align-items:flex-start;flex-direction:column}}
+  /* bed planting map */
+  .bed-layout{margin-bottom:18px;border:1px solid #d9e5da;border-radius:15px;background:linear-gradient(145deg,#fbfdf9,#f0f5ed);box-shadow:0 8px 24px rgba(55,77,49,.07);overflow:hidden}
+  .bed-layout-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:19px 21px;border-bottom:1px solid #e1e9df}
+  .bed-layout-head h3{margin:0;color:#233b2d;font-size:17px;letter-spacing:-.02em}
+  .bed-layout-head p{margin:5px 0 0;color:#687c6c;font-size:12px;line-height:1.55}
+  .bed-layout-status{display:flex;align-items:center;gap:7px;color:#56705b;font-size:11px;font-weight:800;white-space:nowrap}
+  .bed-layout-status:before{content:"";width:8px;height:8px;border-radius:50%;background:#a7b69f}
+  .bed-layout-status.dirty:before{background:#df9c40;box-shadow:0 0 0 3px #f6e5c5}
+  .bed-layout-status.error{color:#a9433b}
+  .bed-layout-status.error:before{background:#c34b41}
+  .bed-layout-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 20px 0}
+  .bed-layout-toolbar button{padding:8px 11px;border:1px solid #c9d8ca;border-radius:8px;background:#fff;color:#355541;font-size:11px;font-weight:800}
+  .bed-layout-toolbar button.primary{border-color:#517b5b;background:#406b4a;color:#fff}
+  .bed-layout-toolbar button:disabled{opacity:.45;cursor:default}
+  .bed-layout-map{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:16px 20px 20px}
+  .bed-camera{padding:13px;border:1px solid #e0e7dd;border-radius:12px;background:rgba(255,255,255,.8)}
+  .bed-camera-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;color:#294631;font-size:12px;font-weight:900}
+  .bed-camera-title small{color:#819083;font-size:10px;font-weight:700}
+  .bed-layout-map{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:16px 20px 20px}
+  .bed-layout-location-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:12px 20px 0;padding:10px;border:1px solid #dce6d8;border-radius:10px;background:#f8faf5}
+  .bed-layout-location-title{grid-column:1/-1;margin-bottom:2px;color:#778975;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+  .bed-layout-location{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:7px 8px;border:1px solid #e0e7dd;border-radius:7px;background:white;color:#39513d;font-size:10px}
+  .bed-layout-location small{color:#91a08e;font-size:9px;font-weight:700}
+  .bed-cell{position:relative;display:flex;min-width:0;min-height:57px;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:3px;padding:6px;border:1px solid #dce6d8;border-radius:8px;background:#fbfdf8;color:#344837;text-align:left;transition:border-color .15s,background .15s,transform .15s}
+  .bed-cell:hover{transform:translateY(-1px);border-color:#86a88a;background:#f4f8ef}
+  .bed-cell.selected{border-color:#5d9467;background:#edf6e9;box-shadow:0 0 0 2px rgba(93,148,103,.13)}
+  .bed-cell.occupied{border-color:#c5d6ba;background:linear-gradient(140deg,#f0f6e8,#e5efdd)}
+  .bed-cell.unsupported{border-style:dashed;opacity:.58}
+  .bed-cell-number{color:#82907d;font-size:9px;font-variant-numeric:tabular-nums;font-weight:800}
+  .bed-cell-name{display:-webkit-box;width:100%;overflow:hidden;color:#36543a;font-size:10px;font-weight:800;line-height:1.25;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+  .bed-cell-name.empty{color:#b0b9aa;font-weight:600}
+  .bed-editor{display:grid;grid-template-columns:minmax(170px,.65fr) minmax(220px,1fr) auto;align-items:end;gap:10px;padding:13px 20px 17px;border-top:1px solid #e4ebe1;background:#f8faf6}
+  .bed-editor label{display:block;color:#617765;font-size:10px;font-weight:800}
+  .bed-editor select{display:block;width:100%;min-height:38px;margin-top:5px;padding:8px 10px;border:1px solid #cfd9cb;border-radius:8px;background:white;color:#2d4531;font-size:12px}
+  .bed-editor button{min-height:38px;padding:8px 12px;border:1px solid #cad5c7;border-radius:8px;background:#fff;color:#536651;font-size:11px;font-weight:800}
+  .bed-editor[hidden]{display:none}
+  .bed-bulk{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px;padding:0 20px 14px;background:#f8faf6}
+  .bed-bulk label{display:block;color:#617765;font-size:10px;font-weight:800}
+  .bed-bulk textarea{display:block;width:100%;min-height:75px;margin-top:5px;padding:9px;border:1px solid #cfd9cb;border-radius:8px;background:white;color:#2d4531;font:11px/1.55 ui-monospace,Consolas,monospace;resize:vertical}
+  .bed-bulk button{min-height:38px;padding:8px 12px;border:1px solid #78967a;border-radius:8px;background:#edf4e9;color:#355541;font-size:11px;font-weight:800}
+  .bed-bulk-feedback{grid-column:1/-1;min-height:14px;margin:-4px 0 0;color:#617765;font-size:10px}
+  .bed-bulk-feedback.error{color:#b0443d}
+  .bed-mismatch{margin:0 20px 15px;padding:9px 11px;border:1px solid #edcf95;border-radius:8px;background:#fff8e9;color:#765719;font-size:10px;line-height:1.5}
+  .bed-mismatch[hidden]{display:none}
+  .bed-layout-foot{margin:0;padding:0 20px 15px;color:#758477;font-size:10px;line-height:1.5}
+  .camera-choice small .bed-hint{color:#d1e4a7}
+  @media(max-width:760px){.bed-layout-map{grid-template-columns:1fr}.bed-editor{grid-template-columns:1fr 1fr}.bed-editor button{grid-column:1/-1}}
+  @media(max-width:420px){.bed-layout-head{padding:15px;flex-direction:column}.bed-layout-map{padding:12px}.bed-layout-location-grid{margin:10px 12px 0}.bed-layout-location{align-items:flex-start;flex-direction:column;gap:3px}.bed-camera{padding:9px}.bed-cell{min-height:49px;padding:5px}.bed-cell-name{font-size:9px}.bed-editor{padding:12px;grid-template-columns:1fr}.bed-editor button{grid-column:auto}.bed-bulk{padding:0 12px 12px;grid-template-columns:1fr}.bed-layout-foot{padding:0 12px 13px}.bed-mismatch{margin:0 12px 12px}}
 </style>
 </head>
 <body>
@@ -440,11 +493,45 @@
             </select>
             <span class="count" id="pCount"></span>
           </div>
+          <p class="muted" style="margin:0 0 14px;font-size:12px">미리보기는 정지 이미지입니다. 실시간 영상은 선택한 식물 한 개만 재생됩니다.</p>
           <div class="grid" id="plants"><div class="empty">불러오는 중…</div></div>
         </section>
 
         <!-- CAMERA OPERATIONS -->
         <section class="view" id="view-camera">
+          <section class="bed-layout" aria-labelledby="bedLayoutTitle">
+            <div class="bed-layout-head">
+              <div><h3 id="bedLayoutTitle">실제 재배 배치</h3><p>카메라 원본을 구독 식물 정보와 분리해 관리합니다. 번호는 좌상단에서 시작해 행 우선으로 RDK 영역 1–18에 대응합니다.</p></div>
+              <span class="bed-layout-status" id="bedLayoutStatus" role="status">불러오는 중</span>
+            </div>
+            <div class="bed-layout-toolbar">
+              <button type="button" id="bedLayoutEdit">배치 수정</button>
+              <button type="button" id="bedLayoutSave" class="primary" disabled>전체 저장</button>
+              <button type="button" id="bedLayoutCancel" disabled>취소</button>
+              <button type="button" id="bedLayoutReset" disabled>기본 배치로 초기화</button>
+            </div>
+            <div class="bed-layout-location-grid" aria-label="카메라 물리 배치">
+              <div class="bed-layout-location-title">CAMERA POSITION · 2 × 2 · 2 1 / 3 4</div>
+              <div class="bed-layout-location"><strong>2 · c110-2</strong><small>왼쪽 위</small></div>
+              <div class="bed-layout-location"><strong>1 · c110-1</strong><small>오른쪽 위</small></div>
+              <div class="bed-layout-location"><strong>3 · c110-3</strong><small>왼쪽 아래</small></div>
+              <div class="bed-layout-location"><strong>4 · c110-4</strong><small>오른쪽 아래</small></div>
+            </div>
+            <div class="bed-layout-map" id="bedLayoutMap" aria-label="네 카메라의 3행 6열 재배 배치"></div>
+            <div class="bed-editor" id="bedEditor" hidden>
+              <label>선택 셀<select id="bedSelectedCell" disabled></select></label>
+              <label>작물<select id="bedProductSelect"></select></label>
+              <button type="button" id="bedCellClear">이 칸 비우기</button>
+            </div>
+            <div class="bed-bulk" id="bedBulk" hidden>
+              <label for="bedBulkInput">카메라별 3행×6열 일괄 입력 · 작물 ID 또는 표시 이름, 빈칸은 `-`</label>
+              <textarea id="bedBulkInput" spellcheck="false" aria-describedby="bedBulkFeedback" placeholder="c110-1\nnasturtium basil - - - -\n- - - - - -\n- - - - - -\n\nc110-2\n..."></textarea>
+              <button type="button" id="bedBulkApply">전체 미리보기 적용</button>
+              <p class="bed-bulk-feedback" id="bedBulkFeedback" role="status">각 카메라 이름 뒤에 3행을 입력하세요. 각 행은 6개 값입니다.</p>
+            </div>
+            <div class="bed-mismatch" id="bedMismatch" hidden></div>
+            <p class="bed-layout-foot">물리 위치는 `2 1 / 3 4` 지도 기준이며 좌상·우상·좌하·우하 순서입니다. 셀 번호는 각 카메라 영상의 RDK 영역 번호입니다. 설정되지 않은 작물은 미지정으로 표시됩니다.</p>
+          </section>
           <div class="camera-console">
             <div class="camera-head">
               <div><div class="camera-kicker">RDK X5 / OPTICS WORKBENCH</div><h3>카메라 화면 설정</h3>
@@ -590,6 +677,14 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const T={teal:'#1bb0a6',coral:'#ef6b6b',yellow:'#f2c14e',sub:'#8a94a6',line:'#e4e8ee'};
 
 let users=[], plants=[], cameras=[], couponUsers=[], catalogProducts=[];
+const BED_CAMERA_POSITIONS={
+  'c110-1':'위치 1 · 오른쪽 위',
+  'c110-2':'위치 2 · 왼쪽 위',
+  'c110-3':'위치 3 · 왼쪽 아래',
+  'c110-4':'위치 4 · 오른쪽 아래'
+};
+let bedLayoutState={cameras:[],savedCameras:[],products:[],selectedCameraId:'c110-1',selectedZone:1,
+  editing:false,dirty:false,loaded:false,updatedAt:null};
 let orderNodeAction=null;
 let uState={q:'',type:'',plant:'',sort:'createdAt',dir:'desc'};
 let pState={q:'',type:'',stream:''};
@@ -600,6 +695,164 @@ const cameraState={id:null,mode:'raw',zone:'1',zones:null,savedZones:null,editin
   grids:[],savedGrids:[],selectedGridId:null,layoutEditing:false,layoutDirty:false,
   layoutCustomized:false,layoutLoaded:false,paletteDrag:null,gridDrag:null,
   timer:null,statusTimer:null,controller:null,objectUrl:null,drag:null,requestVersion:0,fps:15};
+
+function findBedCell(cameraId,zone){
+  return bedLayoutState.cameras.find(camera=>camera.cameraId===cameraId)?.cells.find(cell=>cell.zone===zone)||null;
+}
+function bedProductName(productId){
+  return bedLayoutState.products.find(product=>product.id===productId)?.name||productId||'';
+}
+function selectedBedCamera(){return bedLayoutState.cameras.find(camera=>camera.cameraId===bedLayoutState.selectedCameraId)||null;}
+function setBedStatus(message,state=''){
+  const status=$('bedLayoutStatus');status.textContent=message;status.classList.toggle('dirty',state==='dirty');status.classList.toggle('error',state==='error');
+}
+function bedSelectedCellLabel(){
+  const camera=selectedBedCamera();
+  const cell=camera?.cells.find(item=>item.zone===bedLayoutState.selectedZone);
+  return camera&&cell?`${camera.cameraId} · 영역 ${cell.zone}`:'셀을 선택하세요';
+}
+function renderBedLayout(){
+  const selectedCamera=bedLayoutState.selectedCameraId;
+  $('bedLayoutMap').innerHTML=bedLayoutState.cameras.map(camera=>`<section class="bed-camera" aria-label="${esc(camera.cameraId)} 재배 배치">
+    <div class="bed-camera-title"><span>${esc(camera.cameraId)}</span><small>${esc(BED_CAMERA_POSITIONS[camera.cameraId]||'')}</small></div>
+    <div class="bed-camera-grid">${camera.cells.map(cell=>{
+      const name=bedProductName(cell.productId);const selected=camera.cameraId===selectedCamera&&cell.zone===bedLayoutState.selectedZone;
+      return `<button type="button" class="bed-cell ${cell.productId?'occupied':''} ${selected?'selected':''}" data-bed-camera="${esc(camera.cameraId)}" data-bed-zone="${cell.zone}" aria-label="${esc(camera.cameraId)} 영역 ${cell.zone}: ${esc(name||'미지정')}">
+        <span class="bed-cell-number">${cell.zone.toString().padStart(2,'0')} · RDK ${cell.zone}</span><span class="bed-cell-name ${name?'':'empty'}">${esc(name||'미지정')}</span></button>`;
+    }).join('')}</div>
+  </section>`).join('');
+  const editing=bedLayoutState.editing;
+  const availableZones=new Map(cameras.map(camera=>[camera.cameraId,new Set(camera.zoneIds||[])]));
+  $('bedLayoutMap').querySelectorAll('.bed-cell').forEach(button=>{
+    button.disabled=!editing;
+    button.classList.toggle('unsupported',availableZones.has(button.dataset.bedCamera)&&
+      !availableZones.get(button.dataset.bedCamera).has(Number(button.dataset.bedZone)));
+  });
+  $('bedLayoutStatus').textContent=bedLayoutState.loaded
+    ?bedLayoutState.dirty?'저장되지 않은 변경':'저장된 배치'
+    :'불러오는 중';
+  $('bedLayoutStatus').classList.toggle('dirty',bedLayoutState.dirty);
+  $('bedLayoutStatus').classList.remove('error');
+  $('bedLayoutEdit').disabled=!bedLayoutState.loaded||editing;
+  $('bedLayoutSave').disabled=!editing||!bedLayoutState.dirty;
+  $('bedLayoutCancel').disabled=!editing;
+  $('bedLayoutReset').disabled=!editing;
+  $('bedEditor').hidden=!editing;
+  $('bedBulk').hidden=!editing;
+  if(editing){
+    $('bedSelectedCell').innerHTML=`<option>${esc(bedSelectedCellLabel())}</option>`;
+    const current=findBedCell(selectedCamera,bedLayoutState.selectedZone)?.productId||'';
+    $('bedProductSelect').innerHTML='<option value="">미지정 / 비우기</option>'+bedLayoutState.products.map(product=>
+      `<option value="${esc(product.id)}" ${product.id===current?'selected':''}>${esc(product.name)} · ${esc(product.id)}</option>`).join('');
+    $('bedProductSelect').value=current;
+  }
+  renderBedMismatches();
+}
+function renderBedMismatches(){
+  const mismatch=[];
+  for(const camera of bedLayoutState.cameras){
+    const zoneIds=cameras.find(item=>item.cameraId===camera.cameraId)?.zoneIds;
+    if(!Array.isArray(zoneIds))continue;
+    const configured=new Set(zoneIds);
+    for(const cell of camera.cells){if(cell.productId&&!configured.has(cell.zone))mismatch.push(`${camera.cameraId} · 영역 ${cell.zone}`);}
+  }
+  const warning=$('bedMismatch');warning.hidden=!mismatch.length;
+  warning.textContent=mismatch.length
+    ?'작물이 지정된 일부 번호가 RDK 영상에서 실제 영역으로 확인되지 않습니다. 배치 번호와 카메라 그리드를 확인하세요: '+mismatch.join(', ')
+    :'';
+}
+async function loadBedLayout(){
+  setBedStatus('재배 배치를 불러오는 중…');
+  try{
+    const data=await api('/bed-layout');
+    bedLayoutState.cameras=structuredClone(data.cameras||[]);
+    bedLayoutState.savedCameras=structuredClone(data.cameras||[]);
+    bedLayoutState.products=data.products||[];bedLayoutState.updatedAt=data.updatedAt||null;
+    bedLayoutState.loaded=true;bedLayoutState.editing=false;bedLayoutState.dirty=false;
+    renderBedLayout();setBedStatus(data.updatedAt?'저장된 배치':'기본 배치 · 아직 저장되지 않음');
+    $('bedLayoutStatus').classList.toggle('dirty',!data.updatedAt);
+  }catch(error){
+    bedLayoutState.loaded=false;setBedStatus('배치 조회 실패 · '+error.message,'error');
+  }
+}
+function updateBedCell(productId){
+  const cell=findBedCell(bedLayoutState.selectedCameraId,bedLayoutState.selectedZone);
+  if(!cell||!bedLayoutState.editing)return;
+  cell.productId=productId||null;bedLayoutState.dirty=true;renderBedLayout();
+}
+function startBedLayoutEdit(){
+  if(!bedLayoutState.loaded||bedLayoutState.editing)return;
+  bedLayoutState.editing=true;bedLayoutState.dirty=false;renderBedLayout();
+  $('bedBulkInput').value=serializeBedBulk();$('bedBulkFeedback').textContent='미리보기 적용 후 전체 저장을 눌러야 서버에 반영됩니다.';
+}
+function cancelBedLayoutEdit(){
+  if(!bedLayoutState.editing)return;
+  bedLayoutState.cameras=structuredClone(bedLayoutState.savedCameras);
+  bedLayoutState.editing=false;bedLayoutState.dirty=false;renderBedLayout();
+}
+async function saveBedLayout(){
+  if(!bedLayoutState.editing||!bedLayoutState.dirty||!validateBedLayoutDraft()){return;}
+  const button=$('bedLayoutSave');button.disabled=true;setBedStatus('네 카메라 전체를 검증·저장하는 중…');
+  try{
+    const data=await api('/bed-layout',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({cameras:bedLayoutState.cameras})});
+    bedLayoutState.cameras=structuredClone(data.cameras);bedLayoutState.savedCameras=structuredClone(data.cameras);
+    bedLayoutState.updatedAt=data.updatedAt||new Date().toISOString();bedLayoutState.editing=false;bedLayoutState.dirty=false;
+    renderBedLayout();setBedStatus('네 카메라의 재배 배치를 저장했습니다.');
+  }catch(error){setBedStatus('저장하지 못했습니다 · '+error.message,'error');button.disabled=false;}
+}
+function validateBedLayoutDraft(){
+  const valid=Array.isArray(bedLayoutState.cameras)&&bedLayoutState.cameras.length===4&&
+    bedLayoutState.cameras.every(camera=>camera.cells.length===18&&camera.cells.every((cell,index)=>
+      cell.zone===index+1&&(cell.productId===null||bedLayoutState.products.some(product=>product.id===cell.productId))));
+  if(!valid)setBedStatus('카메라 4대 각각 18칸의 작물 값을 확인하세요.','error');
+  return valid;
+}
+function normalizeBulkProduct(value){
+  const normalized=value.trim().toLocaleLowerCase('ko-KR');
+  if(!normalized||['-','—','_','null','none','미지정','비움'].includes(normalized))return null;
+  const product=bedLayoutState.products.find(item=>item.id.toLocaleLowerCase('ko-KR')===normalized||item.name.toLocaleLowerCase('ko-KR')===normalized);
+  if(!product)throw new Error(`카탈로그에 없는 작물: ${value}`);
+  return product.id;
+}
+function serializeBedBulk(){
+  return bedLayoutState.cameras.map(camera=>`${camera.cameraId}\n${[0,1,2].map(row=>
+    camera.cells.slice(row*6,row*6+6).map(cell=>cell.productId||'-').join(' ')).join('\n')}`).join('\n\n');
+}
+function applyBedBulk(){
+  const feedback=$('bedBulkFeedback');feedback.classList.remove('error');
+  try{
+    const blocks=$('bedBulkInput').value.trim().split(/\n\s*\n/);
+    if(blocks.length!==4)throw new Error('카메라 4개 블록을 모두 입력하세요.');
+    const seen=new Set();
+    const preview=blocks.map(block=>{
+      const lines=block.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+      const cameraId=lines.shift();
+      if(!BED_CAMERA_POSITIONS[cameraId]||seen.has(cameraId))throw new Error(`중복이거나 잘못된 카메라 ID: ${cameraId||'(빈 값)'}`);
+      seen.add(cameraId);
+      const tokens=lines.flatMap(line=>line.split(/[\s,，;；|\t]+/).filter(Boolean));
+      if(tokens.length!==18)throw new Error(`${cameraId}: 3행×6열, 총 18개 값이 필요합니다 (현재 ${tokens.length}개).`);
+      return {cameraId,cells:tokens.map((value,index)=>({zone:index+1,productId:normalizeBulkProduct(value)}))};
+    });
+    if(seen.size!==4)throw new Error('4대의 카메라를 모두 지정해야 합니다.');
+    bedLayoutState.cameras=preview;bedLayoutState.dirty=true;renderBedLayout();
+    feedback.textContent='미리보기에 적용했습니다. 저장 전까지 서버 데이터는 바뀌지 않습니다.';
+  }catch(error){feedback.textContent=error.message;feedback.classList.add('error');}
+}
+$('bedLayoutEdit').addEventListener('click',startBedLayoutEdit);
+$('bedLayoutCancel').addEventListener('click',cancelBedLayoutEdit);
+$('bedLayoutSave').addEventListener('click',()=>void saveBedLayout());
+$('bedLayoutReset').addEventListener('click',()=>{
+  if(!bedLayoutState.editing)return;
+  bedLayoutState.cameras=bedLayoutState.savedCameras.map(camera=>({cameraId:camera.cameraId,cells:camera.cells.map(cell=>({...cell,productId:null}))}));
+  bedLayoutState.dirty=true;renderBedLayout();$('bedBulkInput').value=serializeBedBulk();
+});
+$('bedLayoutMap').addEventListener('click',event=>{
+  const cell=event.target.closest('[data-bed-camera]');if(!cell||!bedLayoutState.editing)return;
+  bedLayoutState.selectedCameraId=cell.dataset.bedCamera;bedLayoutState.selectedZone=Number(cell.dataset.bedZone);renderBedLayout();
+});
+$('bedProductSelect').addEventListener('change',event=>updateBedCell(event.target.value));
+$('bedCellClear').addEventListener('click',()=>{updateBedCell(null);$('bedProductSelect').value='';});
+$('bedBulkApply').addEventListener('click',applyBedBulk);
 
 function token(){ try{return sessionStorage.getItem(KEY)}catch{return null} }
 function setToken(t){ try{ t?sessionStorage.setItem(KEY,t):sessionStorage.removeItem(KEY) }catch{} }
@@ -627,7 +880,7 @@ $('loginForm').addEventListener('submit',async e=>{
   finally{ btn.disabled=false }
 });
 $('logout').addEventListener('click',logout);
-function logout(){ stopCameraPolling(); stopPlantStreams(); setToken(null); show(false) }
+function logout(){ stopCameraPolling(); stopPlantStreams(); clearPreviewCache(); setToken(null); show(false) }
 
 /* ---------- nav ---------- */
 const titles={dash:'대시보드',users:'사용자 관리',orders:'분양 주문',catalog:'분양 상품',coupons:'쿠폰 관리',alerts:'알림 설정',stream:'스트리밍',camera:'카메라 설정',sensor:'센서'};
@@ -637,7 +890,7 @@ $('nav').addEventListener('click',e=>{
   document.querySelectorAll('.nav a').forEach(x=>x.classList.toggle('active',x===a));
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+v));
   $('pageTitle').textContent=titles[v];
-  if(v==='camera') startCameraPolling(); else stopCameraPolling();
+  if(v==='camera'){startCameraPolling();if(!bedLayoutState.loaded)void loadBedLayout();} else stopCameraPolling();
   if(v==='stream') renderPlants(); else stopPlantStreams();
   if(v==='orders') loadOrders();
   if(v==='catalog') loadCatalog();
@@ -723,9 +976,10 @@ function availableOrderNodes(cameraList,plantList){
   return cameraList.flatMap(camera=>{
     const cameraId=String(camera.cameraId||'');
     if(!/^[A-Za-z0-9_-]{1,64}$/.test(cameraId)||!Array.isArray(camera.zones))return [];
+    const cropHints=new Map((camera.cropHints||[]).map(item=>[item.zone,item.productName]));
     return [...new Set(camera.zones.map(Number))]
       .filter(zone=>Number.isInteger(zone)&&zone>=1&&zone<=144&&!occupied.has(cameraId+':'+zone))
-      .map(zone=>({cameraId,zone}));
+      .map(zone=>({cameraId,zone,cropName:cropHints.get(zone)||''}));
   }).sort((a,b)=>a.cameraId.localeCompare(b.cameraId)||a.zone-b.zone);
 }
 function orderNodeOption(value,title,description,checked=false){
@@ -749,7 +1003,7 @@ function renderOrderNodeOptions(action){
   else if(!action.nodes.length)messages.push('현재 배정 가능한 카메라 영역이 없습니다. 주문은 노드 미배정 상태로 확정한 뒤 나중에 연결할 수 있습니다.');
   $('orderNodeOptions').innerHTML=(messages.length?`<div class="order-node-empty">${messages.map(esc).join('<br>')}</div>`:'')+
     action.nodes.map(node=>orderNodeOption(`${node.cameraId}:${node.zone}`,`${node.cameraId} · 영역 ${node.zone}`,
-      '현재 다른 식물에 연결되지 않은 노드')).join('')+
+      `현재 다른 식물에 연결되지 않은 노드 · ${BED_CAMERA_POSITIONS[node.cameraId]||'물리 위치 미등록'} · ${node.cropName?'예정 작물 · '+node.cropName:'재배 배치 미지정'}`)).join('')+
     (action.mode==='confirm'?orderNodeOption('skip','지금 연결하지 않고 나중에 배정',
       action.nodes.length?'주문을 먼저 확정하고 주문 목록에서 나중에 연결할 수 있습니다.':'노드가 없는 상태로 주문을 확정합니다.',!action.nodes.length):'');
   updateOrderNodeSubmit();
@@ -1023,12 +1277,18 @@ $('testAlert').addEventListener('click',async()=>{
 async function start(){
   show(true);
   try{
-    const [u,p,c]=await Promise.all([
+    const [u,p,c,bed]=await Promise.all([
       api('/users'),
       api('/plants'),
-      api('/cameras').catch(()=>({cameras:[]}))
+      api('/cameras').catch(()=>({cameras:[]})),
+      api('/bed-layout').catch(()=>null)
     ]);
     users=u.users; plants=p.plants; cameras=c.cameras||[];
+    if(bed&&!bedLayoutState.editing){
+      bedLayoutState.cameras=structuredClone(bed.cameras||[]);bedLayoutState.savedCameras=structuredClone(bed.cameras||[]);
+      bedLayoutState.products=bed.products||[];bedLayoutState.updatedAt=bed.updatedAt||null;
+      bedLayoutState.loaded=true;bedLayoutState.editing=false;bedLayoutState.dirty=false;renderBedLayout();
+    }
     $('updatedAt').textContent='업데이트 '+new Date().toLocaleString('ko-KR');
     renderKpis(); renderCharts();
     fillTypeFilter(); renderUsers();
@@ -1197,19 +1457,103 @@ function fillTypeFilter(){
   const types=[...new Set(plants.map(p=>p.type))].sort();
   $('pType').innerHTML='<option value="">전체 종류</option>'+types.map(t=>`<option>${esc(t)}</option>`).join('');
 }
-function streamMarkup(url,label){
-  const safe=esc(url);
-  return `<img data-stream-url="${safe}" data-stream-title="${esc(label||'실시간 스트리밍')}" data-retry="0" src="${safe}" alt="stream" onerror="retryStream(this)"/>`;
+const previewCache=new Map();
+let previewObserver=null,previewQueue=[],previewRequest=null,previewGeneration=0;
+function previewKey(plant){return `${plant._id}:${plant.rdkCameraId}:${plant.rdkZone}`;}
+function previewUrl(streamUrl){
+  const url=new URL(streamUrl,location.href);
+  const streamPath='/api/web/plants/stream/';
+  if(!url.pathname.startsWith(streamPath)) throw new Error('미리보기 주소를 확인할 수 없습니다.');
+  url.pathname=url.pathname.replace(streamPath,'/api/web/plants/preview/');
+  return url.pathname+url.search;
 }
+function clearPreviewCache(){
+  for(const url of previewCache.values()) URL.revokeObjectURL(url);
+  previewCache.clear();
+}
+function stopPreviewLoading(){
+  previewGeneration++;
+  previewObserver?.disconnect();previewObserver=null;
+  previewQueue=[];
+  previewRequest?.abort();previewRequest=null;
+}
+function pausePlantPreviews(){
+  stopPreviewLoading();
+  $('plants').querySelectorAll('[data-preview-state="loading"], [data-preview-state="queued"]').forEach(element=>{
+    element.dataset.previewState='waiting';
+    element.textContent='정지 미리보기 준비 중';
+  });
+}
+function queuePreview(element){
+  if(element.dataset.previewState!=='waiting')return;
+  element.dataset.previewState='queued';
+  previewQueue.push(element);
+  loadNextPreview();
+}
+async function loadNextPreview(){
+  if(previewRequest||!previewQueue.length||document.hidden||modalStream?.kind==='plant'||
+    !$('view-stream').classList.contains('active'))return;
+  const element=previewQueue.shift();
+  if(!element.isConnected){loadNextPreview();return;}
+  const plant=plants.find(item=>String(item._id)===element.dataset.previewPlant);
+  if(!plant?.streamingUrl){loadNextPreview();return;}
+  const generation=previewGeneration;
+  const controller=new AbortController();
+  previewRequest=controller;
+  element.dataset.previewState='loading';
+  element.textContent='정지 미리보기 불러오는 중…';
+  try{
+    const response=await fetch(previewUrl(plant.streamingUrl),{signal:controller.signal,cache:'no-store'});
+    if(!response.ok)throw new Error(`HTTP ${response.status}`);
+    const blob=await response.blob();
+    if(!blob.type.startsWith('image/jpeg'))throw new Error('이미지 형식 오류');
+    if(generation!==previewGeneration||!element.isConnected)return;
+    const objectUrl=URL.createObjectURL(blob);
+    const key=previewKey(plant);
+    if(previewCache.has(key))URL.revokeObjectURL(previewCache.get(key));
+    previewCache.set(key,objectUrl);
+    const image=document.createElement('img');
+    image.src=objectUrl;image.alt=plant.name+' 정지 미리보기';
+    element.replaceChildren(image);
+    element.dataset.previewState='ready';
+  }catch(error){
+    if(error.name!=='AbortError'&&generation===previewGeneration&&element.isConnected){
+      element.dataset.previewState='failed';
+      element.replaceChildren(document.createTextNode('미리보기를 불러오지 못했습니다. '));
+      const retry=document.createElement('button');
+      retry.type='button';retry.className='plant-preview-retry';
+      retry.dataset.retryPreview=plant._id;retry.textContent='다시 시도';
+      element.appendChild(retry);
+    }
+  }finally{
+    if(previewRequest===controller)previewRequest=null;
+    if(generation===previewGeneration)loadNextPreview();
+  }
+}
+function observePlantPreviews(){
+  if(previewObserver)return;
+  const pending=$('plants').querySelectorAll('[data-preview-state="waiting"]');
+  if('IntersectionObserver' in window){
+    previewObserver=new IntersectionObserver(entries=>{
+      for(const entry of entries)if(entry.isIntersecting){
+        previewObserver.unobserve(entry.target);queuePreview(entry.target);
+      }
+    },{rootMargin:'100px'});
+    pending.forEach(element=>previewObserver.observe(element));
+  }else pending.forEach(queuePreview);
+}
+let streamRetryTimer=null;
 function retryStream(img){
+  if(modalStream?.kind!=='plant'||modalStream.img!==img||document.hidden)return;
   const retry=Number(img.dataset.retry||0);
-  if(retry>=8){
-    img.replaceWith(document.createTextNode('스트림 연결 실패'));
+  if(retry>=2){
+    img.replaceWith(document.createTextNode('스트림 연결 실패. 닫고 다시 시도해 주세요.'));
     return;
   }
   img.dataset.retry=String(retry+1);
-  const delay=Math.min(1000*(retry+1),5000);
-  setTimeout(()=>{
+  const delay=1000*(retry+1);
+  streamRetryTimer=setTimeout(()=>{
+    if(modalStream?.img!==img||!img.isConnected||document.hidden)return;
     const base=img.dataset.streamUrl;
     const separator=base.includes('?')?'&':'?';
     img.src=base+separator+'retry='+Date.now();
@@ -1219,7 +1563,7 @@ let modalStream=null;
 function openStream(img){
   if(!img||!img.parentNode) return;
   closeStream();
-  modalStream={img,parent:img.parentNode,next:img.nextSibling};
+  modalStream={kind:'camera',img,parent:img.parentNode,next:img.nextSibling};
   $('streamModalMedia').appendChild(img);
   img.classList.add('expanded-stream');
   $('streamModalCaption').textContent=img.dataset.streamTitle||'실시간 스트리밍';
@@ -1227,20 +1571,49 @@ function openStream(img){
   document.body.classList.add('modal-open');
   $('streamModalClose').focus();
 }
+function openPlantStream(plant){
+  if(!plant?.streamingUrl)return;
+  closeStream();
+  pausePlantPreviews();
+  const img=document.createElement('img');
+  img.alt=plant.name+' 실시간 스트리밍';
+  img.dataset.streamUrl=plant.streamingUrl;
+  img.dataset.retry='0';
+  img.addEventListener('error',()=>retryStream(img));
+  modalStream={kind:'plant',img};
+  $('streamModalMedia').appendChild(img);
+  $('streamModalCaption').textContent=plant.name+' · 실시간 스트리밍';
+  $('streamModal').hidden=false;
+  document.body.classList.add('modal-open');
+  img.src=plant.streamingUrl;
+  $('streamModalClose').focus();
+}
 function closeStream(){
+  clearTimeout(streamRetryTimer);streamRetryTimer=null;
   if(!modalStream){ $('streamModal').hidden=true; document.body.classList.remove('modal-open'); return; }
-  const {img,parent,next}=modalStream;
-  if(parent&&parent.isConnected){
+  const {kind,img,parent,next}=modalStream;
+  modalStream=null;
+  if(kind==='plant'){
+    img.removeAttribute('src');
+    img.remove();
+    $('streamModalMedia').replaceChildren();
+  }else if(parent&&parent.isConnected){
     img.classList.remove('expanded-stream');
     parent.insertBefore(img,next&&next.parentNode===parent?next:null);
   }
-  modalStream=null;
   $('streamModal').hidden=true;
   document.body.classList.remove('modal-open');
+  if(kind==='plant'&&!document.hidden&&$('view-stream').classList.contains('active'))observePlantPreviews();
 }
 $('plants').addEventListener('click',e=>{
-  const img=e.target.closest('img[data-stream-url]');
-  if(img) openStream(img);
+  const retry=e.target.closest('[data-retry-preview]');
+  if(retry){
+    const element=retry.closest('[data-preview-plant]');
+    if(element){element.dataset.previewState='waiting';queuePreview(element);}
+    return;
+  }
+  const button=e.target.closest('[data-open-plant]');
+  if(button)openPlantStream(plants.find(plant=>String(plant._id)===button.dataset.openPlant));
 });
 $('zoomCamera').addEventListener('click',()=>{
   if(hasCameraEdits())return;
@@ -1251,6 +1624,7 @@ $('streamModal').addEventListener('click',e=>{ if(e.target===e.currentTarget) cl
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('streamModal').hidden) closeStream(); });
 function renderPlants(){
   closeStream();
+  stopPreviewLoading();
   let list=plants.filter(p=>{
     if(pState.type&&p.type!==pState.type) return false;
     if(pState.stream==='on'&&!p.streamingUrl) return false;
@@ -1263,7 +1637,9 @@ function renderPlants(){
   const cameraOptions=cameraList();
   $('plants').innerHTML=list.length? list.map(p=>`<div class="plant">
     <div class="cam">${p.streamingUrl
-      ? streamMarkup(p.streamingUrl,p.name)
+      ? `<div class="plant-preview" data-preview-plant="${esc(p._id)}" data-preview-state="${previewCache.has(previewKey(p))?'ready':'waiting'}">${previewCache.has(previewKey(p))
+        ? `<img src="${esc(previewCache.get(previewKey(p)))}" alt="${esc(p.name)} 정지 미리보기"/>`
+        : '<span class="plant-preview-status">정지 미리보기 준비 중</span>'}</div><button type="button" class="plant-live-button" data-open-plant="${esc(p._id)}" aria-label="${esc(p.name)} 실시간 보기">● 실시간 보기</button>`
       : '스트림 없음'}</div>
     <div class="body">
       <div class="nm">${esc(p.name)} <span class="muted" style="font-weight:400">· ${esc(p.type)}</span></div>
@@ -1279,14 +1655,17 @@ function renderPlants(){
       </div>
     </div>
   </div>`).join('') : '<div class="empty">조건에 맞는 식물이 없습니다.</div>';
+  observePlantPreviews();
 }
 function zoneOptionsForPlant(cameraId,plant){
   if(!cameraId)return '<option value="">카메라를 선택하세요</option>';
   const free=cameras.find(camera=>camera.cameraId===cameraId)?.zones||[];
   const current=plant.rdkCameraId===cameraId?plant.rdkZone:null;
   const values=[...new Set([...free,current].filter(zone=>Number.isInteger(zone)))].sort((a,b)=>a-b);
-  return '<option value="">영역 선택</option>'+values.map(zone=>
-    `<option value="${zone}" ${zone===current?'selected':''}>영역 ${zone}</option>`).join('');
+  return '<option value="">영역 선택</option>'+values.map(zone=>{
+    const productId=findBedCell(cameraId,zone)?.productId;
+    return `<option value="${zone}" ${zone===current?'selected':''}>영역 ${zone}${productId?' · '+esc(bedProductName(productId)):''}</option>`;
+  }).join('');
 }
 $('plants').addEventListener('change',event=>{
   if(!event.target.matches('[data-assign-camera]'))return;
@@ -1312,13 +1691,14 @@ $('plants').addEventListener('click',async event=>{
       'PATCH',{rdkCameraId,rdkZone});
     Object.assign(plant,data.plant);
     cameras=(await api('/cameras')).cameras||[];
-    renderPlants();renderCameras();
+    renderPlants();renderCameras();renderBedMismatches();
   }catch(error){
     status.textContent=error.message;status.classList.add('error');button.disabled=false;
   }
 });
 function stopPlantStreams(){
   closeStream();
+  stopPreviewLoading();
   $('plants').replaceChildren();
 }
 
@@ -1390,8 +1770,10 @@ function renderCameras(){
   $('cameraChoices').innerHTML=list.length?list.map(c=>{
     const id=esc(c.cameraId);
     const count=Array.isArray(c.zones)?c.zones.length:0;
+    const hints=c.cropHints||[];
     return `<button class="camera-choice" type="button" data-camera-choice="${id}">
-      <strong>${id}</strong><small>${count}개 빈 영역</small></button>`;
+      <strong>${id}</strong><small>${count}개 빈 영역 · ${esc(BED_CAMERA_POSITIONS[c.cameraId]||'위치 미등록')}</small>
+      ${hints.length?`<small class="bed-hint">작물: ${esc(hints.slice(0,3).map(item=>`${item.zone} ${item.productName}`).join(' · '))}${hints.length>3?' …':''}</small>`:''}</button>`;
   }).join(''):'<div class="empty">등록된 카메라가 없습니다.</div>';
   const next=list.some(c=>c.cameraId===cameraState.id)?cameraState.id:list[0]?.cameraId;
   if(next===cameraState.id&&hasCameraEdits()){
@@ -1891,6 +2273,7 @@ $('gridLayoutSave').addEventListener('click',async()=>{
       ]);
       if(cameraState.id===cameraId){
         cameras=availability.cameras||[];
+        renderBedMismatches();
         cameraState.zones=structuredClone(calibration.zones);
         cameraState.savedZones=structuredClone(calibration.zones);
         document.querySelectorAll('[data-camera-choice]').forEach(button=>{

@@ -120,15 +120,20 @@ test('signed plant stream tickets are proxied by the backend and do not expose t
   const originalFindOne = Plant.findOne;
   const originalBaseUrl = process.env.RDK_STREAM_BASE_URL;
   const fixture = { rdkCameraId: 'c110-1', rdkZone: 4 };
+  const requestedModes = [];
   Plant.findOne = () => ({
     select() { return this; },
     async lean() { return fixture; }
   });
   const rdk = http.createServer((req, res) => {
-    assert.equal(req.url, '/api/stream/rdk-user-token');
+    const url = new URL(req.url, 'http://rdk.test');
+    assert.equal(url.pathname, '/api/stream/rdk-user-token');
+    requestedModes.push(url.searchParams.get('mode'));
     res.writeHead(200, {
       'Content-Type': 'multipart/x-mixed-replace; boundary=frame',
-      'Cache-Control': 'no-store'
+      'Cache-Control': 'no-store', 'X-Stream-Width': url.searchParams.get('mode') === 'full' ? '1920' : '1280',
+      'X-Stream-Height': url.searchParams.get('mode') === 'full' ? '1080' : '720',
+      'X-Stream-FPS': url.searchParams.get('mode') === 'full' ? '10' : '15'
     });
     res.end('--frame\r\nContent-Type: image/jpeg\r\n\r\nframe-bytes\r\n');
   });
@@ -147,6 +152,15 @@ test('signed plant stream tickets are proxied by the backend and do not expose t
     assert.match(response.headers.get('content-type'), /multipart\/x-mixed-replace/);
     assert.match(await response.text(), /frame-bytes/);
     assert.match(response.headers.get('cache-control'), /no-store/);
+
+    const fullResponse = await fetch(`${url}?mode=full`, {
+      headers: { Origin: 'https://wave-root-client.vercel.app' }
+    });
+    assert.equal(fullResponse.status, 403);
+    assert.deepEqual(requestedModes, ['crop']);
+
+    const invalidMode = await fetch(`${url}?mode=original`);
+    assert.equal(invalidMode.status, 400);
 
     const invalid = await fetch(`${url.slice(0, url.lastIndexOf('/') + 1)}not-a-ticket`);
     assert.equal(invalid.status, 401);

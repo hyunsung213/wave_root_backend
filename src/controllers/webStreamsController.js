@@ -25,6 +25,14 @@ const proxyPlantStream = asyncHandler(async (req, res) => {
     throw new AppError('The stream ticket is invalid.', 401);
   }
 
+  const mode = req.query.mode === undefined ? 'crop' : req.query.mode;
+  if (mode === 'full') {
+    throw new AppError('Full camera streams are not available through plant stream tickets.', 403);
+  }
+  if (typeof mode !== 'string' || mode !== 'crop') {
+    throw new AppError('Stream mode must be crop.', 400);
+  }
+
   const plant = await Plant.findOne({ _id: ticket.plantId, userId: ticket.sub }).select(
     'rdkCameraId rdkZone'
   ).lean();
@@ -44,8 +52,12 @@ const proxyPlantStream = asyncHandler(async (req, res) => {
   timeout.unref?.();
   let upstream;
   try {
+    const streamUrl = new URL(
+      `${rdkStreamBaseUrl.replace(/\/+$/, '')}/api/stream/${encodeURIComponent(ticket.rdkToken)}`
+    );
+    streamUrl.searchParams.set('mode', mode);
     upstream = await fetchRdk(
-      `${rdkStreamBaseUrl.replace(/\/+$/, '')}/api/stream/${encodeURIComponent(ticket.rdkToken)}`,
+      streamUrl,
       { signal: controller.signal }
     );
   } catch (_error) {
@@ -72,13 +84,18 @@ const proxyPlantStream = asyncHandler(async (req, res) => {
     throw new AppError('The RDK returned an invalid stream format.', 502);
   }
 
-  res.status(200).set({
+  const streamHeaders = {
     'Content-Type': contentType,
     'Cache-Control': 'no-store, no-cache, must-revalidate, private',
     Pragma: 'no-cache',
     Expires: '0',
     'X-Accel-Buffering': 'no'
-  });
+  };
+  for (const name of ['width', 'height', 'fps']) {
+    const value = upstream.headers.get(`x-stream-${name}`);
+    if (value && /^\d{1,5}$/.test(value)) streamHeaders[`X-Stream-${name[0].toUpperCase()}${name.slice(1)}`] = value;
+  }
+  res.status(200).set(streamHeaders);
 
   const source = Readable.fromWeb(upstream.body);
   res.on('close', () => {
