@@ -19,6 +19,8 @@ const webAdminRouter = require('./routes/web/admin');
 const webCommerceRouter = require('./routes/web/commerce');
 const webCatalogRouter = require('./routes/web/catalog');
 const rdkRouter = require('./routes/rdk');
+const webSitesRouter = require('./routes/web/sites');
+const piIrrigationRouter = require('./routes/pi/irrigation');
 
 const app = express();
 const { frontendOrigins, nodeEnv } = getEnv();
@@ -82,8 +84,10 @@ app.use('/api/web/water', webWaterRouter);
 app.use('/api/web/control', webControlRouter);
 app.use('/api/web/admin', webAdminRouter);
 app.use('/api/web/catalog', webCatalogRouter);
+app.use('/api/web/sites', webSitesRouter);
 app.use('/api/web', webCommerceRouter);
 app.use('/api/rdk', rdkRouter);
+app.use('/api/pi/irrigation', piIrrigationRouter);
 
 app.use(notFound);
 app.use(errorHandler);

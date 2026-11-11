@@ -4,14 +4,80 @@ const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { getEnv } = require('../config/env');
 const { fetchRdk } = require('../utils/rdkFetch');
+const { fetchPi } = require('../utils/piFetch');
 const { invalidateStreamUrlCache } = require('../utils/plant');
+const { SITE_CODES } = require('../config/farmSites');
 
 const MAX_PREVIEW_BYTES = 2 * 1024 * 1024;
 const JPEG_START = Buffer.from([0xff, 0xd8]);
 const JPEG_END = Buffer.from([0xff, 0xd9]);
 
+async function sendPiPreview(req, res, ticket, env) {
+  if (!env.piStreamEnabled || !env.piStreamBaseUrl || !env.piStreamHmacSecret) {
+    throw new AppError('Y-Farm streaming is not configured.', 503);
+  }
+  if (ticket.scope !== 'pi-plant-stream' || typeof ticket.sub !== 'string' ||
+      typeof ticket.plantId !== 'string' || typeof ticket.gatewayId !== 'string' ||
+      typeof ticket.cameraId !== 'string' || !Number.isInteger(ticket.zone)) {
+    throw new AppError('The Y-Farm stream ticket is invalid.', 401);
+  }
+  const plant = await Plant.findOne({ _id: ticket.plantId, userId: ticket.sub }).select(
+    'siteCode streamGatewayId streamCameraId streamZone'
+  ).lean();
+  if (!plant) throw new AppError('The plant for this stream no longer exists.', 404);
+  if (plant.siteCode !== SITE_CODES.Y_FARM || plant.streamGatewayId !== ticket.gatewayId ||
+      plant.streamGatewayId !== env.piStreamGatewayId || plant.streamCameraId !== ticket.cameraId ||
+      plant.streamZone !== ticket.zone) {
+    throw new AppError('The Y-Farm camera assignment has changed.', 410);
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), env.rdkCameraTimeoutMs);
+  timeout.unref?.();
+  const abortIfClientDisconnects = () => controller.abort();
+  res.once('close', abortIfClientDisconnects);
+  try {
+    const url = `${env.piStreamBaseUrl.replace(/\/+$/, '')}/api/snapshot/${encodeURIComponent(req.params.ticket)}?mode=crop`;
+    const upstream = await fetchPi(url, { signal: controller.signal });
+    if (!upstream.ok) {
+      await upstream.body?.cancel().catch(() => {});
+      throw new AppError('The Y-Farm camera preview is unavailable.', 503);
+    }
+    if (!(upstream.headers.get('content-type') || '').toLowerCase().startsWith('image/jpeg')) {
+      await upstream.body?.cancel().catch(() => {});
+      throw new AppError('The Raspberry Pi returned an invalid preview format.', 502);
+    }
+    const bytes = Buffer.from(await upstream.arrayBuffer());
+    if (controller.signal.aborted) return;
+    if (bytes.length > MAX_PREVIEW_BYTES || !bytes.subarray(0, 2).equals(JPEG_START) ||
+        !bytes.subarray(-2).equals(JPEG_END)) {
+      throw new AppError('The Y-Farm camera preview is invalid or too large.', 502);
+    }
+    res.set({ 'Cache-Control': 'no-store, private', 'Content-Type': 'image/jpeg' });
+    res.send(bytes);
+  } catch (error) {
+    if (controller.signal.aborted) {
+      if (res.destroyed) return;
+      throw new AppError('The Y-Farm camera preview timed out.', 503);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    res.off('close', abortIfClientDisconnects);
+    controller.abort();
+  }
+}
+
 const getPlantStreamPreview = asyncHandler(async (req, res) => {
-  const { jwtSecret, rdkStreamBaseUrl, rdkCameraTimeoutMs } = getEnv();
+  const env = getEnv();
+  let decoded;
+  try { decoded = jwt.decode(req.params.ticket); } catch (_error) { /* invalid below */ }
+  if (decoded?.scope === 'pi-plant-stream') {
+    let piTicket;
+    try { piTicket = jwt.verify(req.params.ticket, env.piStreamHmacSecret); }
+    catch (_error) { throw new AppError('The stream ticket is invalid or expired.', 401); }
+    return sendPiPreview(req, res, piTicket, env);
+  }
+  const { jwtSecret, rdkStreamBaseUrl, rdkCameraTimeoutMs } = env;
   if (!jwtSecret || !rdkStreamBaseUrl) {
     throw new AppError('Plant streaming is not configured.', 503);
   }

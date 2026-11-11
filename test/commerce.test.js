@@ -13,6 +13,7 @@ const User = require('../src/models/User');
 const Notification = require('../src/models/Notification');
 const { PRODUCTS } = require('../src/config/catalog');
 const productAvailabilityRepository = require('../src/repositories/productAvailabilityRepository');
+const siteProductAvailabilityRepository = require('../src/repositories/siteProductAvailabilityRepository');
 
 test('coupon codes are normalized and reject unsupported characters', () => {
   assert.equal(normalizeCouponCode(' spring-2026 '), 'SPRING-2026');
@@ -49,6 +50,7 @@ test('plant catalog exposes current products and two unpriced upcoming plants', 
     lettuce: ['상추', 3000, 45],
     romaine: ['로메인', 4000, 68],
     tomato: ['토마토', 6000, 80],
+    cherry_tomato: ['방울토마토', 6000, 80],
     pepper: ['고추', 5000, 80],
     arugula: ['루꼴라', 4000, 45],
     green_oakleaf_lettuce: ['청오크 상추', 4000, 55],
@@ -156,7 +158,7 @@ test('admin order list includes the plant camera node assignment for retries', a
     assert.deepEqual(response.orders, orders);
     assert.deepEqual(calls, [
       ['populate', 'userId', 'name email phone'],
-      ['populate', 'plantId', 'rdkCameraId rdkZone'],
+    ['populate', 'plantId', 'siteCode rdkCameraId rdkZone streamGatewayId streamCameraId streamZone'],
       ['sort', { createdAt: -1 }],
       ['limit', 500]
     ]);
@@ -236,7 +238,9 @@ test('a user cannot validate a reserved coupon while another user can', async ()
   const originalFindOne = Coupon.findOne;
   const originalExists = Order.exists;
   const originalFindByProductId = productAvailabilityRepository.findByProductId;
+  const originalSiteFindByProductId = siteProductAvailabilityRepository.findByProductId;
   productAvailabilityRepository.findByProductId = async () => null;
+  siteProductAvailabilityRepository.findByProductId = async () => null;
   Coupon.findOne = async () => ({ _id: 'coupon-id', code: 'WELCOME10', isActive: true, isPublic: true,
     discountType: 'percent', discountValue: 10, maxUses: 1, usedCount: 1 });
   Order.exists = async ({ userId }) => userId === 'first-user';
@@ -249,7 +253,12 @@ test('a user cannot validate a reserved coupon while another user can', async ()
   try {
     assert.equal((await send('first-user')).failure.statusCode, 409);
     assert.equal((await send('second-user')).response.success, true);
-  } finally { Coupon.findOne = originalFindOne; Order.exists = originalExists; productAvailabilityRepository.findByProductId = originalFindByProductId; }
+  } finally {
+    Coupon.findOne = originalFindOne;
+    Order.exists = originalExists;
+    productAvailabilityRepository.findByProductId = originalFindByProductId;
+    siteProductAvailabilityRepository.findByProductId = originalSiteFindByProductId;
+  }
 });
 
 test('coupon list excludes only coupons already used by the requesting user', async () => {

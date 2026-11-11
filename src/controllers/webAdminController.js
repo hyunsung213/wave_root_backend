@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Plant = require('../models/Plant');
+const Command = require('../models/Command');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { getEnv } = require('../config/env');
@@ -11,6 +12,7 @@ const SensorSnapshot = require('../models/SensorSnapshot');
 const { requireNonEmptyString, requireObjectId } = require('../utils/validation');
 const { getBedLayout, saveBedLayout, resetBedLayout } = require('../services/bedLayout');
 const { PRODUCTS } = require('../config/catalog');
+const { SITE_CODES, isSiteCode } = require('../config/farmSites');
 
 const getAdminBedLayout = asyncHandler(async (_req, res) => {
   const layout = await getBedLayout();
@@ -77,9 +79,14 @@ const listAllPlants = asyncHandler(async (_req, res) => {
       _id: plant._id,
       name: plant.name,
       type: plant.type,
+      siteCode: plant.siteCode || SITE_CODES.HYDROPONIC,
       rdkCameraId: plant.rdkCameraId,
       rdkZone: plant.rdkZone,
+      streamGatewayId: plant.streamGatewayId,
+      streamCameraId: plant.streamCameraId,
+      streamZone: plant.streamZone,
       irrigationDeviceId: plant.irrigationDeviceId,
+      irrigationNozzleNo: plant.irrigationNozzleNo,
       irrigationOutletIndex: plant.irrigationOutletIndex,
       irrigationPumpId: plant.irrigationPumpId,
       irrigationEnabled: plant.irrigationEnabled,
@@ -109,6 +116,9 @@ const updatePlantCameraAssignment = asyncHandler(async (req, res) => {
   }
   const plant = await Plant.findById(req.params.plantId);
   if (!plant) throw new AppError('Plant not found.', 404);
+  if ((plant.siteCode || SITE_CODES.HYDROPONIC) !== SITE_CODES.HYDROPONIC) {
+    throw new AppError('RDK camera assignments are only for hydroponic plants.', 409);
+  }
   if (!clear && await Plant.exists({ _id: { $ne: plant._id },
     rdkCameraId: cameraId, rdkZone: zone })) {
     throw new AppError('That camera cell is already assigned to another plant.', 409);
@@ -146,6 +156,84 @@ const updatePlantCameraAssignment = asyncHandler(async (req, res) => {
   if (changed) invalidateStreamUrlCache(assignmentId);
   res.json({ success: true, plant: {
     _id: plant._id, rdkCameraId: plant.rdkCameraId, rdkZone: plant.rdkZone,
+    streamingUrl: clear ? null : await getStreamUrl(plant, plant.userId)
+  } });
+});
+
+const updatePlantSite = asyncHandler(async (req, res) => {
+  const plantId = requireObjectId(req.params.plantId, 'plantId');
+  if (Object.keys(req.body || {}).length !== 1 || !isSiteCode(req.body.siteCode)) {
+    throw new AppError('siteCode must be HYDROPONIC or Y_FARM.', 400);
+  }
+  const plant = await Plant.findById(plantId);
+  if (!plant) throw new AppError('Plant not found.', 404);
+  const nextSiteCode = req.body.siteCode;
+  if (nextSiteCode === SITE_CODES.HYDROPONIC && plant.irrigationEnabled) {
+    throw new AppError('Clear the plant irrigation assignment before moving it to hydroponics.', 409);
+  }
+  if (await Command.exists({ plantId, status: { $in: ['PENDING', 'DISPATCHED', 'NEEDS_REVIEW'] } })) {
+    throw new AppError('Resolve pending water commands before changing the farm site.', 409);
+  }
+  plant.siteCode = nextSiteCode;
+  if (nextSiteCode === SITE_CODES.HYDROPONIC) {
+    plant.streamGatewayId = null;
+    plant.streamCameraId = null;
+    plant.streamZone = null;
+  }
+  await plant.save();
+  invalidateStreamUrlCache(String(plant._id));
+  res.json({ success: true, plant: {
+    _id: plant._id,
+    siteCode: plant.siteCode,
+    irrigationEnabled: plant.irrigationEnabled,
+    streamGatewayId: plant.streamGatewayId,
+    streamCameraId: plant.streamCameraId,
+    streamZone: plant.streamZone
+  } });
+});
+
+const updatePlantStreamAssignment = asyncHandler(async (req, res) => {
+  const plantId = requireObjectId(req.params.plantId, 'plantId');
+  const body = req.body || {};
+  if (Object.keys(body).sort().join(',') !== 'cameraId,gatewayId,zone') {
+    throw new AppError('gatewayId, cameraId, and zone are required; set all three to null to clear.', 400);
+  }
+  const clear = body.gatewayId === null && body.cameraId === null && body.zone === null;
+  if (!clear && (typeof body.gatewayId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(body.gatewayId) ||
+      typeof body.cameraId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(body.cameraId) ||
+      !Number.isInteger(body.zone) || body.zone < 1 || body.zone > 144)) {
+    throw new AppError('Provide valid gatewayId, cameraId, and zone 1-144, or clear all fields.', 400);
+  }
+  const plant = await Plant.findById(plantId);
+  if (!plant) throw new AppError('Plant not found.', 404);
+  if ((plant.siteCode || SITE_CODES.HYDROPONIC) !== SITE_CODES.Y_FARM) {
+    throw new AppError('Raspberry Pi stream assignments are only for Y-Farm plants.', 409);
+  }
+  if (!clear && body.gatewayId !== getEnv().piStreamGatewayId) {
+    throw new AppError('The gatewayId does not match the configured Y-Farm streaming gateway.', 409);
+  }
+  if (!clear && await Plant.exists({
+    _id: { $ne: plant._id }, siteCode: SITE_CODES.Y_FARM,
+    streamGatewayId: body.gatewayId, streamCameraId: body.cameraId, streamZone: body.zone
+  })) {
+    throw new AppError('That Y-Farm camera zone is already assigned.', 409);
+  }
+  plant.streamGatewayId = clear ? null : body.gatewayId;
+  plant.streamCameraId = clear ? null : body.cameraId;
+  plant.streamZone = clear ? null : body.zone;
+  try {
+    await plant.save();
+  } catch (error) {
+    if (error.code === 11000) throw new AppError('That Y-Farm camera zone is already assigned.', 409);
+    throw error;
+  }
+  invalidateStreamUrlCache(String(plant._id));
+  res.json({ success: true, plant: {
+    _id: plant._id,
+    siteCode: plant.siteCode,
+    streamGatewayId: plant.streamGatewayId,
+    streamCameraId: plant.streamCameraId,
+    streamZone: plant.streamZone,
     streamingUrl: clear ? null : await getStreamUrl(plant, plant.userId)
   } });
 });
@@ -598,6 +686,8 @@ module.exports = {
   listAllUsers,
   listAllPlants,
   updatePlantCameraAssignment,
+  updatePlantSite,
+  updatePlantStreamAssignment,
   listRdkCameras,
   getRdkCameraFrame,
   getRdkCameraCalibration,

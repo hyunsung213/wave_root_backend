@@ -82,7 +82,7 @@ test('strict matching keeps exact product IDs, unassigns mismatches, and never u
   assert.deepEqual(rows.get('order-plant-1').target, { cameraId: 'c110-1', zone: 1 });
   assert.deepEqual(rows.get('order-plant-2').target, { cameraId: 'c110-1', zone: 8 });
   assert.equal(rows.get('demo-plant').target, null);
-  assert.equal(rows.get('demo-plant').reason, '관리자 배치에 해당 작물 칸이 없음');
+  assert.equal(rows.get('demo-plant').reason, '식물명과 종류가 서로 다른 카탈로그 작물과 일치해 수동 확인 필요');
   assert.equal(rows.get('strawberry-plant').target, null);
   assert.equal(rows.get('strawberry-plant').reason, '식물명/종류가 카탈로그명과 정확히 일치하지 않음');
   assert.deepEqual(rows.get('green-plant').target, { cameraId: 'c110-2', zone: 4 });
@@ -95,7 +95,7 @@ test('strict matching keeps exact product IDs, unassigns mismatches, and never u
   assert.ok(!JSON.stringify(plan).includes('never-include-in-plan'));
 });
 
-test('confirmed reconciliation count is six assigned and nine unassigned for fifteen current plants', () => {
+test('catalog additions keep conflicting tomato and cherry-tomato identities unassigned for manual review', () => {
   const input = snapshots();
   const c2 = input.bedLayout.cameras.find((camera) => camera.cameraId === 'c110-2');
   c2.cells[1].productId = null;
@@ -119,10 +119,10 @@ test('confirmed reconciliation count is six assigned and nine unassigned for fif
   }
   const plan = createPlantAssignmentPlan(input);
   assert.equal(plan.summary.considered, 15);
-  assert.equal(plan.summary.assigned, 6);
-  assert.equal(plan.summary.unassigned, 9);
-  assert.equal(plan.rows.filter((row) => row.target).length, 6);
-  assert.equal(plan.rows.filter((row) => !row.target).length, 9);
+  assert.equal(plan.summary.assigned, 5);
+  assert.equal(plan.summary.unassigned, 10);
+  assert.equal(plan.rows.filter((row) => row.target).length, 5);
+  assert.equal(plan.rows.filter((row) => !row.target).length, 10);
 });
 
 test('strict matching honours assigned, blank, unavailable, conflicting and multiply claimed bed cells', () => {
@@ -236,7 +236,7 @@ test('dry-run loads snapshots but does not call bulk writes or RDK assignment mu
   try {
     const result = await reconcilePlantAssignments(parseArgs([]), dependencies);
     assert.equal(result.applied, false);
-    assert.deepEqual(result.summary, { considered: 5, assigned: 4, unassigned: 1, changed: 3, unchanged: 2 });
+    assert.deepEqual(result.summary, { considered: 5, assigned: 3, unassigned: 2, changed: 4, unchanged: 1 });
     assert.ok(calls.includes('GET http://rdk.test/api/assignments'));
     assert.equal(calls.includes('mongo-write'), false);
     assert.equal(calls.some((call) => call.startsWith('PUT ')), false);
@@ -289,7 +289,7 @@ test('apply writes a private backup before MongoDB/RDK and verifies the atomic R
     assert.equal(result.applied, true);
     assert.ok(result.backupFile.startsWith(directory));
     assert.ok(calls.indexOf('mongo-write') < calls.findIndex((call) => call.startsWith('PUT ')));
-    assert.equal(mongoOperations.length, 3);
+    assert.equal(mongoOperations.length, 4);
     const mongoUpdates = new Map(mongoOperations.map(({ updateOne }) => [
       String(updateOne.filter._id), updateOne.update.$set
     ]));
@@ -300,7 +300,7 @@ test('apply writes a private backup before MongoDB/RDK and verifies the atomic R
       user_id, camera_id, zone
     })));
     assert.deepEqual(updateBody.assignments.map(({ camera_id, zone }) => `${camera_id}:${zone}`).sort(),
-      ['c110-1:1', 'c110-1:8', 'c110-2:1', 'c110-2:2']);
+      ['c110-1:1', 'c110-1:8', 'c110-2:2']);
     assert.equal(plantReads, 3);
     const savedBackup = JSON.parse(await fs.readFile(result.backupFile, 'utf8'));
     assert.equal(savedBackup.planHash, dryRun.planHash);

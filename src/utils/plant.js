@@ -12,6 +12,28 @@ const streamTokenRequests = new Map();
 // is used as the RDK assignment key so multiple plants owned by one user do
 // not collide on a single camera/zone assignment.
 async function getStreamUrl(plant, userId) {
+  const siteCode = plant.siteCode || 'HYDROPONIC';
+  if (siteCode === 'Y_FARM') {
+    const { piStreamEnabled, piStreamBaseUrl, piStreamHmacSecret, piStreamGatewayId, publicBaseUrl } = getEnv();
+    if (!piStreamEnabled || !piStreamBaseUrl || !piStreamHmacSecret ||
+        plant.streamGatewayId !== piStreamGatewayId || !plant.streamCameraId || !plant.streamZone) return null;
+    const plantId = plant._id.toString();
+    const ownerId = userId.toString();
+    try {
+      const ticket = jwt.sign({
+        scope: 'pi-plant-stream',
+        plantId,
+        gatewayId: plant.streamGatewayId,
+        cameraId: plant.streamCameraId,
+        zone: plant.streamZone
+      }, piStreamHmacSecret, { subject: ownerId, expiresIn: '30m' });
+      return `${publicBaseUrl.replace(/\/+$/, '')}/api/web/plants/stream/${encodeURIComponent(ticket)}`;
+    } catch (error) {
+      console.warn('[stream-url] Failed to sign Y-Farm stream ticket', { plantId, error: error.message });
+      return null;
+    }
+  }
+
   const {
     rdkStreamBaseUrl, rdkStreamAdminKey, jwtSecret, publicBaseUrl,
     rdkAssignmentTimeoutMs, rdkStreamTokenCacheMs

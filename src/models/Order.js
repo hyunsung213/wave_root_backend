@@ -1,10 +1,12 @@
 const mongoose = require('mongoose');
+const { SITE_CODES } = require('../config/farmSites');
 
 const orderSchema = new mongoose.Schema({
   orderNumber: { type: String, required: true, unique: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   productId: { type: String, required: true, maxlength: 40 },
   productName: { type: String, required: true, maxlength: 100 },
+  siteCode: { type: String, enum: Object.values(SITE_CODES), default: SITE_CODES.HYDROPONIC, index: true },
   plantName: { type: String, required: true, trim: true, maxlength: 60 },
   productPrice: { type: Number, required: true, min: 0 },
   productGrowthTargetDays: { type: Number, default: null, min: 1 },

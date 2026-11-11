@@ -139,6 +139,41 @@ test('missing RDK stream configuration is logged with safe presence details', as
   });
 });
 
+test('Y-Farm issues a dedicated Pi stream ticket without making an RDK assignment call', async () => {
+  const keys = ['PI_STREAM_ENABLED', 'PI_STREAM_BASE_URL', 'PI_STREAM_GATEWAY_ID',
+    'PI_STREAM_HMAC_SECRET', 'PI_HTTP_PROXY_URL', 'PUBLIC_BASE_URL'];
+  const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  process.env.PI_STREAM_ENABLED = 'true';
+  process.env.PI_STREAM_BASE_URL = 'http://127.0.0.1:8765';
+  process.env.PI_STREAM_GATEWAY_ID = 'y-farm-pi-1';
+  process.env.PI_STREAM_HMAC_SECRET = 'p'.repeat(48);
+  process.env.PUBLIC_BASE_URL = 'https://farm.example';
+  delete process.env.PI_HTTP_PROXY_URL;
+  try {
+    const url = await getStreamUrl({
+      _id: '507f1f77bcf86cd799439041',
+      siteCode: 'Y_FARM',
+      streamGatewayId: 'y-farm-pi-1',
+      streamCameraId: 'ycam-1',
+      streamZone: 7
+    }, '507f1f77bcf86cd799439042');
+    const ticket = decodeURIComponent(new URL(url).pathname.split('/').at(-1));
+    const claims = jwt.verify(ticket, process.env.PI_STREAM_HMAC_SECRET);
+    assert.equal(new URL(url).origin, 'https://farm.example');
+    assert.equal(claims.scope, 'pi-plant-stream');
+    assert.equal(claims.plantId, '507f1f77bcf86cd799439041');
+    assert.equal(claims.gatewayId, 'y-farm-pi-1');
+    assert.equal(claims.cameraId, 'ycam-1');
+    assert.equal(claims.zone, 7);
+    assert.equal(claims.sub, '507f1f77bcf86cd799439042');
+  } finally {
+    for (const [key, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test('an RDK stream 401 invalidates the cached token for the next URL request', async () => {
   const plantId = '507f1f77bcf86cd799439061';
   const userId = '507f1f77bcf86cd799439062';

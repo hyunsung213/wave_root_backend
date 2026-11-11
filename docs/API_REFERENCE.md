@@ -1,6 +1,6 @@
 # 스마트팜 백엔드 API 레퍼런스
 
-프론트엔드(Next.js)가 호출할 API와 RDK X5가 호출할 API를 현재 백엔드 구현 기준으로 정리한 문서입니다.
+프론트엔드(Next.js), 수경재배 RDK X5, Y-Farm Raspberry Pi가 호출하는 API를 현재 백엔드 구현 기준으로 정리한 문서입니다.
 
 ## 1. 기본 정보
 
@@ -51,24 +51,28 @@ const response = await api.get("/api/web/plants", { headers });
 | 공통 | GET | `/health/ready` | 없음 | MongoDB readiness 확인 |
 | 인증 | POST | `/api/web/users/signup` | 없음 | 회원가입 및 JWT 발급 |
 | 인증 | POST | `/api/web/users/login` | 없음 | 로그인 및 JWT 발급 |
-| 분양 상품 | GET | `/api/web/catalog` | 없음 | 분양 가능·예정 상품 목록 (`blocked` 제외) |
-| 관리자 분양 상품 | GET | `/api/web/admin/catalog` | 관리자 Bearer JWT | 전체 상품·상태·가격 조회 |
-| 관리자 분양 상품 | PATCH | `/api/web/admin/catalog/:productId` | 관리자 Bearer JWT | 상태·가격·첫 수확 목표일 변경 |
+| 재배 공간 | GET | `/api/web/sites` | Bearer JWT | HYDROPONIC/Y_FARM 및 기능 목록 |
+| 분양 상품 | GET | `/api/web/catalog?siteCode=HYDROPONIC\|Y_FARM` | 없음 | 재배 공간별 분양 가능·예정 목록 (`blocked` 제외) |
+| 관리자 분양 상품 | GET | `/api/web/admin/catalog?siteCode=HYDROPONIC\|Y_FARM` | 관리자 Bearer JWT | 재배 공간별 상품·상태·가격 조회 |
+| 관리자 분양 상품 | PATCH | `/api/web/admin/catalog/:productId?siteCode=HYDROPONIC\|Y_FARM` | 관리자 Bearer JWT | 해당 공간의 상태·가격·수확 목표일 변경 |
 | 사용자 | GET | `/api/web/users/me` | Bearer JWT | 내 사용자 정보 조회 |
 | 사용자 | PATCH | `/api/web/users/me` | Bearer JWT | 이름·전화번호 수정 |
 | 사용자 | PATCH | `/api/web/users/password` | Bearer JWT | 현재 비밀번호 확인 후 변경 |
-| 식물 | POST | `/api/web/plants` | Bearer JWT | 식물 생성·스트리밍 포트 저장 |
+| 식물 | POST | `/api/web/plants` | Bearer JWT | 사용 차단 (`403`); 입양 주문 관리자 확인으로 생성 |
 | 식물 | GET | `/api/web/plants` | Bearer JWT | 내 식물 목록 |
 | 식물 | GET | `/api/web/plants/with-records` | Bearer JWT | 식물·급수·성장 기록 통합 조회 |
 | 식물 | GET | `/api/web/plants/:plantId` | Bearer JWT | 단일 식물·스트리밍 URL 및 배정/발급 상태 조회 |
-| 식물 | PATCH | `/api/web/plants/:plantId` | Bearer JWT | 식물 정보·스트리밍 포트 수정 |
-| 식물 | DELETE | `/api/web/plants/:plantId` | Bearer JWT | 식물 및 연결 기록 cascade 삭제 |
-| 센서 | GET | `/api/web/plants/:plantId/current` | Bearer JWT | RDK 최신 센서값 조회 |
+| 식물 | PATCH | `/api/web/plants/:plantId` | Bearer JWT | 식물 이름·품종·목표 생장일 수정 |
+| 식물 | DELETE | `/api/web/plants/:plantId` | Bearer JWT | 식물 및 연결 기록 삭제; 활성 Y-Farm 급수 명령이 있으면 `409` |
+| 스트림 | GET | `/api/web/plants/stream/:ticket` | 짧은 만료 서명 티켓 | 재배 공간별 게이트웨이 영상 프록시 (RDK/Pi 주소 비공개) |
+| 스트림 미리보기 | GET | `/api/web/plants/preview/:ticket` | 짧은 만료 서명 티켓 | 할당된 한 프레임 JPEG; 관리자 화면용 |
+| 센서 | GET | `/api/web/plants/:plantId/current` | Bearer JWT | RDK/Hydroponic 또는 Pi/Y-Farm 최신 센서값 조회 |
 | 센서 | GET | `/api/web/logs/:plantId` | Bearer JWT | 10분 평균 센서 로그 조회 |
 | 성장 | POST | `/api/web/events` | Bearer JWT | 성장 이벤트·이미지 등록 |
 | 성장 | GET | `/api/web/events/:plantId` | Bearer JWT | 성장 타임라인 조회 |
 | 성장 | DELETE | `/api/web/events/:eventId` | Bearer JWT | 이벤트 및 이미지 파일 삭제 |
 | 급수 | POST | `/api/web/control/water` | Bearer JWT | 급수 명령 생성 |
+| 급수 | GET | `/api/web/control/water/:commandId` | Bearer JWT | 내 급수 명령 상태 조회 |
 | 급수 | GET | `/api/web/water/:plantId` | Bearer JWT | 완료된 급수 이력 조회 |
 | 활동 | GET | `/api/web/activity` | Bearer JWT | 사용자 활동 카운터 조회 |
 | 활동 | POST | `/api/web/activity/harvest` | Bearer JWT | 수확 카운터 증가 |
@@ -82,14 +86,24 @@ const response = await api.get("/api/web/plants", { headers });
 | 관리자 노드 | GET | `/api/web/admin/cameras` | 관리자 Bearer JWT | RDK 미배정 카메라 영역 목록 |
 | 관리자 노드 | GET | `/api/web/admin/plants` | 관리자 Bearer JWT | 점유 중인 식물별 카메라 영역 확인 |
 | 관리자 노드 | PATCH | `/api/web/admin/plants/:plantId/camera` | 관리자 Bearer JWT | 카메라·영역을 식물에 연결 |
+| 관리자 식물 | PATCH | `/api/web/admin/plants/:plantId/site` | 관리자 Bearer JWT | 식물을 수경재배/Y-Farm에 배정 |
+| 관리자 식물 | PATCH | `/api/web/admin/plants/:plantId/stream` | 관리자 Bearer JWT | Y-Farm Pi 카메라·영역 연결 |
+| 관리자 식물 | PATCH | `/api/web/admin/plants/:plantId/irrigation` | 관리자 Bearer JWT | Y-Farm Pi·물리 노즐·펌프 연결/해제 |
+| 관리자 Pi | GET | `/api/web/admin/pi/status` | 관리자 Bearer JWT | Y-Farm Raspberry Pi 서보·펌프·센서 상태 조회 |
+| 관리자 Pi | POST | `/api/web/admin/pi/nozzle` | 관리자 Bearer JWT | 기능 스위치 활성화 시 서보를 지정 노즐로 이동 |
+| 관리자 급수 | POST | `/api/web/admin/irrigation/commands/:commandId/acknowledge` | 관리자 Bearer JWT | `NEEDS_REVIEW` 명령 확인 후 잠금 해제 |
 | 관리자 카메라 | GET | `/api/web/admin/cameras/status` | 관리자 Bearer JWT | 전체 카메라 프레임 연결 상태 조회 |
 | 관리자 알림 | GET | `/api/web/admin/alerts` | 관리자 Bearer JWT | Discord 웹훅 구성 여부 및 이벤트 알림 설정 조회 |
 | 관리자 알림 | PATCH | `/api/web/admin/alerts` | 관리자 Bearer JWT | 가입·주문·카메라 이벤트 알림 켜기/끄기 |
 | 관리자 알림 | POST | `/api/web/admin/alerts/test` | 관리자 Bearer JWT | Discord 테스트 메시지 보내기 |
 | RDK | POST | `/api/rdk/current` | RDK API Key | 식물별 최신 센서 스냅샷 업서트 |
 | RDK | POST | `/api/rdk/logs` | RDK API Key | 센서 평균 로그 저장 |
-| RDK | GET | `/api/rdk/command/:plantId` | 사설망 | 대기 급수 명령 폴링 |
-| RDK | POST | `/api/rdk/water` | 사설망 | 급수 완료 보고 |
+| RDK | GET | `/api/rdk/command/:plantId` | RDK API Key | 사용 중단 (`410`); 수경재배 센서·카메라 전용 |
+| RDK | POST | `/api/rdk/water` | RDK API Key | 사용 중단 (`410`); Y-Farm 급수는 Pi API만 사용 |
+| Raspberry Pi | GET | `/api/pi/irrigation/commands/claim` | `X-Irrigation-Device-Id`, `X-Pi-Irrigation-Key` | 장치에 배정된 가장 오래된 명령을 원자적으로 하나씩 claim |
+| Raspberry Pi | GET | `/api/pi/irrigation/commands/active` | Pi 장치 헤더 | 실행 중/미확정 명령 복구 조회; 자동 재실행 금지 |
+| Raspberry Pi | POST | `/api/pi/irrigation/command/:commandId/fail` | Pi 장치 헤더 | 실패 보고; 불확실 시 `{reason, uncertain:true}`로 잠금 유지 |
+| Raspberry Pi | POST | `/api/pi/irrigation/water` | Pi 장치 헤더 | `{plantId, commandId, volume}` 추정 완료량 보고 (실측 유량 아님) |
 ## 3. 공통 응답과 오류
 
 성공 응답은 항상 `success: true`를 포함합니다.
@@ -270,52 +284,23 @@ Content-Type: application/json
 
 `name`, `phone` 중 하나 이상을 보내야 합니다. `null`을 보내면 해당 값을 비울 수 있으며 성공 응답에는 수정된 `user`가 포함됩니다.
 
-### 4.4 식물 생성
+### 4.4 식물 생성 방식
 
 ```http
 POST /api/web/plants
 Authorization: Bearer <accessToken>
-Content-Type: application/json
 ```
 
-```json
-{
-  "name": "루꼴라",
-  "type": "루꼴라",
-  "rdkCameraId": "c110-1",
-  "rdkZone": 1,
-  "growthTargetDays": 60
-}
-```
+일반 사용자의 직접 식물 생성은 현재 `403`으로 차단됩니다. 식물은 분양 주문을 관리자가 확인할 때 생성되며 주문의 `siteCode`를 그대로 물려받습니다. 운영 도구에서 호출하지 않는 한 이 API를 프론트에서 사용하지 마세요.
 
-성공 응답: `201 Created`
-
-```json
-{
-  "success": true,
-  "plant": {
-    "_id": "plantId",
-    "userId": "사용자 ObjectId",
-    "name": "루꼴라",
-    "type": "루꼴라",
-    "rdkCameraId": "c110-1",
-    "rdkZone": 1,
-    "createdAt": "2026-07-25T00:00:00.000Z",
-    "updatedAt": "2026-07-25T00:00:00.000Z"
-  }
-}
-```
-
-반환된 `plant._id`가 이후 센서·로그·급수 API에 사용하는 `plantId`입니다.
-
-### 4.4.1 단일 식물 조회·RDK 스트리밍
+### 4.4.1 단일 식물 조회·재배 공간별 스트리밍
 
 ```http
 GET /api/web/plants/:plantId
 Authorization: Bearer <accessToken>
 ```
 
-프론트는 RDK에 직접 접근하지 않고 이 API로 식물 정보와 사용자별 `streamingUrl`을 받습니다. 백엔드는 RDK X5 스트림 서비스(기본 5001)의 카메라·Zone 할당 API를 호출합니다.
+프론트는 장치에 직접 접근하지 않고 이 API로 식물 정보와 사용자별 `streamingUrl`을 받습니다. `HYDROPONIC`은 RDK X5 카메라/Zone, `Y_FARM`은 Pi gateway/camera/zone 할당을 사용합니다. 스트림 주소는 백엔드 프록시이며 장치 IP/인증 정보는 브라우저에 노출되지 않습니다.
 
 ```json
 {
@@ -324,6 +309,7 @@ Authorization: Bearer <accessToken>
     "_id": "plantId",
     "name": "루꼴라",
     "type": "루꼴라",
+    "siteCode": "HYDROPONIC",
     "rdkCameraId": "c110-1",
     "rdkZone": 1,
     "streamingUrl": "https://<backend-host>/api/web/plants/stream/<short-lived-ticket>"
@@ -331,24 +317,21 @@ Authorization: Bearer <accessToken>
 }
 ```
 
-`streamingUrl`은 `<img src={streamingUrl}>`로 표시하는 식물별 MJPEG 주소입니다. URL은 백엔드 프록시를 가리키며 1시간짜리 서명 티켓을 사용합니다. 브라우저는 RDK의 Tailnet 주소를 직접 호출하지 않습니다. `rdkCameraId`와 `rdkZone`(1~144)은 카메라/영역을 지정합니다.
+`streamingUrl`은 `<img src={streamingUrl}>`로 표시하는 식물별 MJPEG 주소입니다. RDK 티켓은 1시간, Pi 티켓은 30분 유효합니다. 브라우저는 RDK/Pi의 Tailnet 주소를 직접 호출하지 않습니다. RDK는 `rdkCameraId`·`rdkZone`, Pi는 `streamGatewayId`·`streamCameraId`·`streamZone`을 사용합니다.
 
-관리자 식물 목록의 정지 미리보기는 같은 서명 티켓으로 `GET /api/web/plants/preview/:ticket`을 호출합니다. 응답은 첫 프레임만 담은 `image/jpeg`이며 백엔드는 즉시 RDK MJPEG 연결을 닫습니다. 별도 Bearer 헤더는 없고 티켓의 소유자·식물·카메라 배정을 검증합니다. 관리자 목록은 화면에 보이는 미리보기만 순차 조회하고, `streamingUrl`은 관리자가 식물 하나의 **실시간 보기**를 누를 때만 연결합니다. 탭 이동·닫기 시 라이브 연결을 종료합니다.
+정지 미리보기는 같은 서명 티켓으로 `GET /api/web/plants/preview/:ticket`을 호출합니다. 응답은 첫 프레임만 담은 `image/jpeg`이며 별도 Bearer 헤더는 없고 티켓의 사용자·식물·사이트·게이트웨이 배정을 검증합니다. 관리자 목록은 보이는 미리보기만 순차 조회하고, 라이브 스트림은 선택한 식물에 대해서만 열어 탭 이동·닫기 시 연결을 종료합니다.
 
-식물 생성·수정 시 카메라·Zone 설정:
+사용자는 이름·품종·목표 생장일만 수정할 수 있습니다. 카메라/영역 배정은 관리자 전용 API(`/api/web/admin/plants/:plantId/camera` 또는 `/stream`)에서 수행합니다. 사용자 PATCH 예시:
 
 ```http
 PATCH /api/web/plants/:plantId
 Authorization: Bearer <accessToken>
 Content-Type: application/json
 
-{
-  "rdkCameraId": "c110-1",
-  "rdkZone": 1
-}
+{ "name": "새 애칭", "growthTargetDays": 60 }
 ```
 
-`name`, `type`, `rdkCameraId`, `rdkZone`, `growthTargetDays` 중 최소 하나를 전달해야 합니다. 카메라·Zone을 `null`로 보내면 스트림을 해제하며 `streamingUrl`은 `null`이 됩니다.
+`name`, `type`, `growthTargetDays` 중 하나 이상을 전달해야 합니다. Y-Farm 카메라 연결은 `PATCH /api/web/admin/plants/:plantId/stream`, 급수 경로는 별도로 `PATCH /api/web/admin/plants/:plantId/irrigation`을 사용합니다.
 
 ### 4.5 내 식물 목록
 
@@ -424,7 +407,7 @@ GET /api/web/plants/:plantId/current
 Authorization: Bearer <accessToken>
 ```
 
-프론트는 RDK가 아니라 백엔드에 Bearer JWT로 요청합니다. RDK가 60초마다 `POST /api/rdk/current`로 보낸 plant별 센서 스냅샷을 MongoDB에서 읽어 반환합니다. 최신 스냅샷은 MongoDB에 별도 저장되는 10분 평균 로그와 다릅니다.
+프론트는 장치가 아니라 백엔드에 Bearer JWT로 요청합니다. 수경재배 식물은 RDK가 60초마다 `POST /api/rdk/current`로 전송한 plant별 스냅샷을 MongoDB에서 읽습니다. Y-Farm 식물은 Pi `GET /api/status`의 ESP32 최신 측정값을 요청 시 프록시합니다. Pi 센서는 베드 공용이므로 Y-Farm 응답에 `sensorScope: "shared"`가 포함되고, `moisture_soil`은 보정 백분율이 아닌 0~4095 ADC 원시값입니다. Y-Farm 센서값은 이 API에서 실시간 조회하지만 `SensorSnapshot`이나 센서 로그 컬렉션에 저장하지 않습니다. 현재 값의 실패는 Pi 미설정·접속 실패·센서 미준비·7초 초과 stale 모두 `503`으로 반환됩니다.
 
 ```ts
 const { data } = await api.get(
@@ -460,7 +443,7 @@ if (data.success) {
 }
 ```
 
-스냅샷이 아직 도착하지 않았거나 마지막 측정 시각이 180초보다 오래되면 `503`입니다. `rux`는 조도 센서가 없을 때 `null`일 수 있습니다.
+RDK 스냅샷이 아직 도착하지 않았거나 측정 시각이 180초보다 오래되면 `503`입니다. Pi 측정값이 없거나 기본 7초보다 오래되었거나 DHT 센서가 준비되지 않은 경우도 `503`입니다. `rux`는 조도 센서가 없을 때 `null`일 수 있습니다. Y-Farm 응답은 추가로 `source`, `sensorId`, `sensorScope`, `soilUnit`, `soilMillivolts`, `ageSeconds`를 포함합니다.
 
 | 백엔드 센서 필드 | 프론트 표시 필드 예시 |
 | --- | --- |
@@ -469,7 +452,21 @@ if (data.success) {
 | `moisture_soil` | `moisture` |
 | `rux` | `light` |
 
-RDK는 ESP32의 `rux` 값을 우선 사용하고, ESP32가 `lux`로 보내는 경우 이를 `rux`로 변환합니다. RDK가 꺼져 있거나 백엔드에서 RDK의 `5000` 포트에 접근할 수 없으면 `503`이 반환됩니다. `timestamp`는 Unix 초 단위입니다.
+RDK는 ESP32의 `rux` 값을 우선 사용하고, ESP32가 `lux`로 보내는 경우 이를 `rux`로 변환합니다. RDK가 꺼져 있거나 백엔드가 RDK에 접근할 수 없으면 `503`입니다. Pi는 약 2초마다 ESP32 시리얼을 갱신하고, 백엔드는 요청 시 Pi `:8765`에서 최신 상태를 읽습니다. Render에서 Pi에 접근할 때는 Tailscale HTTP 프록시가 필요합니다. `timestamp`는 Unix 초 단위입니다.
+
+관리자 센서 화면의 Y-Farm 카드도 같은 Pi 상태 API를 사용하며, 서보 최근 명령각·선택 노즐·펌프 OFF 확인 상태를 함께 표시합니다. 토양 값은 원시 ADC임을 화면에서 구분합니다. 서보를 실제로 움직이는 관리자 호출은 `PI_CONTROL_ENABLED=true` 및 `PI_SERVO_CONTROL_ENABLED=true`가 모두 필요하며, 기본값은 둘 다 비활성입니다.
+
+```http
+GET /api/web/admin/pi/status
+Authorization: Bearer <adminAccessToken>
+
+POST /api/web/admin/pi/nozzle
+Authorization: Bearer <adminAccessToken>
+Content-Type: application/json
+{ "nozzleNo": 3 }
+```
+
+사용 가능한 사출구는 `1, 3, 4, 5, 6, 7, 8, 9`입니다. API는 Pi `/api/nozzle`에 `{ "nozzle": 3 }`을 보내며 Pi가 펌프 OFF interlock, 저장된 1번 영점 및 실제 GPIO 상태를 확인한 뒤 이동합니다. 요청이 성공해도 사용자는 관리자 화면에서 현재 `zero_saved`, `pump_ready`, 두 펌프 OFF를 확인해야 합니다. 브라우저는 Pi 주소를 직접 호출하지 않습니다. `PI_CONTROL_BASE_URL`은 제어 서버 `:8765`; 스트리밍 게이트웨이는 별도 `:8767`이며, Pi 내부 ESP32 브리지는 `127.0.0.1:8766` 전용입니다.
 ### 4.7 센서 평균 로그 조회
 
 ```http
@@ -530,13 +527,13 @@ Content-Type: application/json
 ```json
 {
   "plantId": "plantId",
-  "volume": 150
+  "volume": 50
 }
 ```
 
-`volume`은 물의 양 또는 펌프 작동 기준값으로 사용합니다. 0 이상 숫자여야 합니다.
+급수 요청은 Y-Farm 식물만 허용합니다. `volume`은 1~100mL의 양의 숫자이며, `Idempotency-Key` 헤더(또는 `idempotencyKey` 본문)는 필수입니다. `PI_IRRIGATION_ENABLED=true`와 `PI_IRRIGATION_ARMED=true`가 모두 아니면 `503`으로 거부합니다. 수경재배 식물은 항상 `409`로 거부합니다.
 
-동일 요청 재시도에 대한 중복 명령을 막으려면 `Idempotency-Key` 헤더를 추가합니다. 같은 사용자와 키로 다시 요청하면 기존 command를 `200`으로 반환합니다.
+같은 사용자와 키·식물·용량으로 다시 요청하면 기존 command를 `200`으로 반환합니다. 키를 다른 요청 내용에 재사용하면 `409`입니다.
 
 성공 응답: `201 Created`
 
@@ -547,8 +544,9 @@ Content-Type: application/json
     "_id": "commandId",
     "plantId": "plantId",
     "requestedBy": "사용자 ObjectId",
+    "siteCode": "Y_FARM",
     "type": "WATER",
-    "volume": 150,
+    "volume": 50,
     "status": "PENDING",
     "dispatchedAt": null,
     "completedAt": null,
@@ -558,7 +556,28 @@ Content-Type: application/json
 }
 ```
 
-이 요청은 펌프를 즉시 제어하지 않고 `PENDING` 명령을 생성합니다. RDK가 다음 폴링에서 명령을 수신하고, 급수 완료 보고 후 이력이 생성됩니다.
+이 요청은 펌프를 즉시 제어하지 않고 `PENDING` 명령을 생성합니다. Raspberry Pi 장치만 별도 API 키로 명령을 claim할 수 있고, 완료 보고 시 `Water` 이력이 생성됩니다. 실제 유량계가 없어 이력은 요청·추정량이며 실측값이 아닙니다.
+
+Y-Farm 장치 요청에는 RDK 키가 아니라 `X-Irrigation-Device-Id`와 별도 `X-Pi-Irrigation-Key`를 사용합니다.
+
+```http
+GET /api/pi/irrigation/commands/claim
+X-Irrigation-Device-Id: y-farm-pi-1
+X-Pi-Irrigation-Key: <PI_IRRIGATION_API_KEY>
+```
+
+Claim은 가장 오래된 `PENDING` 한 건만 `DISPATCHED`로 변경합니다. DB 고유 잠금은 한 장치에서 여러 식물 명령이 동시에 실행되지 않도록 합니다. 실행 중/결과 불명 상태를 자동 재실행하지 않습니다. 재시작 시 `GET /api/pi/irrigation/commands/active`를 조회해 미해결 작업을 먼저 복구 판정해야 합니다. 불확실한 실패는 `POST /api/pi/irrigation/command/:commandId/fail`에 `{ "reason": "...", "uncertain": true }`를 보내며, 관리자 확인 전 장치 잠금을 유지합니다.
+
+완료 보고는 아래처럼 요청량과 같은 추정량을 보내며 실측 토출량을 뜻하지 않습니다.
+
+```http
+POST /api/pi/irrigation/water
+X-Irrigation-Device-Id: y-farm-pi-1
+X-Pi-Irrigation-Key: <PI_IRRIGATION_API_KEY>
+Content-Type: application/json
+
+{ "plantId": "plantId", "commandId": "commandId", "volume": 50 }
+```
 
 ### 4.9 성장 이벤트 타임라인
 
@@ -638,7 +657,7 @@ GET /api/web/water/:plantId?page=1&limit=30
 Authorization: Bearer <accessToken>
 ```
 
-응답은 실제로 RDK가 완료 처리한 기록이며 최신순입니다.
+응답은 Y-Farm Pi 또는 과거 기록의 급수 이력이며 최신순입니다. Y-Farm은 `siteCode: "Y_FARM"`, `source: "RASPBERRY_PI"`, `requestedVolume`, `measuredVolume: null`, `estimated: true`, `deviceId`를 반환합니다.
 
 ```json
 {
@@ -662,7 +681,7 @@ Authorization: Bearer <accessToken>
 }
 ```
 
-현재 프론트용 개별 명령 상태 조회 API는 없습니다. 물 주기 버튼의 완료 여부는 이 급수 이력을 다시 조회해 확인할 수 있습니다.
+`GET /api/web/control/water/:commandId`는 로그인 사용자 본인의 요청만 상태를 조회합니다. 상태값은 `PENDING`, `DISPATCHED`, `COMPLETED`, `FAILED`, `NEEDS_REVIEW`, `CANCELLED`입니다.
 
 ### 4.11 내 활동 카운터 조회
 
@@ -818,53 +837,24 @@ Content-Type: application/json
 - 운영 환경에서는 `X-RDK-API-Key: <RDK_API_KEY>` 헤더가 필요합니다. `degree`는 -50~100, `moisture_air`는 0~100, `moisture_soil`은 0~4095, `rux`는 0~200000 범위입니다.
 - 성공 시 저장된 `log`와 함께 `201`이 반환됩니다.
 
-### 5.2 물 주기 명령 폴링
+### 5.2 RDK 급수 API 폐기
 
 ```http
 GET /api/rdk/command/:plantId
 ```
 
-RDK가 주기적으로 호출합니다. 대기 중인 가장 오래된 명령이 있으면 `PENDING`에서 `DISPATCHED`로 바뀌며 반환됩니다.
+이전 RDK 급수 경로는 폐기되어 `410 Gone`을 반환합니다. Y-Farm 급수에 RDK X5를 사용하지 않습니다.
 
-명령이 있을 때:
+이전 경로는 새 명령을 dispatch하지 않으며 모든 요청에 `410 Gone`을 돌려줍니다.
 
-```json
-{
-  "success": true,
-  "command": {
-    "id": "commandId",
-    "type": "WATER",
-    "volume": 150,
-    "requestedAt": "2026-07-25T00:00:00.000Z"
-  }
-}
-```
-
-명령이 없을 때:
-
-```json
-{
-  "success": true,
-  "command": null
-}
-```
-
-### 5.3 급수 완료 보고
+### 5.3 RDK 급수 완료 보고 폐기
 
 ```http
 POST /api/rdk/water
 Content-Type: application/json
 ```
 
-```json
-{
-  "plantId": "plantId",
-  "commandId": "RDK가 폴링으로 받은 command.id",
-  "volume": 150
-}
-```
-
-성공하면 `Water` 기록을 만들고 해당 명령을 `COMPLETED` 상태로 갱신합니다. 동일한 `commandId` 재전송은 중복 급수 이력을 만들지 않도록 처리됩니다.
+이전 RDK 완료 보고도 `410 Gone`을 반환합니다. Pi 전용 완료 경로는 `POST /api/pi/irrigation/water`이며, 수경재배 센서·카메라 API 키와 인증을 공유하지 않습니다.
 
 ## 6. RDK 게이트웨이와 실시간 센서·스트리밍 흐름
 
@@ -893,6 +883,22 @@ RDK_STREAM_ADMIN_KEY=<스트림 할당 관리자 키>
 RDK_HTTP_PROXY_HOSTPORT=<render-private-tailscale-proxy-host>:1055
 PUBLIC_BASE_URL=https://<render-backend-host>
 RDK_API_KEY=<RDK와 백엔드가 공유하는 긴 비밀키>
+PI_IRRIGATION_ENABLED=false
+PI_IRRIGATION_ARMED=false
+PI_IRRIGATION_DEVICE_ID=y-farm-pi-1
+PI_IRRIGATION_API_KEY=<RDK_API_KEY와 다른 32자 이상 키>
+PI_STREAM_ENABLED=false
+PI_STREAM_GATEWAY_ID=y-farm-pi-1
+PI_STREAM_BASE_URL=http://<pi-tailnet-address>:8767
+PI_STREAM_HMAC_SECRET=<PI_IRRIGATION_API_KEY와 다른 32자 이상 키>
+# Raspberry Pi servo/sensor control: control server port 8765; leave disabled until reachable.
+PI_CONTROL_BASE_URL=http://<pi-tailnet-address>:8765
+PI_CONTROL_ENABLED=false
+# PI_SERVO_CONTROL_ENABLED=false
+# PI_CONTROL_TIMEOUT_MS=5000
+# PI_SENSOR_STALE_SECONDS=7
+# Pi 전용 proxy가 있을 때만 지정; 생략하면 RDK_HTTP_PROXY_URL 또는 RDK_HTTP_PROXY_HOSTPORT를 재사용
+# PI_HTTP_PROXY_URL=http://<pi-specific-proxy-host>:1055
 EVENT_UPLOAD_DIR=./uploads/events
 ```
 
@@ -1082,7 +1088,7 @@ RDK는 해당 카메라 영상 요청이 30초 동안 없으면 RTSP 캡처를 �
 
 ### 6.2 분양 상품 목록과 상태 관리
 
-프론트는 화면 진입 시 `GET /api/web/catalog`로 상품 목록을 가져옵니다. 응답의 `products`에 없는 상품은 표시하지 않습니다. `status: "upcoming"`은 표시하되 선택·주문 버튼을 비활성화하고, `status: "blocked"`는 사용자 응답에 포함되지 않습니다. 목록 조회는 인증이 필요 없으며 캐시하지 않습니다.
+프론트는 재배 공간 선택 후 `GET /api/web/catalog?siteCode=HYDROPONIC` 또는 `GET /api/web/catalog?siteCode=Y_FARM`로 목록을 가져옵니다. 상품 상태·가격·목표일은 공간별로 분리되어 저장되며, 한 공간에서 바꿔도 다른 공간의 분양/주문 조건은 바뀌지 않습니다. 기본값은 HYDROPONIC에 기존 상품을 유지하고 방울토마토(`cherry_tomato`)는 제외합니다. Y_FARM은 방울토마토만 기본 분양 진행 중이고 다른 상품은 기본 분양 금지입니다. 관리자가 각 공간의 상품 상태를 바꾸면 그 공간에서만 적용됩니다. 응답의 `products`에 없는 상품은 표시하지 않습니다. `status: "upcoming"`은 표시하되 선택·주문 버튼을 비활성화하고, `status: "blocked"`는 사용자 응답에 포함되지 않습니다. 목록 조회는 인증이 필요 없으며 캐시하지 않습니다.
 
 ```json
 { "success": true, "products": [
@@ -1091,7 +1097,15 @@ RDK는 해당 카메라 영상 요청이 30초 동안 없으면 RTSP 캡처를 �
 ] }
 ```
 
-관리자는 `GET /api/web/admin/catalog`에서 분양 금지 중 상품까지 조회하고, `PATCH /api/web/admin/catalog/:productId`에 `{ "status": "upcoming" }`, `{ "status": "blocked" }` 또는 `{ "status": "available", "price": 4500, "growthTargetDays": 50 }`를 보냅니다. `price`는 1~1,000,000원, `growthTargetDays`는 1~3,650일 정수이며, 이미 설정한 값은 생략하면 유지됩니다. 가격과 목표일이 없는 신규 상품은 분양 진행 중으로 바꿀 수 없습니다(`409`). 청경채·얼갈이 배추의 상세 정보와 이미지는 아직 준비 중입니다. 사용자 주문·쿠폰 검증 API도 분양 예정/금지 상품은 `409`로 거부합니다.
+Y-Farm 기본 목록 예시는 다음과 같습니다.
+
+```json
+{ "success": true, "products": [
+  { "id": "cherry_tomato", "name": "방울토마토", "price": 6000, "growthTargetDays": 80, "status": "available" }
+] }
+```
+
+관리자는 `GET /api/web/admin/catalog?siteCode=Y_FARM`처럼 재배 공간을 지정해 분양 금지 중 상품까지 조회하고, `PATCH /api/web/admin/catalog/:productId?siteCode=Y_FARM`에 `{ "status": "upcoming" }`, `{ "status": "blocked" }` 또는 `{ "status": "available", "price": 4500, "growthTargetDays": 50 }`를 보냅니다. `price`는 1~1,000,000원, `growthTargetDays`는 1~3,650일 정수이며, 이미 설정한 값은 생략하면 유지됩니다. 가격과 목표일이 없는 신규 상품은 분양 진행 중으로 바꿀 수 없습니다(`409`). 청경채·얼갈이 배추의 상세 정보와 이미지는 아직 준비 중입니다. 사용자 주문·쿠폰 검증 API도 선택한 공간에서 분양 예정/금지 상품은 `409`로 거부합니다.
 
 ### 6.3 관리자 분양 주문의 노드 연결
 
@@ -1163,8 +1177,8 @@ const lettuceLogs = await api.get(
        ├─ GET /api/web/activity                  (내 활동 카운터)
        ├─ GET /api/web/notifications             (알림/미읽음 배지)
        ├─ POST /api/web/activity/harvest         (수확 카운트)
-       └─ POST /api/web/control/water            (급수 요청)
-            → RDK 폴링
-            → POST /api/rdk/water
-            → GET /api/web/water/:plantId에 완료 이력 반영
+       └─ (Y-Farm만) POST /api/web/control/water (Idempotency-Key 필수)
+            → Raspberry Pi 전용 인증으로 GET /api/pi/irrigation/commands/claim
+            → POST /api/pi/irrigation/water 또는 /command/:id/fail
+            → GET /api/web/control/water/:commandId 및 /api/web/water/:plantId
 ```

@@ -1,6 +1,6 @@
 # 백엔드 API 점검·운영 절차
 
-최종 점검 기준: 2026-10-09 (Asia/Seoul)
+최종 코드 점검 기준: 2026-11-11 (Asia/Seoul)
 
 이 문서는 `main` 브랜치의 API 계약과 운영자가 확인해야 하는 항목을 정리한 문서입니다. 웹 프론트는 백엔드 주소에 `/api/web`를 붙여 호출하고, RDK X5는 `/api/rdk`를 호출합니다.
 
@@ -40,6 +40,21 @@ RDK_SENSOR_STALE_MS=180000
 # Render 내부 Tailscale HTTP proxy의 host:port. 로컬에서 직접 Tailnet 접근 시 생략 가능
 RDK_HTTP_PROXY_HOSTPORT=<private-tailscale-proxy-host>:1055
 
+# Raspberry Pi Y-Farm live sensor + servo status. Set true only after tailnet routing works.
+PI_CONTROL_BASE_URL=http://<pi-tailscale-ip>:8765
+PI_CONTROL_ENABLED=false
+PI_SERVO_CONTROL_ENABLED=false
+PI_CONTROL_TIMEOUT_MS=5000
+PI_SENSOR_STALE_SECONDS=7
+# Optional Pi-specific proxy; otherwise the backend reuses RDK_HTTP_PROXY_URL/HOSTPORT.
+# PI_HTTP_PROXY_URL=http://<pi-specific-proxy-host>:1055
+
+# Y-Farm video gateway is separate from the Pi servo server.
+PI_STREAM_ENABLED=false
+PI_STREAM_BASE_URL=http://<pi-tailscale-ip>:8767
+PI_STREAM_GATEWAY_ID=y-farm-pi-1
+PI_STREAM_HMAC_SECRET=<unique-random-secret-at-least-32-characters>
+
 # Next.js origin. 여러 origin은 쉼표로 구분
 FRONTEND_ORIGINS=http://localhost:3000
 
@@ -53,9 +68,12 @@ EVENT_UPLOAD_DIR=./uploads/events
 | --- | --- | --- |
 | 백엔드 PC | Tailscale `100.71.47.115` | `http://100.71.47.115:5000/health` |
 | RDK X5 | Tailscale `100.90.42.36` | 카메라·센서 할당 `:5001`; 센서 스냅샷은 백엔드로 outbound 전송. 구형 급수/UART `:5000` 서비스는 현재 비활성화 |
+| Raspberry Pi Y-Farm | Tailscale `100.106.3.108` (주소 재확인 필요) | 서보·센서 상태 `:8765`; 센서 브리지 `127.0.0.1:8766`; 영상 게이트웨이 `:8767` |
 | C110 카메라 | LTE/T P-Link LAN 주소를 현장 입력 | `config/main.json`의 `cameras[].host` |
 
 Render는 `PUBLIC_BASE_URL`이 없으면 `RENDER_EXTERNAL_URL`을 사용합니다. Render에서 RDK 사설 주소로 나가는 연결은 `RDK_HTTP_PROXY_HOSTPORT`에 설정한 내부 Tailscale 프록시를 통과해야 합니다. 센서 데이터는 RDK가 백엔드로 보내므로 센서 조회 API에서 RDK로 직접 접속하지 않습니다.
+
+Y-Farm Pi 센서는 방식이 다릅니다. Pi의 `servo_server.py`가 포트 `8765`의 `/api/status`로 센서·서보·펌프 상태를 제공하고, ESP32 직렬 포트는 Pi의 `sensor-lcd.service`가 단독 소유합니다. 이 서비스는 센서를 약 2초마다 갱신하고 내부 `127.0.0.1:8766/status`만 엽니다. 백엔드는 소유 식물의 `siteCode`를 확인한 다음 요청 시 Pi `:8765`를 읽습니다. Pi가 Tailnet 외부에서 직접 보이지 않는 Render 배포는 Pi까지 경로가 있는 `PI_HTTP_PROXY_URL`을 지정하거나, RDK 프록시가 Pi Tailnet IP에 도달하도록 ACL·라우팅을 설정해야 합니다. 기본 코드는 Pi 전용 프록시가 없으면 RDK proxy를 재사용합니다. Tailnet ACL은 백엔드에서 Pi `8765/tcp`로 가는 연결만 허용하고 다른 Tailnet 노드의 제어 포트 접근은 막아야 합니다.
 
 운영 `NODE_ENV=production`에서는 `MONGODB_URI`, `JWT_SECRET`, `RDK_API_KEY`, `RDK_STREAM_BASE_URL`, `RDK_STREAM_ADMIN_KEY`가 없거나 `replace-with-`로 시작하면 서버가 시작되지 않습니다. Render에서는 Tailscale 연결을 위해 프록시 host:port도 필요합니다.
 
@@ -65,12 +83,14 @@ Render는 `PUBLIC_BASE_URL`이 없으면 `RENDER_EXTERNAL_URL`을 사용합니�
 브라우저/Next.js(Vercel) --HTTPS + Bearer JWT--> Render 백엔드
 RDK X5 ----------------HTTPS + RDK API Key----> Render /api/rdk/current, /api/rdk/logs
 브라우저 --단기 streamingUrl--> Render 백엔드 --내부 HTTP proxy + Tailscale--> RDK :5001
+브라우저 --Bearer JWT--> Render 백엔드 --Tailscale HTTP proxy--> Pi :8765/api/status (Y-Farm sensor)
+관리자 브라우저 --관리자 JWT--> Render 백엔드 --Tailscale HTTP proxy--> Pi :8765/api/nozzle (서보; 별도 OFF-기본 잠금)
 ```
 
 - Vercel의 `NEXT_PUBLIC_API_BASE_URL`은 Render 백엔드 origin(`https://<service>.onrender.com`)으로 지정하고, Render `FRONTEND_ORIGINS`에는 Vercel 운영 도메인을 정확히 등록합니다.
 - 운영 프론트 origin `https://wave-root-client.vercel.app`은 백엔드 CORS 코드에서 항상 허용합니다. Preview/custom 도메인은 `FRONTEND_ORIGINS`에 별도로 추가합니다.
 - RDK 환경 파일의 `BACKEND_API_BASE`는 `https://<service>.onrender.com/api/rdk`, `RDK_API_KEY`는 Render와 같은 값, `BACKEND_SENSOR_INTERVAL_SECONDS=60`입니다. 센서 업로드는 RDK에서 시작하는 HTTPS 연결이므로 RDK inbound port-forward를 만들지 않습니다.
-- Render에는 같은 Render region의 private service로 Tailscale HTTP proxy를 준비합니다. 공식 Tailscale 컨테이너 설정은 `TS_USERSPACE=true`, `TS_OUTBOUND_HTTP_PROXY_LISTEN=:1055`, `TS_AUTHKEY=<ephemeral auth key>`입니다. Tailnet ACL/grant는 이 노드가 RDK의 스트림 API port `5001`에만 접근하도록 제한하고, Render backend의 `RDK_HTTP_PROXY_HOSTPORT`에 private service의 `host:1055`를 지정합니다.
+- Render에는 같은 Render region의 private service로 Tailscale HTTP proxy를 준비합니다. 공식 Tailscale 컨테이너 설정은 `TS_USERSPACE=true`, `TS_OUTBOUND_HTTP_PROXY_LISTEN=:1055`, `TS_AUTHKEY=<ephemeral auth key>`입니다. Tailnet ACL/grant는 필요한 목적지 포트만 허용합니다: RDK `5001` 및 Y-Farm Pi `8765`; Render backend의 `RDK_HTTP_PROXY_HOSTPORT`에 private service의 `host:1055`를 지정하고 필요 시 `PI_HTTP_PROXY_URL`을 별도로 설정합니다.
 - 식물 `streamingUrl`은 브라우저에 RDK IP를 노출하지 않는 백엔드 URL입니다. Render 백엔드가 단기 서명 ticket을 확인하고 Tailscale proxy를 통해 MJPEG 응답을 중계합니다.
 - 이벤트 이미지는 현재 로컬 `EVENT_UPLOAD_DIR` 파일로 저장됩니다. Render 기본 filesystem은 재배포/재시작 후 보존되지 않으므로, 배포 운영에서는 이 경로에 persistent disk를 마운트하거나 object storage로 바꿔야 합니다. 저장 방식을 확정하기 전에는 이미지 영속성을 보장하는 운영 배포로 간주하지 않습니다.
 
@@ -153,9 +173,9 @@ DEPOSIT_ACCOUNT_HOLDER=<실제 예금주>
 
 | 메서드 | 경로 | 인증 | 설명 |
 | --- | --- | --- | --- |
-| `GET` | `/api/web/catalog` | 없음 | 사용자에게 표시할 상품; 분양 금지 중 제외, 응답 `products: [{ id, name, price, growthTargetDays, status }]` |
-| `GET` | `/api/web/admin/catalog` | 관리자 | 금지 중 포함 전체 상품 목록 |
-| `PATCH` | `/api/web/admin/catalog/:productId` | 관리자 | `{ status, price?, growthTargetDays? }`; 가격 1~1,000,000원, 목표일 1~3,650일 정수 |
+| `GET` | `/api/web/catalog?siteCode=HYDROPONIC\|Y_FARM` | 없음 | 해당 재배 공간의 상품만 반환; 분양 금지 중 제외, 응답 `products: [{ id, name, price, growthTargetDays, status }]` |
+| `GET` | `/api/web/admin/catalog?siteCode=HYDROPONIC\|Y_FARM` | 관리자 | 선택한 공간의 상태·가격·목표일을 포함한 전체 상품(금지 중 포함) |
+| `PATCH` | `/api/web/admin/catalog/:productId?siteCode=HYDROPONIC\|Y_FARM` | 관리자 | 해당 공간에만 `{ status, price?, growthTargetDays? }` 저장; 가격 1~1,000,000원, 목표일 1~3,650일 정수 |
 | `GET` | `/api/web/coupons` | 사용자 | 공개/내 계정에 발급된 사용 가능한 쿠폰 |
 | `POST` | `/api/web/coupons/validate` | 사용자 | `{ productId, code }`; 서버 가격 기준 할인액·결제액 미리보기 |
 | `POST` | `/api/web/orders` | 사용자 | `{ productId, plantName, depositorName, couponCode? }`; 계좌이체 주문 생성 |
@@ -247,7 +267,44 @@ Content-Type: application/json
 
 같은 식물 스냅샷은 `plantId` unique 인덱스로 upsert되므로 반복 전송해도 스냅샷 문서가 누적되지 않습니다. 과거 시각의 재전송은 최신 스냅샷을 덮어쓰지 않습니다. 원시값 범위는 `degree -50~100`, `moisture_air 0~100`, `moisture_soil 0~4095`, `rux 0~200000`이며 조도 센서가 없으면 `rux: null`을 보낼 수 있습니다.
 
-웹 `GET /api/web/plants/:plantId/current`는 MongoDB에 마지막으로 수신된 스냅샷을 반환합니다. 데이터가 없거나 마지막 측정 시각이 180초보다 오래되면 일관되게 `503`을 반환합니다. 프론트는 기존처럼 Bearer JWT로 호출하면 됩니다.
+웹 `GET /api/web/plants/:plantId/current`는 재배 공간별로 데이터를 가져옵니다. HYDROPONIC은 MongoDB의 RDK plant별 스냅샷을 반환하고, Y_FARM은 Pi `GET /api/status`에 요청 시 프록시합니다. Y-Farm 센서는 베드 공용이므로 `sensorScope: "shared"`이며, 토양 `moisture_soil`은 0~4095 원시 ADC 값이지 백분율이 아닙니다. Pi 센서값은 약 2초 간격으로 갱신되며 백엔드 실시간 조회 응답에는 저장하지 않습니다. Pi가 연결되지 않았거나 측정값이 7초보다 오래되었거나 DHT가 준비되지 않았으면 `503`을 반환합니다. 프론트는 두 재배 공간 모두 기존 Bearer JWT endpoint를 호출하면 됩니다.
+
+Pi 제어·센서 통신은 다음처럼 구성합니다.
+
+```env
+PI_CONTROL_BASE_URL=http://<pi-tailscale-ip>:8765
+PI_CONTROL_ENABLED=true
+PI_SERVO_CONTROL_ENABLED=false
+PI_CONTROL_TIMEOUT_MS=5000
+PI_SENSOR_STALE_SECONDS=7
+# 전용 proxy가 없다면 생략해 RDK_HTTP_PROXY_URL/HOSTPORT 재사용
+# PI_HTTP_PROXY_URL=http://<pi-proxy-host>:1055
+```
+
+환경변수는 두 종류입니다. 센서 조회와 관리자 상태 조회는 `PI_CONTROL_ENABLED=true`로 켜고, 실제 모터를 움직이는 기능은 현장에서 안전 점검한 뒤에만 추가로 `PI_SERVO_CONTROL_ENABLED=true`를 켭니다. 기본 `.env.example`은 둘 다 비활성입니다. `GET /api/web/admin/pi/status`는 관리자 JWT로 Pi의 서보·펌프·센서 상태를 보여줍니다. `POST /api/web/admin/pi/nozzle`은 관리자 JWT와 `{ "nozzleNo": 1 }` 형식의 JSON을 받고, 허용 사출구 `1, 3, 4, 5, 6, 7, 8, 9`만 처리합니다. 요청이 오면 백엔드는 Pi의 `POST /api/nozzle`에 `{ "nozzle": 1 }`을 보냅니다. 서버 시작 시나 센서 조회 시에는 서보 이동을 요청하지 않습니다.
+
+실시간 Pi 상태 응답 예시:
+
+```json
+{
+  "success": true,
+  "sensor": {
+    "degree": 24.5,
+    "moisture_air": 45.2,
+    "moisture_soil": 2500,
+    "rux": 1200,
+    "timestamp": 1791504000,
+    "source": "RASPBERRY_PI",
+    "sensorScope": "shared",
+    "soilUnit": "adc",
+    "ageSeconds": 1
+  }
+}
+```
+
+현재 상태 확인은 `GET http://<Pi-IP>:8765/api/status`, 실제 서보 요청 전 검증은 `/api/web/admin/pi/status`를 사용합니다. Pi SSH 터널을 쓸 경우 `ssh -N -L 127.0.0.1:8765:<Pi-IP>:8765 <user>@<Pi-IP>`로 포트를 전달하고 `PI_CONTROL_BASE_URL=http://127.0.0.1:8765`로 설정할 수 있습니다. 로컬 백엔드가 동작하는 PC에서 `GET /api/status`를 먼저 확인하고, 이후 사용자 JWT로 식물 센서 API를 검증합니다. 실제 모터 이동은 관리자가 명시적으로 확인 후 눌러야 하며, 테스트 자동화는 실제 GPIO 대신 mock 서버를 사용합니다.
+
+2026-11-11 실환경 연결 확인에서는 현재 문서의 Pi Tailscale 주소 `100.106.3.108:8765`가 5초 내 응답하지 않았고, 로컬 `.env`에도 `PI_CONTROL_*` 설정이 없었습니다. 따라서 아래 테스트는 mock Pi HTTP 서버를 이용한 백엔드 계약 검증이며, 실 Pi 센서 수신·서보 이동은 아직 현장에서 확인되지 않았습니다. Pi 주소/서비스와 백엔드의 Tailscale 경로를 확인하고 환경변수를 설정한 뒤 재검증해야 합니다.
 
 센서 이력의 10분 평균 로그는 기존처럼 RDK가 `POST /api/rdk/logs`로 별도 전송합니다. 실시간 화면 스냅샷과 평균 로그는 서로 다른 용도입니다.
 
@@ -356,25 +413,51 @@ curl --noproxy "*" -X PUT -H 'X-Admin-Key: <ADMIN_API_KEY>' -H 'Content-Type: ap
 POST /api/web/control/water
 Authorization: Bearer <token>
 Idempotency-Key: <클라이언트 요청별 고유키>
-{ "plantId": "...", "volume": 150 }
+{ "plantId": "...", "volume": 50 }
 ```
 
-웹 API는 `PENDING` Command를 만들고, RDK가 다음 API를 폴링합니다.
+웹 API는 Y-Farm 식물만 허용하고, 1~100mL `PENDING` Command를 만듭니다. 수경재배는 `409`, `PI_IRRIGATION_ENABLED=true`와 `PI_IRRIGATION_ARMED=true`가 모두 아니면 `503`입니다. `Idempotency-Key`는 필수입니다. 두 스위치를 끄면 새 명령 dispatch는 멈추지만, 장치 인증키를 보유한 Pi는 이미 진행 중인 명령의 완료·실패 보고와 미해결 작업 조회를 계속할 수 있습니다.
 
 ```http
-GET /api/rdk/command/:plantId
-X-RDK-API-Key: <RDK_API_KEY>
+GET /api/pi/irrigation/commands/claim
+X-Irrigation-Device-Id: <PI_IRRIGATION_DEVICE_ID>
+X-Pi-Irrigation-Key: <PI_IRRIGATION_API_KEY>
 ```
 
-펌프 동작 후 완료 보고:
+서버는 가장 오래된 명령 한 건을 `PENDING`→`DISPATCHED`로 원자적으로 변경합니다. 활성 장치 고유 인덱스가 Pi 하나당 한 건만 진행되도록 직렬화합니다. Pi는 기동 후 먼저 `/commands/active`를 확인해야 하며, 실행 결과가 불명확하면 자동 재실행하지 않고 아래처럼 불확실 오류를 보고해 잠금을 유지합니다.
 
 ```http
-POST /api/rdk/water
-X-RDK-API-Key: <RDK_API_KEY>
-{ "plantId": "...", "commandId": "...", "volume": 150 }
+POST /api/pi/irrigation/command/:commandId/fail
+X-Irrigation-Device-Id: <PI_IRRIGATION_DEVICE_ID>
+X-Pi-Irrigation-Key: <PI_IRRIGATION_API_KEY>
+{ "reason": "pump state unknown", "uncertain": true }
 ```
 
-완료 보고는 `commandId` unique 제약으로 재전송해도 Water 중복 기록을 만들지 않습니다. 같은 `Idempotency-Key`로 웹 명령을 재전송해도 기존 Command를 반환합니다.
+실제 펌프 완료 보고는 아래 API를 사용하며 `volume`은 유량계 실측이 아닌 보정값 기준 추정량입니다. 완료 보고는 `commandId` 고유 제약으로 재전송해도 Water 기록을 중복 생성하지 않습니다. 같은 `Idempotency-Key`로 웹 명령을 재전송하면 기존 Command를 반환합니다.
+
+```http
+POST /api/pi/irrigation/water
+X-Irrigation-Device-Id: <PI_IRRIGATION_DEVICE_ID>
+X-Pi-Irrigation-Key: <PI_IRRIGATION_API_KEY>
+{ "plantId": "...", "commandId": "...", "volume": 50 }
+```
+
+RDK `/api/rdk/command/:plantId`, `/api/rdk/commands/active`, `/api/rdk/water`, `/api/rdk/command/:commandId/fail`은 급수 처리에서 제외되어 `410 Gone`을 반환합니다. RDK는 수경재배 센서·영상에 사용합니다.
+
+장치 agent는 `Desktop/RasberryPi/irrigation/irrigation_agent.py`에 존재하는 것을 후속 확인했습니다. 다만 현재 코드는 과거 RDK 계약(`/api/rdk/command/:plantId`, `X-Rdk-Api-Key`, `outletIndex`)을 호출하는 구버전이라 위 Pi 전용 계약(`/api/pi/irrigation/commands/claim`, `X-Pi-Irrigation-Key`, 물리 `nozzleNo`)과 호환되지 않습니다. 새 백엔드에서 RDK 급수 라우트는 `410`이므로 Pi agent를 이관·검증하기 전에는 활성화하지 마세요. 실제 Raspberry Pi에서 service 상태나 GPIO/펌프 실행은 확인하지 않았고 환경변수 기본값은 OFF입니다.
+
+## 6.1 재배 공간 및 사이트별 분양
+
+`GET /api/web/sites`는 사용자에게 `HYDROPONIC`(RDK X5, 급수 없음)과 `Y_FARM`(Raspberry Pi, 급수 지원)을 반환합니다. 분양 목록·주문·관리자 상품 상태는 `siteCode`로 구분되며, 사이트별 상태·가격·목표일은 `SiteProductAvailability`에 독립 저장됩니다. 기존 `ProductAvailability` 전역 값은 HYDROPONIC의 초기 호환값으로만 사용합니다. 기본 목록은 HYDROPONIC에 기존 카탈로그를 유지하고 `cherry_tomato`(방울토마토)는 제외하며, Y_FARM은 방울토마토를 기본 분양 진행 중으로, 다른 상품은 기본 분양 금지로 둡니다. 관리자는 관리자 페이지의 재배 공간 선택 후 각 공간의 상품 상태를 따로 변경할 수 있습니다. 주문에는 선택한 `siteCode`와 그 공간의 상품 가격·목표일이 기록되며, 주문 확정 시 해당 사이트가 Plant에 복사됩니다. 기존 식물의 `siteCode` 기본값은 수경재배입니다. 이관 대상은 관리자가 확인한 후 바꿉니다.
+
+관리자 식물 API:
+
+- `PATCH /api/web/admin/plants/:plantId/site` body `{ "siteCode": "Y_FARM" }`
+- `PATCH /api/web/admin/plants/:plantId/stream` body `{ "gatewayId": "y-farm-pi-1", "cameraId": "<현장 ID>", "zone": 1 }` (세 필드 모두 `null`이면 해제)
+- `PATCH /api/web/admin/plants/:plantId/irrigation` body `{ "deviceId": "y-farm-pi-1", "nozzleNo": 1, "pumpId": 1, "enabled": true }`; 물리 노즐은 실제 활성 번호 `1, 3-9`만 허용
+- 위 급수 경로를 비우려면 `{ "deviceId": null, "nozzleNo": null, "pumpId": null, "enabled": false }`
+
+Y-Farm stream 티켓은 30분 만료, plant 소유권·사이트·카메라 배정을 프록시 시점에 재확인합니다. Render가 Pi에 직접 접근할 수 없을 때는 RDK 프록시를 추정해 공유하지 않고 `PI_HTTP_PROXY_URL`에 Pi 경로를 별도로 설정합니다. `Desktop/RasberryPi/farm_stream_gateway.py`가 확인됐고 ticket claim, `/api/stream/:ticket`, `/api/snapshot/:ticket`, 720p/10fps 헤더는 백엔드 계약과 정적으로 일치합니다. 단, 예제 카메라 URL/영역은 placeholder이며 실제 Pi 설치·환경변수·카메라 연결은 확인하지 않아 스트리밍 실동작은 미검증입니다.
 
 ## 7. 로그·물·알림·활동 API 점검
 

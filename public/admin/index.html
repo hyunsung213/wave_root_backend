@@ -166,6 +166,20 @@
   .sensor .s{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
   .sensor .s .v{font-size:24px;font-weight:700;color:var(--teal-d)}
   .sensor .s .k{color:var(--sub);font-size:12px;margin-top:5px;font-weight:600}
+  .pi-device{margin-top:18px;padding:20px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .pi-device-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .pi-device-head h3{margin:0;font-size:16px;color:var(--txt)}
+  .pi-device-head span{color:var(--sub);font-size:11px;font-weight:700}
+  .pi-device-state{margin:0 0 12px;color:var(--sub);font-size:12px;line-height:1.5}
+  .pi-device-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}
+  .pi-device-value{padding:12px;border:1px solid var(--line);border-radius:10px;background:#fbfdfc}
+  .pi-device-value strong{display:block;color:var(--teal-d);font-size:19px}
+  .pi-device-value small{display:block;margin-top:4px;color:var(--sub);font-size:10px}
+  .pi-servo-controls{display:flex;align-items:end;flex-wrap:wrap;gap:9px;margin-top:15px;padding-top:14px;border-top:1px solid var(--line)}
+  .pi-servo-controls label{display:grid;gap:5px;color:var(--sub);font-size:11px;font-weight:700}
+  .pi-servo-controls select{min-width:150px;padding:9px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--txt)}
+  .pi-servo-controls button{padding:9px 12px;border:0;border-radius:8px;background:var(--teal);color:#fff;font-weight:800}
+  .pi-servo-controls button:disabled{opacity:.45;cursor:default}
   .commerce-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:16px;align-items:start}
   .commerce-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;box-shadow:var(--shadow);margin-bottom:16px}
   .commerce-card h3{margin:0 0 14px;font-size:15px}
@@ -443,7 +457,9 @@
         <section class="view" id="view-catalog">
           <div class="commerce-card">
             <h3>식물별 분양 상태</h3>
-            <p class="commerce-note">분양 진행 중 상품은 주문할 수 있습니다. 분양 예정 상품은 목록에만 표시되며, 분양 금지 중 상품은 사용자 목록에서 숨겨집니다. 청경채·얼갈이 배추는 가격과 첫 수확 목표일을 입력해야 분양을 시작할 수 있습니다. 기존 주문은 상태 변경 후에도 유지됩니다.</p>
+            <p class="commerce-note">재배 공간별로 분양 상태와 가격을 따로 관리합니다. Y-Farm은 별도 설정이 없으면 기존 수경재배 상품 정보를 참고하며, 이 화면에서 바꾼 값은 선택한 공간에만 적용됩니다.</p>
+            <label for="catalogSite" class="commerce-note">재배 공간</label>
+            <select id="catalogSite" class="catalog-status-select" aria-label="분양 목록 재배 공간 선택"><option value="HYDROPONIC">수경재배</option><option value="Y_FARM">Y-Farm</option></select>
             <button class="refresh" id="refreshCatalog" type="button">상품 새로고침</button>
             <div class="commerce-state" id="catalogFeedback" role="status" aria-live="polite"></div>
             <div class="tablewrap catalog-tablewrap" id="catalogTable"><div class="empty">불러오는 중…</div></div>
@@ -495,6 +511,7 @@
         <section class="view" id="view-stream">
           <div class="toolbar">
             <input type="search" id="pSearch" placeholder="식물명·소유자·종류 검색" />
+            <select id="pSite"><option value="">모든 재배 공간</option><option value="HYDROPONIC">수경재배</option><option value="Y_FARM">Y-Farm</option></select>
             <select id="pType"><option value="">전체 종류</option></select>
             <select id="pStream">
               <option value="">스트림 전체</option>
@@ -632,9 +649,19 @@
 
         <!-- SENSOR -->
         <section class="view" id="view-sensor">
-          <div class="toolbar"><span class="count">RDK 게이트웨이 실시간 값</span>
+          <div class="toolbar"><span class="count">재배 공간별 장치·센서 상태</span>
             <button class="refresh" id="refSensor" style="margin-left:auto">센서 새로고침</button></div>
+          <h3 style="margin:0 0 10px;font-size:14px;color:var(--txt)">수경재배 · RDK X5</h3>
           <div class="sensor" id="sensor"><div class="empty">불러오는 중…</div></div>
+          <section class="pi-device" aria-labelledby="piDeviceTitle">
+            <div class="pi-device-head"><h3 id="piDeviceTitle">Y-Farm · Raspberry Pi</h3><span id="piDeviceChecked">상태 확인 전</span></div>
+            <p class="pi-device-state" id="piDeviceState" role="status" aria-live="polite">Pi 연결 상태를 확인하는 중…</p>
+            <div class="pi-device-grid" id="piDeviceValues"></div>
+            <div class="pi-servo-controls">
+              <label for="piNozzleSelect">서보 사출구<select id="piNozzleSelect"><option value="1">1번</option><option value="3">3번</option><option value="4">4번</option><option value="5">5번</option><option value="6">6번</option><option value="7">7번</option><option value="8">8번</option><option value="9">9번</option></select></label>
+              <button id="piNozzleMove" type="button" disabled>선택한 사출구로 이동</button>
+            </div>
+          </section>
         </section>
 
       </div>
@@ -699,8 +726,9 @@ const BED_CAMERA_ORDER=['c110-2','c110-1','c110-3','c110-4'];
 let bedLayoutState={cameras:[],savedCameras:[],products:[],
   editing:false,dirty:false,loaded:false,updatedAt:null};
 let orderNodeAction=null;
+let catalogSiteCode='HYDROPONIC';
 let uState={q:'',type:'',plant:'',sort:'createdAt',dir:'desc'};
-let pState={q:'',type:'',stream:''};
+let pState={q:'',site:'',type:'',stream:''};
 const charts={};
 const cameraState={id:null,mode:'raw',zone:'1',zones:null,savedZones:null,editing:false,drawMode:false,gridDraw:null,
   perspectiveCorners:null,savedPerspectiveCorners:null,perspectiveEditing:false,
@@ -898,7 +926,7 @@ $('loginForm').addEventListener('submit',async e=>{
   finally{ btn.disabled=false }
 });
 $('logout').addEventListener('click',logout);
-function logout(){ stopCameraPolling(); stopPlantStreams(); clearPreviewCache(); setToken(null); show(false) }
+function logout(){ stopCameraPolling(); stopPlantStreams(); stopSensorPolling(); clearPreviewCache(); setToken(null); show(false) }
 
 /* ---------- nav ---------- */
 const titles={dash:'대시보드',users:'사용자 관리',orders:'분양 주문',catalog:'분양 상품',coupons:'쿠폰 관리',alerts:'알림 설정',stream:'스트리밍',camera:'카메라 설정',sensor:'센서'};
@@ -909,6 +937,7 @@ $('nav').addEventListener('click',e=>{
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+v));
   $('pageTitle').textContent=titles[v];
   if(v==='camera'){startCameraPolling();if(!bedLayoutState.loaded)void loadBedLayout();} else stopCameraPolling();
+  if(v==='sensor')startSensorPolling(); else stopSensorPolling();
   if(v==='stream') renderPlants(); else stopPlantStreams();
   if(v==='orders') loadOrders();
   if(v==='catalog') loadCatalog();
@@ -919,9 +948,11 @@ $('nav').addEventListener('click',e=>{
 /* ---------- data load ---------- */
 $('refreshAll').addEventListener('click',start);
 $('refSensor').addEventListener('click',loadSensor);
+$('piNozzleMove').addEventListener('click',movePiNozzle);
 $('refCameras').addEventListener('click',startCameraPolling);
 $('refreshOrders').addEventListener('click',loadOrders);
 $('refreshCatalog').addEventListener('click',loadCatalog);
+$('catalogSite').addEventListener('change',()=>{catalogSiteCode=$('catalogSite').value;loadCatalog();});
 
 function money(value){return Number(value||0).toLocaleString('ko-KR')+'원'}
 const catalogStatusLabels={available:'분양 진행 중',upcoming:'분양 예정',blocked:'분양 금지 중'};
@@ -944,7 +975,7 @@ async function loadCatalog(){
   $('catalogFeedback').textContent='';
   $('catalogTable').innerHTML='<div class="empty">상품을 불러오는 중…</div>';
   try{
-    const data=await api('/catalog');
+    const data=await api('/catalog?siteCode='+encodeURIComponent(catalogSiteCode));
     catalogProducts=data.products||[];
     renderCatalog();
   }catch(error){if(error.message!=='unauthorized')$('catalogTable').innerHTML=`<div class="empty">상품을 불러오지 못했습니다. ${esc(error.message)}</div>`;}
@@ -977,7 +1008,7 @@ $('catalogTable').addEventListener('click',async event=>{
   $('catalogFeedback').textContent='분양 상태를 저장하고 있습니다…';
   $('catalogFeedback').classList.remove('error');
   try{
-    const data=await api('/catalog/'+encodeURIComponent(productId),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await api('/catalog/'+encodeURIComponent(productId)+'?siteCode='+encodeURIComponent(catalogSiteCode),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     catalogProducts=catalogProducts.map(item=>item.id===productId?data.product:item);
     renderCatalog();
     $('catalogFeedback').textContent=`${data.product.name}: ${catalogStatusLabels[data.product.status]}으로 저장했습니다.`;
@@ -1050,14 +1081,15 @@ function updateOrderNodeSubmit(){
 }
 function renderOrderNodeOptions(action){
   const messages=[];
-  if(action.loadError)messages.push(`노드 목록을 불러오지 못했습니다. ${action.loadError}`);
+  if(action.skipOnly)messages.push('Y-Farm 식물을 확정합니다. 카메라 영역과 급수 경로는 스트리밍 관리에서 별도로 연결하세요.');
+  else if(action.loadError)messages.push(`노드 목록을 불러오지 못했습니다. ${action.loadError}`);
   else if(!action.nodes.length)messages.push('현재 배정 가능한 카메라 영역이 없습니다. 주문은 노드 미배정 상태로 확정한 뒤 나중에 연결할 수 있습니다.');
   $('orderNodeOptions').innerHTML=(messages.length?`<div class="order-node-empty">${messages.map(esc).join('<br>')}</div>`:'')+
     action.nodes.map(node=>orderNodeOption(`${node.cameraId}:${node.zone}`,`${node.cameraId} · 영역 ${node.zone}`,
       `현재 다른 식물에 연결되지 않은 노드 · ${BED_CAMERA_POSITIONS[node.cameraId]||'물리 위치 미등록'} · ${node.cropName?'예정 작물 · '+node.cropName:'재배 배치 미지정'}`,
       action.mode==='confirm'&&node.productMatchesOrder&&action.nodes.find(candidate=>candidate.productMatchesOrder)===node)).join('')+
-    (action.mode==='confirm'?orderNodeOption('skip','지금 연결하지 않고 나중에 배정',
-      action.nodes.length?'주문을 먼저 확정하고 주문 목록에서 나중에 연결할 수 있습니다.':'노드가 없는 상태로 주문을 확정합니다.',
+    (action.mode==='confirm'?orderNodeOption('skip',action.skipOnly?'Y-Farm 식물 관리에서 영상·급수 연결':'지금 연결하지 않고 나중에 배정',
+      action.skipOnly?'주문을 확정한 뒤 Y-Farm 식물 카드에서 Pi 카메라와 급수 경로를 설정합니다.':action.nodes.length?'주문을 먼저 확정하고 주문 목록에서 나중에 연결할 수 있습니다.':'노드가 없는 상태로 주문을 확정합니다.',
       !action.nodes.some(node=>node.productMatchesOrder)):'');
   updateOrderNodeCropWarning();
   updateOrderNodeSubmit();
@@ -1069,6 +1101,12 @@ async function refreshOrderNodeOptions(){
   $('orderNodeFeedback').textContent='미배정 노드를 확인하고 있습니다…';
   $('orderNodeFeedback').classList.remove('error');
   updateOrderNodeSubmit();
+  if(action.order.siteCode==='Y_FARM'){
+    action.nodes=[];action.skipOnly=true;action.loading=false;
+    renderOrderNodeOptions(action);
+    $('orderNodeFeedback').textContent='Y-Farm 주문은 Pi 영상·급수 연결을 식물 관리에서 별도로 설정합니다.';
+    return;
+  }
   try{
     const [cameraData,plantData]=await Promise.all([api('/cameras'),api('/plants')]);
     if(orderNodeAction!==action)return;
@@ -1094,11 +1132,13 @@ async function refreshOrderNodeOptions(){
   }
 }
 function openOrderNodeModal(order,mode,triggerButton){
-  orderNodeAction={order,mode,triggerButton,nodes:[],loading:true,busy:false,loadError:''};
+  orderNodeAction={order,mode,triggerButton,nodes:[],loading:true,busy:false,loadError:'',skipOnly:order.siteCode==='Y_FARM'};
   $('orderNodeForm').reset();
   $('orderNodeTitle').textContent=mode==='assign'?'미배정 노드 연결':
     order.status==='confirming'?'주문 처리 재시도':order.status==='confirmed'?'식물·노드 연결 재시도':'입금 확인 및 노드 연결';
-  $('orderNodeDescription').textContent=mode==='assign'
+  $('orderNodeDescription').textContent=order.siteCode==='Y_FARM'
+    ?'Y-Farm 주문을 확정한 뒤 식물 관리에서 Pi 스트림과 급수 경로를 설정하세요.'
+    :mode==='assign'
     ?'확정된 식물에 연결할 미배정 카메라 영역을 선택하세요.'
     :Number(order.amountDue)>0?'입금 내역을 확인한 뒤 식물을 추가하고 미배정 노드를 연결하세요. 노드 연결은 나중에 진행할 수도 있습니다.':'주문을 확정해 식물을 추가하고 미배정 노드를 연결하세요. 노드 연결은 나중에 진행할 수도 있습니다.';
   $('orderNodeSummary').innerHTML=`<div><small>주문번호</small><strong>${esc(order.orderNumber)}</strong></div><div><small>식물</small><strong>${esc(order.plantName)} · ${esc(order.productName)}</strong></div><div><small>입금자명</small><strong>${esc(order.depositorName)}</strong></div><div><small>결제 금액</small><strong>${money(order.amountDue)}</strong></div>`;
@@ -1193,17 +1233,18 @@ async function loadOrders(){
   try{
     const data=await api('/orders');
     const rows=data.orders||[];
-    $('ordersTable').innerHTML=rows.length?`<table><thead><tr><th>주문번호</th><th>회원</th><th>상품 / 식물명</th><th>입금자명</th><th>입금액</th><th>쿠폰</th><th>상태</th><th>접수일</th><th>작업</th></tr></thead><tbody>${rows.map(order=>{
+    $('ordersTable').innerHTML=rows.length?`<table><thead><tr><th>주문번호</th><th>회원</th><th>상품 / 식물명</th><th>재배 공간</th><th>입금자명</th><th>입금액</th><th>쿠폰</th><th>상태</th><th>접수일</th><th>작업</th></tr></thead><tbody>${rows.map(order=>{
       const user=order.userId&&typeof order.userId==='object'?order.userId:{};
       const plant=order.plantId&&typeof order.plantId==='object'?order.plantId:null;
       const plantId=plant?._id||order.plantId;
-      const assigned=Boolean(plant?.rdkCameraId&&Number.isInteger(plant.rdkZone));
-      const plantSummary=order.plantId?`<br><small>식물 생성 완료${assigned?` · ${esc(plant.rdkCameraId)} / 영역 ${plant.rdkZone}`:' · 노드 미배정'}</small>`:'';
+      const yFarm=order.siteCode==='Y_FARM'||plant?.siteCode==='Y_FARM';
+      const assigned=yFarm?Boolean(plant?.streamCameraId&&Number.isInteger(plant.streamZone)):Boolean(plant?.rdkCameraId&&Number.isInteger(plant.rdkZone));
+      const plantSummary=order.plantId?`<br><small>식물 생성 완료${assigned?` · ${yFarm?'Pi '+esc(plant.streamCameraId):esc(plant.rdkCameraId)} / 영역 ${yFarm?plant.streamZone:plant.rdkZone}`:' · 노드 미배정'}</small>`:'';
       const action=order.status==='pending'||order.status==='confirming'
         ?`<button class="commerce-action" data-confirm-order="${esc(order._id)}">${order.status==='confirming'?'처리 재시도':order.amountDue>0?'입금 확인':'주문 확정'}</button>`
-        :order.status==='confirmed'&&plantId&&!assigned
+        :order.status==='confirmed'&&plantId&&!assigned&&!yFarm
           ?`<button class="commerce-action" data-assign-order="${esc(order._id)}">노드 연결</button>`:'-';
-      return `<tr><td><b>${esc(order.orderNumber)}</b></td><td>${esc(user.name||'이름 없음')}<br><small>${esc(user.email||'')}</small></td><td>${esc(order.productName)}<br><small>${esc(order.plantName)}</small></td><td>${esc(order.depositorName)}</td><td>${money(order.amountDue)}<br><small>할인 ${money(order.discountAmount)}</small></td><td>${esc(order.couponName||order.couponCode||'-')}</td><td>${orderStatus(order.status)}${plantSummary}</td><td>${new Date(order.createdAt).toLocaleString('ko-KR')}</td><td>${action}</td></tr>`;
+      return `<tr><td><b>${esc(order.orderNumber)}</b></td><td>${esc(user.name||'이름 없음')}<br><small>${esc(user.email||'')}</small></td><td>${esc(order.productName)}<br><small>${esc(order.plantName)}</small></td><td>${yFarm?'Y-Farm':'수경재배'}</td><td>${esc(order.depositorName)}</td><td>${money(order.amountDue)}<br><small>할인 ${money(order.discountAmount)}</small></td><td>${esc(order.couponName||order.couponCode||'-')}</td><td>${orderStatus(order.status)}${plantSummary}</td><td>${new Date(order.createdAt).toLocaleString('ko-KR')}</td><td>${action}</td></tr>`;
     }).join('')}</tbody></table>`:'<div class="empty">접수된 주문이 없습니다.</div>';
     $('ordersTable').querySelectorAll('[data-confirm-order]').forEach(button=>button.addEventListener('click',()=>{
       const order=rows.find(item=>String(item._id)===button.dataset.confirmOrder);
@@ -1507,17 +1548,20 @@ function renderUsers(){
 }
 
 /* ---------- streaming (search/filter) ---------- */
-['pSearch','pType','pStream'].forEach(id=>$(id).addEventListener('input',()=>{
+function updatePlantFilters(){
   pState.q=$('pSearch').value.trim().toLowerCase();
+  pState.site=$('pSite').value;
   pState.type=$('pType').value; pState.stream=$('pStream').value; renderPlants();
-}));
+}
+['pSearch','pType','pStream','pSite'].forEach(id=>$(id).addEventListener('input',updatePlantFilters));
+['pType','pStream','pSite'].forEach(id=>$(id).addEventListener('change',updatePlantFilters));
 function fillTypeFilter(){
   const types=[...new Set(plants.map(p=>p.type))].sort();
   $('pType').innerHTML='<option value="">전체 종류</option>'+types.map(t=>`<option>${esc(t)}</option>`).join('');
 }
 const previewCache=new Map();
 let previewObserver=null,previewQueue=[],previewRequest=null,previewGeneration=0;
-function previewKey(plant){return `${plant._id}:${plant.rdkCameraId}:${plant.rdkZone}`;}
+function previewKey(plant){return `${plant._id}:${plant.siteCode||'HYDROPONIC'}:${plant.streamGatewayId||'rdk'}:${plant.streamCameraId||plant.rdkCameraId}:${plant.streamZone??plant.rdkZone}`;}
 function previewUrl(streamUrl){
   const url=new URL(streamUrl,location.href);
   const streamPath='/api/web/plants/stream/';
@@ -1684,6 +1728,7 @@ function renderPlants(){
   closeStream();
   stopPreviewLoading();
   let list=plants.filter(p=>{
+    if(pState.site&&(p.siteCode||'HYDROPONIC')!==pState.site)return false;
     if(pState.type&&p.type!==pState.type) return false;
     if(pState.stream==='on'&&!p.streamingUrl) return false;
     if(pState.stream==='off'&&p.streamingUrl) return false;
@@ -1702,15 +1747,35 @@ function renderPlants(){
     <div class="body">
       <div class="nm">${esc(p.name)} <span class="muted" style="font-weight:400">· ${esc(p.type)}</span></div>
       <div class="meta">소유자: ${esc(p.owner?.name)||esc(p.owner?.email)||'알 수 없음'}<br>
-        성장 ${p.growthDays}/${p.growthTargetDays}일 · Cam ${esc(p.rdkCameraId)||'-'} / Zone ${p.rdkZone??'-'}</div>
+        공간: ${p.siteCode==='Y_FARM'?'Y-Farm':'수경재배'} · 성장 ${p.growthDays}/${p.growthTargetDays}일<br>
+        ${p.siteCode==='Y_FARM'?`Pi ${esc(p.streamGatewayId)||'-'} / ${esc(p.streamCameraId)||'-'} · 영역 ${p.streamZone??'-'} · 급수 ${p.irrigationEnabled?'노즐 '+(p.irrigationNozzleNo??'-'):'미배정'}`:`RDK Cam ${esc(p.rdkCameraId)||'-'} / 영역 ${p.rdkZone??'-'}`}</div>
       <div class="bar"><i style="width:${p.growthPercent}%"></i></div>
-      <div class="plant-assign" data-plant-assignment="${esc(p._id)}">
+      <div class="plant-assign" data-site-assignment="${esc(p._id)}">
+        <label>재배 공간<select data-site-code><option value="HYDROPONIC" ${(p.siteCode||'HYDROPONIC')==='HYDROPONIC'?'selected':''}>수경재배</option><option value="Y_FARM" ${p.siteCode==='Y_FARM'?'selected':''}>Y-Farm</option></select></label>
+        <button type="button" data-save-site>재배 공간 저장</button>
+        <small data-site-status>공간 변경 전 활성 급수 명령을 완료하세요.</small>
+      </div>
+      ${p.siteCode==='Y_FARM'?`<div class="plant-assign" data-pi-stream-assignment="${esc(p._id)}">
+        <label>게이트웨이<input data-pi-gateway value="${esc(p.streamGatewayId||'y-farm-pi-1')}" maxlength="64"></label>
+        <label>카메라 ID<input data-pi-camera value="${esc(p.streamCameraId||'')}" maxlength="64" placeholder="현장 설정 카메라 ID"></label>
+        <label>영역 번호<input data-pi-zone type="number" min="1" max="144" step="1" value="${p.streamZone??''}"></label>
+        <button type="button" data-save-pi-stream>Y-Farm 스트림 저장</button>
+        <small data-pi-stream-status>Pi gateway와 카메라 서비스가 설정되어야 영상 URL이 발급됩니다.</small>
+      </div>
+      <div class="plant-assign" data-irrigation-assignment="${esc(p._id)}">
+        <label>급수 장치<input data-irrigation-device value="${esc(p.irrigationDeviceId||'y-farm-pi-1')}" maxlength="64"></label>
+        <label>물리 노즐<select data-irrigation-nozzle><option value="">선택</option>${[1,3,4,5,6,7,8,9].map(nozzle=>`<option value="${nozzle}" ${p.irrigationNozzleNo===nozzle?'selected':''}>노즐 ${nozzle}</option>`).join('')}</select></label>
+        <label>펌프<select data-irrigation-pump><option value="">선택</option><option value="1" ${p.irrigationPumpId===1?'selected':''}>펌프 1</option><option value="2" ${p.irrigationPumpId===2?'selected':''}>펌프 2</option></select></label>
+        <label><span>급수 연결</span><select data-irrigation-enabled><option value="false" ${p.irrigationEnabled?'':'selected'}>비활성</option><option value="true" ${p.irrigationEnabled?'selected':''}>활성</option></select></label>
+        <button type="button" data-save-irrigation>급수 경로 저장</button>
+        <small data-irrigation-status>경로를 저장해도 서버 기능 스위치와 현장 보정 스위치가 켜지기 전에는 실제 급수가 차단됩니다.</small>
+      </div>`:`<div class="plant-assign" data-plant-assignment="${esc(p._id)}">
         <label>카메라<select data-assign-camera><option value="">미배정</option>${cameraOptions.map(camera=>
           `<option value="${esc(camera.cameraId)}" ${camera.cameraId===p.rdkCameraId?'selected':''}>${esc(camera.cameraId)}</option>`).join('')}</select></label>
         <label>식물 영역<select data-assign-zone>${zoneOptionsForPlant(p.rdkCameraId,p)}</select></label>
         <button type="button" data-save-assignment>이 식물에 영역 배정</button>
         <small data-assign-status>그리드에서 생성한 칸 번호를 선택하세요.</small>
-      </div>
+      </div>`}
     </div>
   </div>`).join('') : '<div class="empty">조건에 맞는 식물이 없습니다.</div>';
   observePlantPreviews();
@@ -1732,6 +1797,58 @@ $('plants').addEventListener('change',event=>{
   if(plant)form.querySelector('[data-assign-zone]').innerHTML=zoneOptionsForPlant(event.target.value,plant);
 });
 $('plants').addEventListener('click',async event=>{
+  const siteButton=event.target.closest('[data-save-site]');
+  if(siteButton){
+    const form=siteButton.closest('[data-site-assignment]');
+    const plant=plants.find(item=>String(item._id)===form?.dataset.siteAssignment);
+    if(!plant)return;
+    const status=form.querySelector('[data-site-status]');
+    siteButton.disabled=true;status.classList.remove('error');status.textContent='재배 공간을 저장하고 있습니다…';
+    try{
+      const data=await api('/plants/'+encodeURIComponent(plant._id)+'/site',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({siteCode:form.querySelector('[data-site-code]').value})});
+      Object.assign(plant,data.plant);
+      const refreshed=await api('/plants');plants=refreshed.plants||[];fillTypeFilter();renderPlants();
+    }catch(error){status.textContent=error.message;status.classList.add('error');siteButton.disabled=false;}
+    return;
+  }
+  const piStreamButton=event.target.closest('[data-save-pi-stream]');
+  if(piStreamButton){
+    const form=piStreamButton.closest('[data-pi-stream-assignment]');
+    const plant=plants.find(item=>String(item._id)===form?.dataset.piStreamAssignment);
+    if(!plant)return;
+    const cameraId=form.querySelector('[data-pi-camera]').value.trim();
+    const gatewayId=form.querySelector('[data-pi-gateway]').value.trim();
+    const zone=Number(form.querySelector('[data-pi-zone]').value);
+    const status=form.querySelector('[data-pi-stream-status]');
+    if(!cameraId||!gatewayId||!Number.isInteger(zone)||zone<1||zone>144){status.textContent='게이트웨이·카메라 ID·1~144 영역을 확인하세요.';status.classList.add('error');return;}
+    piStreamButton.disabled=true;status.classList.remove('error');status.textContent='Y-Farm 스트림 배정을 저장하고 있습니다…';
+    try{
+      const data=await api('/plants/'+encodeURIComponent(plant._id)+'/stream',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({gatewayId,cameraId,zone})});
+      Object.assign(plant,data.plant);status.textContent=data.plant.streamingUrl?'스트림 배정 저장 완료':'배정 저장 완료 · Pi 영상 서비스 설정 후 스트림이 활성화됩니다.';
+      renderPlants();
+    }catch(error){status.textContent=error.message;status.classList.add('error');piStreamButton.disabled=false;}
+    return;
+  }
+  const irrigationButton=event.target.closest('[data-save-irrigation]');
+  if(irrigationButton){
+    const form=irrigationButton.closest('[data-irrigation-assignment]');
+    const plant=plants.find(item=>String(item._id)===form?.dataset.irrigationAssignment);
+    if(!plant)return;
+    const enabled=form.querySelector('[data-irrigation-enabled]').value==='true';
+    const status=form.querySelector('[data-irrigation-status]');
+    const deviceId=form.querySelector('[data-irrigation-device]').value.trim();
+    const nozzleText=form.querySelector('[data-irrigation-nozzle]').value;
+    const pumpText=form.querySelector('[data-irrigation-pump]').value;
+    const body=enabled?{deviceId,nozzleNo:Number(nozzleText),pumpId:Number(pumpText),enabled:true}:
+      {deviceId:null,nozzleNo:null,pumpId:null,enabled:false};
+    if(enabled&&(!deviceId||![1,3,4,5,6,7,8,9].includes(body.nozzleNo)||![1,2].includes(body.pumpId))){status.textContent='장치, 활성 물리 노즐(1번·3~9번), 펌프를 확인하세요.';status.classList.add('error');return;}
+    irrigationButton.disabled=true;status.classList.remove('error');status.textContent='급수 경로를 저장하고 있습니다…';
+    try{
+      const data=await api('/plants/'+encodeURIComponent(plant._id)+'/irrigation',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      Object.assign(plant,data.plant);status.textContent='경로 저장 완료 · 실제 급수는 서버 기능 및 현장 보정 스위치가 모두 켜져야 합니다.';renderPlants();
+    }catch(error){status.textContent=error.message;status.classList.add('error');irrigationButton.disabled=false;}
+    return;
+  }
   const button=event.target.closest('[data-save-assignment]');
   if(!button)return;
   const form=button.closest('[data-plant-assignment]');
@@ -2697,13 +2814,61 @@ $('perspectiveReset').addEventListener('click',async()=>{
 });
 
 /* ---------- sensor ---------- */
-async function loadSensor(){
+let sensorPollTimer=null;
+function stopSensorPolling(){if(sensorPollTimer){clearInterval(sensorPollTimer);sensorPollTimer=null;}}
+function startSensorPolling(){stopSensorPolling();void loadSensor();sensorPollTimer=setInterval(()=>{if(!document.hidden)void loadSensor();},10000);}
+function sensorCard(label,value,unit=''){
+  return `<div class="pi-device-value"><strong>${value===null||value===undefined?'—':esc(String(value))}${unit}</strong><small>${esc(label)}</small></div>`;
+}
+async function loadPiDeviceStatus(){
   try{
-    const {sensor}=await api('/sensor');
+    const data=await api('/pi/status');
+    const servo=data.servo||{},pump=data.pump||{},sensor=data.sensor||{};
+    $('piDeviceChecked').textContent='확인 '+new Date(data.checkedAt||Date.now()).toLocaleTimeString('ko-KR');
+    $('piDeviceState').textContent=`연결됨 · 서보 ${servo.ready?'준비':'대기'} · ESP32 센서 ${sensor.fresh?'최신':'오래됨/미수신'} · 샘플 ${sensor.ageSeconds??'—'}초 전`;
+    $('piDeviceValues').innerHTML=[
+      sensorCard('온도',sensor.temperatureC,'°C'),sensorCard('공기 습도',sensor.humidityPct,'%'),
+      sensorCard('토양 ADC 원시값',sensor.soilRaw),sensorCard('토양 전압',sensor.soilMillivolts,'mV'),
+      sensorCard('조도',sensor.lightLux,' lx'),sensorCard('서보 최근 명령각',servo.angle,'°'),
+      sensorCard('선택 노즐',servo.selectedNozzle===null?'—':`${servo.selectedNozzle}번`),
+      sensorCard('펌프 상태',pump.ready?(pump.states?.['1']?'작동 중':'정지'):'확인 불가')
+    ].join('');
+    const pumpsOff=pump.ready&&pump.states?.['1']===false&&pump.states?.['2']===false;
+    $('piNozzleMove').disabled=!(servo.controlEnabled&&servo.ready&&servo.zeroSaved&&pumpsOff);
+    if(!servo.controlEnabled)$('piDeviceState').textContent+=' · 서보 원격 제어는 서버 설정에서 비활성화됨';
+    else if(!servo.zeroSaved)$('piDeviceState').textContent+=' · 1번 영점을 먼저 저장해야 함';
+    else if(!pumpsOff)$('piDeviceState').textContent+=' · 펌프 OFF 확인 후 서보 이동 가능';
+  }catch(error){
+    if(error.message==='unauthorized')return;
+    $('piDeviceChecked').textContent='연결 확인 실패';
+    $('piDeviceState').textContent=`Y-Farm Pi 상태를 가져오지 못했습니다 · ${error.message}`;
+    $('piDeviceValues').innerHTML='';$('piNozzleMove').disabled=true;
+  }
+}
+async function movePiNozzle(){
+  const button=$('piNozzleMove'),nozzleNo=Number($('piNozzleSelect').value);
+  if(!confirm(`Y-Farm 서보를 ${nozzleNo}번 사출구로 이동할까요? 펌프는 작동하지 않습니다.`))return;
+  button.disabled=true;
+  try{
+    const result=await api('/pi/nozzle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nozzleNo})});
+    $('piDeviceState').textContent=`서보 이동 명령 완료 · ${result.nozzleNo}번 · 명령각 ${result.angle}° · 펌프 동작 없음`;
+    await loadPiDeviceStatus();
+  }catch(error){
+    if(error.message!=='unauthorized')$('piDeviceState').textContent=`서보 이동 실패 · ${error.message}`;
+    button.disabled=true;
+  }
+}
+async function loadSensor(){
+  const [rdkResult]=await Promise.allSettled([api('/sensor'),loadPiDeviceStatus()]);
+  if(rdkResult.status==='fulfilled'){
+    const {sensor}=rdkResult.value;
     const items=[['온도',sensor.degree,'°C'],['공기 습도',sensor.moisture_air,'%'],
-      ['토양 수분',sensor.moisture_soil,''],['조도',sensor.rux??sensor.lux,'']];
-    $('sensor').innerHTML=items.map(([k,v,u])=>`<div class="s"><div class="v">${v??'-'}${u}</div><div class="k">${k}</div></div>`).join('');
-  }catch(err){ $('sensor').innerHTML=`<div class="empty">센서 데이터를 불러올 수 없습니다 (${esc(err.message)}).</div>` }
+      ['토양 수분 · ADC 원시값',sensor.moisture_soil,''],['조도',sensor.rux??sensor.lux,'']];
+    $('sensor').innerHTML=items.map(([k,v,u])=>`<div class="s"><div class="v">${v??'-'}${u}</div><div class="k">${esc(k)}</div></div>`).join('');
+  }else{
+    const error=rdkResult.reason;
+    $('sensor').innerHTML=`<div class="empty">RDK 센서 데이터를 불러올 수 없습니다 (${esc(error?.message||'요청 실패')}).</div>`;
+  }
 }
 
 if(token()) start(); else show(false);

@@ -57,3 +57,69 @@ test('RDK assignment timeout and stream token cache have safe defaults and accep
     }
   }
 });
+
+test('Pi irrigation is disabled until both feature and field arming flags are set', () => {
+  const keys = ['NODE_ENV', 'PI_IRRIGATION_ENABLED', 'PI_IRRIGATION_ARMED', 'PI_IRRIGATION_API_KEY'];
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  try {
+    process.env.NODE_ENV = 'test';
+    delete process.env.PI_IRRIGATION_ENABLED;
+    delete process.env.PI_IRRIGATION_ARMED;
+    delete process.env.PI_IRRIGATION_API_KEY;
+    assert.equal(getEnv().piIrrigationEnabled, false);
+    assert.equal(getEnv().piIrrigationArmed, false);
+
+    process.env.PI_IRRIGATION_ENABLED = 'true';
+    process.env.PI_IRRIGATION_API_KEY = 'i'.repeat(40);
+    assert.equal(getEnv().piIrrigationEnabled, true);
+    assert.equal(getEnv().piIrrigationArmed, false);
+
+    process.env.PI_IRRIGATION_ARMED = 'true';
+    assert.equal(getEnv().piIrrigationArmed, true);
+    process.env.PI_IRRIGATION_ENABLED = 'false';
+    assert.throws(() => getEnv(), /PI_IRRIGATION_ENABLED must be true/);
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test('Pi sensor control and servo motion have separate feature gates and validated timeouts', () => {
+  const keys = [
+    'NODE_ENV', 'PI_CONTROL_ENABLED', 'PI_SERVO_CONTROL_ENABLED', 'PI_CONTROL_BASE_URL',
+    'PI_CONTROL_TIMEOUT_MS', 'PI_SENSOR_STALE_SECONDS'
+  ];
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  try {
+    process.env.NODE_ENV = 'test';
+    delete process.env.PI_CONTROL_ENABLED;
+    delete process.env.PI_SERVO_CONTROL_ENABLED;
+    delete process.env.PI_CONTROL_BASE_URL;
+    delete process.env.PI_CONTROL_TIMEOUT_MS;
+    delete process.env.PI_SENSOR_STALE_SECONDS;
+    assert.equal(getEnv().piControlEnabled, false);
+    assert.equal(getEnv().piServoControlEnabled, false);
+    assert.equal(getEnv().piControlTimeoutMs, 5000);
+    assert.equal(getEnv().piSensorStaleSeconds, 7);
+
+    process.env.PI_SERVO_CONTROL_ENABLED = 'true';
+    assert.throws(() => getEnv(), /PI_CONTROL_BASE_URL is required/);
+    process.env.PI_CONTROL_BASE_URL = 'http://127.0.0.1:8765';
+    assert.throws(() => getEnv(), /PI_CONTROL_ENABLED must be true/);
+    process.env.PI_CONTROL_ENABLED = 'true';
+    assert.equal(getEnv().piServoControlEnabled, true);
+
+    process.env.PI_CONTROL_TIMEOUT_MS = '999';
+    assert.throws(() => getEnv(), /PI_CONTROL_TIMEOUT_MS must be an integer/);
+    process.env.PI_CONTROL_TIMEOUT_MS = '5000';
+    process.env.PI_SENSOR_STALE_SECONDS = '1';
+    assert.throws(() => getEnv(), /PI_SENSOR_STALE_SECONDS must be an integer/);
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});

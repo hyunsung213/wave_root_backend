@@ -7,6 +7,7 @@ const PRODUCTS = Object.freeze({
   lettuce: Object.freeze({ id: 'lettuce', name: '상추', price: 3000, growthTargetDays: 45 }),
   romaine: Object.freeze({ id: 'romaine', name: '로메인', price: 4000, growthTargetDays: 68 }),
   tomato: Object.freeze({ id: 'tomato', name: '토마토', price: 6000, growthTargetDays: 80 }),
+  cherry_tomato: Object.freeze({ id: 'cherry_tomato', name: '방울토마토', price: 6000, growthTargetDays: 80 }),
   pepper: Object.freeze({ id: 'pepper', name: '고추', price: 5000, growthTargetDays: 80 }),
   arugula: Object.freeze({ id: 'arugula', name: '루꼴라', price: 4000, growthTargetDays: 45 }),
   green_oakleaf_lettuce: Object.freeze({ id: 'green_oakleaf_lettuce', name: '청오크 상추', price: 4000, growthTargetDays: 55 }),
@@ -18,5 +19,14 @@ const PRODUCTS = Object.freeze({
   young_napa_cabbage: Object.freeze({ id: 'young_napa_cabbage', name: '얼갈이 배추', price: null, growthTargetDays: null })
 });
 const DEFAULT_AVAILABILITY = Object.freeze({ bok_choy: AVAILABILITY.UPCOMING, young_napa_cabbage: AVAILABILITY.UPCOMING });
+const HYDROPONIC_DEFAULT_AVAILABILITY = Object.freeze({ ...DEFAULT_AVAILABILITY, cherry_tomato: AVAILABILITY.BLOCKED });
+const Y_FARM_DEFAULT_AVAILABILITY = Object.freeze({
+  ...Object.fromEntries(Object.keys(PRODUCTS).map((productId) => [productId, AVAILABILITY.BLOCKED])),
+  cherry_tomato: AVAILABILITY.AVAILABLE
+});
+const DEFAULT_SITE_AVAILABILITY = Object.freeze({
+  HYDROPONIC: HYDROPONIC_DEFAULT_AVAILABILITY,
+  Y_FARM: Y_FARM_DEFAULT_AVAILABILITY
+});
 
-module.exports = { PASS_PRICE, PRODUCTS, AVAILABILITY, DEFAULT_AVAILABILITY };
+module.exports = { PASS_PRICE, PRODUCTS, AVAILABILITY, DEFAULT_AVAILABILITY, DEFAULT_SITE_AVAILABILITY };

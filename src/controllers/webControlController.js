@@ -4,6 +4,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const { findOwnedPlant } = require('../utils/plant');
 const { recordUserActivity } = require('../services/userActivity');
 const { requireObjectId, requireNumber, requireNonEmptyString } = require('../utils/validation');
+const { SITE_CODES } = require('../config/farmSites');
+const { getEnv } = require('../config/env');
 const MAX_WATER_VOLUME_ML = 100;
 
 const requestWater = asyncHandler(async (req, res) => {
@@ -13,10 +15,15 @@ const requestWater = asyncHandler(async (req, res) => {
     throw new AppError(`volume must be greater than 0 and at most ${MAX_WATER_VOLUME_ML} mL.`, 400);
   }
   const plant = await findOwnedPlant(plantId, req.user._id);
+  if (plant.siteCode !== SITE_CODES.Y_FARM) {
+    throw new AppError('수경재배 식물에는 급수 서비스를 제공하지 않습니다.', 409);
+  }
+  const irrigationEnv = getEnv();
+  if (!irrigationEnv.piIrrigationEnabled || !irrigationEnv.piIrrigationArmed) {
+    throw new AppError('Y-Farm 급수 서비스가 현장 보정 후 활성화되어야 합니다.', 503);
+  }
   const idempotencyKey = req.get('Idempotency-Key') || req.body.idempotencyKey;
-  const normalizedKey = idempotencyKey === undefined || idempotencyKey === null
-    ? null
-    : requireNonEmptyString(idempotencyKey, 'idempotencyKey', 100);
+  const normalizedKey = requireNonEmptyString(idempotencyKey, 'Idempotency-Key', 100);
 
   if (normalizedKey) {
     const existing = await Command.findOne({ requestedBy: req.user._id, idempotencyKey: normalizedKey });
@@ -29,7 +36,7 @@ const requestWater = asyncHandler(async (req, res) => {
   }
 
   if (!plant.irrigationEnabled || !plant.irrigationDeviceId ||
-      !Number.isInteger(plant.irrigationOutletIndex) ||
+      !Number.isInteger(plant.irrigationNozzleNo) ||
       ![1, 2].includes(plant.irrigationPumpId)) {
     throw new AppError('Irrigation is not assigned to this plant.', 409);
   }
@@ -40,11 +47,12 @@ const requestWater = asyncHandler(async (req, res) => {
       plantId,
       activePlantId: plantId,
       requestedBy: req.user._id,
+      siteCode: SITE_CODES.Y_FARM,
       type: 'WATER',
       volume,
       idempotencyKey: normalizedKey,
       irrigationDeviceId: plant.irrigationDeviceId,
-      irrigationOutletIndex: plant.irrigationOutletIndex,
+      irrigationNozzleNo: plant.irrigationNozzleNo,
       irrigationPumpId: plant.irrigationPumpId
     });
   } catch (error) {

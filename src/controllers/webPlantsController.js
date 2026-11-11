@@ -13,16 +13,27 @@ const { findOwnedPlant, getStreamUrl } = require('../utils/plant');
 const { recordUserActivity } = require('../services/userActivity');
 const { requireNonEmptyString, requirePositiveInteger, getPositiveIntegerQuery } = require('../utils/validation');
 const { eventUploadDirectory } = require('../middlewares/eventUpload');
+const { SITE_CODES } = require('../config/farmSites');
+const { getPiCurrentSensor } = require('../services/piControlService');
 
 function withGrowthData(plant) {
   const value = typeof plant.toJSON === 'function' ? plant.toJSON() : { ...plant };
   const createdAt = new Date(value.createdAt);
   const growthTargetDays = value.growthTargetDays || 60;
+  const siteCode = value.siteCode || SITE_CODES.HYDROPONIC;
+  const irrigationEnv = getEnv();
+  const irrigationReady = siteCode === SITE_CODES.Y_FARM && value.irrigationEnabled === true &&
+    irrigationEnv.piIrrigationEnabled && irrigationEnv.piIrrigationArmed;
   const growthDays = Number.isNaN(createdAt.getTime())
     ? 0
     : Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / 86400000));
   return {
     ...value,
+    siteCode,
+    capabilities: {
+      streaming: true,
+      irrigation: irrigationReady
+    },
     growthTargetDays,
     growthDays,
     growthPercent: Math.min(100, Math.round((growthDays / growthTargetDays) * 100))
@@ -95,7 +106,10 @@ const getPlantDetail = asyncHandler(async (req, res) => {
     plant: {
       ...withGrowthData(plant),
       streamingUrl,
-      streamingStatus: !plant.rdkCameraId || plant.rdkZone == null
+      streamingStatus: plant.siteCode === SITE_CODES.Y_FARM
+        ? (!plant.streamGatewayId || !plant.streamCameraId || plant.streamZone == null
+          ? 'unassigned' : streamingUrl ? 'ready' : 'unavailable')
+        : !plant.rdkCameraId || plant.rdkZone == null
         ? 'unassigned'
         : streamingUrl ? 'ready' : 'unavailable'
     }
@@ -172,6 +186,12 @@ const listPlantsWithRecords = asyncHandler(async (req, res) => {
 });
 const getCurrentSensorData = asyncHandler(async (req, res) => {
   const plant = await findOwnedPlant(req.params.plantId, req.user._id);
+  if (plant.siteCode === SITE_CODES.Y_FARM) {
+    const sensor = await getPiCurrentSensor();
+    await recordUserActivity(req.user._id, 'liveStreamView');
+    return res.json({ success: true, sensor });
+  }
+
   const { rdkSensorStaleMs } = getEnv();
   const snapshot = await SensorSnapshot.findOne({ plantId: plant._id }).lean();
   if (!snapshot) throw new AppError('Current sensor data has not been received from the RDK yet.', 503);
@@ -190,6 +210,13 @@ const getCurrentSensorData = asyncHandler(async (req, res) => {
 
 const deletePlant = asyncHandler(async (req, res) => {
   const plant = await findOwnedPlant(req.params.plantId, req.user._id);
+  if (plant.siteCode === SITE_CODES.Y_FARM && await Command.exists({
+    plantId: plant._id,
+    siteCode: SITE_CODES.Y_FARM,
+    status: { $in: ['PENDING', 'DISPATCHED', 'NEEDS_REVIEW'] }
+  })) {
+    throw new AppError('Resolve the active Y-Farm watering request before deleting this plant.', 409);
+  }
   const events = await Event.find({ plantId: plant._id }).select('imageUrl').lean();
   await Promise.all(events.map((event) => removeEventImage(event.imageUrl)));
   await Promise.all([

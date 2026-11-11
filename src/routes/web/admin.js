@@ -4,6 +4,8 @@ const {
   listAllUsers,
   listAllPlants,
   updatePlantCameraAssignment,
+  updatePlantSite,
+  updatePlantStreamAssignment,
   listRdkCameras,
   getRdkCameraFrame,
   getRdkCameraCalibration,
@@ -31,6 +33,7 @@ const { updatePlantIrrigationAssignment, acknowledgeUncertainCommand } =
   require('../../controllers/irrigationAdminController');
 const { getAdminAlertSettings, updateAdminAlertSettings, sendAdminTestAlert } = require('../../controllers/webAdminAlertsController');
 const { listAdminCatalog, updateAdminCatalogStatus } = require('../../controllers/webCatalogController');
+const { getYFarmPiStatus, moveYFarmPiNozzle } = require('../../controllers/webPiController');
 
 const router = express.Router();
 
@@ -40,6 +43,8 @@ router.patch('/catalog/:productId', requireAdmin, updateAdminCatalogStatus);
 router.get('/users', requireAdmin, listAllUsers);
 router.get('/plants', requireAdmin, listAllPlants);
 router.patch('/plants/:plantId/camera', requireAdmin, updatePlantCameraAssignment);
+router.patch('/plants/:plantId/site', requireAdmin, updatePlantSite);
+router.patch('/plants/:plantId/stream', requireAdmin, updatePlantStreamAssignment);
 router.patch('/plants/:plantId/irrigation', requireAdmin, updatePlantIrrigationAssignment);
 router.post('/irrigation/commands/:commandId/acknowledge', requireAdmin, acknowledgeUncertainCommand);
 router.get('/cameras', requireAdmin, listRdkCameras);
@@ -60,6 +65,8 @@ router.get('/cameras/:cameraId/perspective', requireAdmin, getRdkCameraPerspecti
 router.put('/cameras/:cameraId/perspective', requireAdmin, updateRdkCameraPerspective);
 router.delete('/cameras/:cameraId/perspective', requireAdmin, resetRdkCameraPerspective);
 router.get('/sensor', requireAdmin, getGlobalSensor);
+router.get('/pi/status', requireAdmin, getYFarmPiStatus);
+router.post('/pi/nozzle', requireAdmin, moveYFarmPiNozzle);
 router.get('/orders', requireAdmin, listAdminOrders);
 router.post('/orders/:orderId/confirm', requireAdmin, confirmAdminOrder);
 router.get('/coupons', requireAdmin, listAdminCoupons);

@@ -13,6 +13,7 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { normalizeCouponCode, calculateDiscount, assertCouponAvailable } = require('../services/commerce');
 const { sendOrderAlert } = require('../services/discordAlerts');
+const { SITE_CODES, isSiteCode } = require('../config/farmSites');
 
 function makeOrderNumber() {
   const date = new Date().toISOString().slice(2, 10).replace(/-/g, '');
@@ -30,7 +31,9 @@ async function findApplicableCoupon(codeValue, userId) {
 }
 
 const validateCoupon = asyncHandler(async (req, res) => {
-  const product = await requireOrderableProduct(requireNonEmptyString(req.body.productId, 'productId', 40));
+  const siteCode = req.body.siteCode === undefined ? SITE_CODES.HYDROPONIC : req.body.siteCode;
+  if (!isSiteCode(siteCode)) throw new AppError('siteCode must be HYDROPONIC or Y_FARM.', 400);
+  const product = await requireOrderableProduct(requireNonEmptyString(req.body.productId, 'productId', 40), siteCode);
   const coupon = await findApplicableCoupon(req.body.code, req.user._id);
   const subtotal = product.price + PASS_PRICE;
   const discountAmount = calculateDiscount(subtotal, coupon);
@@ -51,7 +54,9 @@ const listMyCoupons = asyncHandler(async (req, res) => {
 });
 
 const createOrder = asyncHandler(async (req, res) => {
-  const product = await requireOrderableProduct(requireNonEmptyString(req.body.productId, 'productId', 40));
+  const siteCode = req.body.siteCode === undefined ? SITE_CODES.HYDROPONIC : req.body.siteCode;
+  if (!isSiteCode(siteCode)) throw new AppError('siteCode must be HYDROPONIC or Y_FARM.', 400);
+  const product = await requireOrderableProduct(requireNonEmptyString(req.body.productId, 'productId', 40), siteCode);
   const plantName = requireNonEmptyString(req.body.plantName, 'plantName', 60);
   const depositorName = requireNonEmptyString(req.body.depositorName, 'depositorName', 80);
   const subtotal = product.price + PASS_PRICE;
@@ -83,6 +88,7 @@ const createOrder = asyncHandler(async (req, res) => {
     const order = await Order.create({
       orderNumber, userId: req.user._id,
       productId: product.id, productName: product.name, plantName,
+      siteCode,
       productPrice: product.price, productGrowthTargetDays: product.growthTargetDays, passPrice: PASS_PRICE, subtotal,
       couponId: coupon?._id || null, couponCode: coupon?.code || null,
       couponName: coupon?.name || null,
@@ -132,7 +138,7 @@ const cancelMyOrder = asyncHandler(async (req, res) => {
 const listAdminOrders = asyncHandler(async (_req, res) => {
   const orders = await Order.find()
     .populate('userId', 'name email phone')
-    .populate('plantId', 'rdkCameraId rdkZone')
+    .populate('plantId', 'siteCode rdkCameraId rdkZone streamGatewayId streamCameraId streamZone')
     .sort({ createdAt: -1 })
     .limit(500)
     .lean();
@@ -156,6 +162,7 @@ const confirmAdminOrder = asyncHandler(async (req, res) => {
   try {
     plant = await Plant.findOneAndUpdate({ orderId: order._id }, { $setOnInsert: {
       userId: order.userId, name: order.plantName, type: order.productName,
+      siteCode: order.siteCode || SITE_CODES.HYDROPONIC,
       growthTargetDays: order.productGrowthTargetDays || PRODUCTS[order.productId].growthTargetDays,
       rdkCameraId: null, rdkZone: null, orderId: order._id
     } }, { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true });
